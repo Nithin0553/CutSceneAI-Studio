@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scene",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "beats": { "type": "array" }
+  },
+  "required": ["id"]
+}

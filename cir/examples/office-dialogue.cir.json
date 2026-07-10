@@ -1,0 +1,14 @@
+{
+  "project": {
+    "name": "Office Dialogue"
+  },
+  "scene": {
+    "id": "scene-001",
+    "beats": [
+      {
+        "id": "beat-001",
+        "description": "A tense exchange between two colleagues."
+      }
+    ]
+  }
+}
