@@ -8,6 +8,17 @@ venv/
 .env
 .env.*
 
+# Python packaging
+*.egg-info/
+
+# Python tooling
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -18,5 +29,3 @@ Thumbs.db
 
 # Docker
 *.log
-# Python packaging
-*.egg-info/
