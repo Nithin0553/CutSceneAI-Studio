@@ -22,7 +22,12 @@ from .models import (
     Transform,
     Vector3,
 )
-from .validation import validate_project
+from .validation import (
+    CIRValidationError,
+    CIRValidationIssue,
+    validate_project,
+    validate_project_model,
+)
 
 __all__ = [
     "Axis",
@@ -30,6 +35,8 @@ __all__ = [
     "CameraFraming",
     "CameraMovement",
     "CameraPlan",
+    "CIRValidationError",
+    "CIRValidationIssue",
     "Character",
     "DialoguePlan",
     "EnvironmentObject",
@@ -48,4 +55,5 @@ __all__ = [
     "Transform",
     "Vector3",
     "validate_project",
+    "validate_project_model",
 ]
