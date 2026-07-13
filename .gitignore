@@ -18,3 +18,5 @@ Thumbs.db
 
 # Docker
 *.log
+# Python packaging
+*.egg-info/

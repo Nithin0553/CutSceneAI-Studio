@@ -1,0 +1,1 @@
+"""CutSceneAI Studio backend application."""
