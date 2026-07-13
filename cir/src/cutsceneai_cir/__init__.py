@@ -22,6 +22,13 @@ from .models import (
     Transform,
     Vector3,
 )
+from .schema import (
+    JSON_SCHEMA_DIALECT,
+    PROJECT_SCHEMA_ID,
+    project_json_schema,
+    render_project_json_schema,
+    write_project_json_schema,
+)
 from .validation import (
     CIRValidationError,
     CIRValidationIssue,
@@ -43,10 +50,12 @@ __all__ = [
     "FacialPlan",
     "GenerationMetadata",
     "Handedness",
+    "JSON_SCHEMA_DIALECT",
     "MotionPlan",
     "PerformancePlan",
     "Project",
     "ProjectSettings",
+    "PROJECT_SCHEMA_ID",
     "Quaternion",
     "Scene",
     "SceneBeat",
@@ -54,6 +63,9 @@ __all__ = [
     "ShotPurpose",
     "Transform",
     "Vector3",
+    "project_json_schema",
+    "render_project_json_schema",
     "validate_project",
     "validate_project_model",
+    "write_project_json_schema",
 ]

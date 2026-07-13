@@ -2,20 +2,59 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  quality:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Install backend dependencies
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            cir/pyproject.toml
+            backend/pyproject.toml
+
+      - name: Install development dependencies
         run: |
-          pip install -e ./backend
-      - name: Health check
+          python -m pip install --upgrade pip
+          python -m pip install -e "./cir[dev]" -e "./backend[dev]"
+
+      - name: Check lint and formatting
         run: |
-          python -c "from backend.app.main import app; print(app.title)"
+          python -m ruff check cir/src cir/scripts cir/tests backend/app backend/tests
+          python -m ruff format --check cir/src cir/scripts cir/tests backend/app backend/tests
+
+      - name: Check static types
+        run: python -m mypy cir/src backend/app
+
+      - name: Check generated CIR schema
+        run: python cir/scripts/export_schema.py --check
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest cir/tests backend/tests -q \
+            --cov=cutsceneai_cir \
+            --cov=app \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-fail-under=95

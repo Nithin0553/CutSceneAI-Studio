@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Protocol
 
 from .models import Axis, Project, Scene, ShotPurpose
 
@@ -32,6 +33,12 @@ class CIRValidationError(ValueError):
 _TIMELINE_EPSILON = 1e-9
 
 
+class _TimelineItem(Protocol):
+    id: str
+    start_seconds: float
+    duration_seconds: float
+
+
 def _add_duplicate_id_issues(
     entries: list[tuple[str, str]], issues: list[CIRValidationIssue]
 ) -> None:
@@ -53,7 +60,10 @@ def _add_duplicate_id_issues(
 def _add_timeline_issues(
     *, scene: Scene, scene_index: int, issues: list[CIRValidationIssue]
 ) -> None:
-    timeline_groups = (("beats", scene.beats), ("shots", scene.shots))
+    timeline_groups: tuple[tuple[str, Sequence[_TimelineItem]], ...] = (
+        ("beats", scene.beats),
+        ("shots", scene.shots),
+    )
     for group_name, items in timeline_groups:
         intervals: list[tuple[float, float, str, str]] = []
         for item_index, item in enumerate(items):
