@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="CutSceneAI Studio API")
+from app.api import cir_router
+
+
+app = FastAPI(title="CutSceneAI Studio API", version="0.1.0")
+app.include_router(cir_router)
+
 
 @app.get("/health")
 def health() -> dict[str, str]:

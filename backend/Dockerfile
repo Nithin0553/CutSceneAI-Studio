@@ -2,10 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY app ./app
+COPY cir/pyproject.toml /packages/cir/pyproject.toml
+COPY cir/src /packages/cir/src
+COPY backend/pyproject.toml ./pyproject.toml
+COPY backend/app ./app
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir /packages/cir .
 
 EXPOSE 8000
 
