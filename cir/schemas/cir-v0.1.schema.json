@@ -1,0 +1,838 @@
+{
+  "$defs": {
+    "Axis": {
+      "enum": [
+        "x",
+        "y",
+        "z",
+        "-x",
+        "-y",
+        "-z"
+      ],
+      "title": "Axis",
+      "type": "string"
+    },
+    "CameraAngle": {
+      "enum": [
+        "eye_level",
+        "low",
+        "high",
+        "dutch",
+        "overhead"
+      ],
+      "title": "CameraAngle",
+      "type": "string"
+    },
+    "CameraFraming": {
+      "enum": [
+        "extreme_wide",
+        "wide",
+        "medium_wide",
+        "medium",
+        "medium_close_up",
+        "close_up",
+        "extreme_close_up",
+        "over_the_shoulder",
+        "point_of_view",
+        "insert"
+      ],
+      "title": "CameraFraming",
+      "type": "string"
+    },
+    "CameraMovement": {
+      "enum": [
+        "static",
+        "pan",
+        "tilt",
+        "dolly",
+        "truck",
+        "crane",
+        "handheld",
+        "orbit"
+      ],
+      "title": "CameraMovement",
+      "type": "string"
+    },
+    "CameraPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/CameraAngle",
+          "default": "eye_level"
+        },
+        "composition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Composition"
+        },
+        "framing": {
+          "$ref": "#/$defs/CameraFraming"
+        },
+        "lens_mm": {
+          "default": 50.0,
+          "maximum": 300.0,
+          "minimum": 8.0,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "movement": {
+          "$ref": "#/$defs/CameraMovement",
+          "default": "static"
+        },
+        "target_ids": {
+          "items": {
+            "description": "Stable lowercase identifier used by CIR references.",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Target Ids",
+          "type": "array"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "framing"
+      ],
+      "title": "CameraPlan",
+      "type": "object"
+    },
+    "Character": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "initial_transform": {
+          "$ref": "#/$defs/Transform"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "rig_profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rig Profile"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Character",
+      "type": "object"
+    },
+    "DialoguePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Uri"
+        },
+        "language": {
+          "default": "en",
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "start_offset_seconds": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Start Offset Seconds",
+          "type": "number"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "DialoguePlan",
+      "type": "object"
+    },
+    "EnvironmentObject": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Uri"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "importance": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Importance",
+          "type": "number"
+        },
+        "initial_transform": {
+          "$ref": "#/$defs/Transform"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "EnvironmentObject",
+      "type": "object"
+    },
+    "FacialPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Uri"
+        },
+        "emotion": {
+          "default": "neutral",
+          "minLength": 1,
+          "title": "Emotion",
+          "type": "string"
+        },
+        "intensity": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "lip_sync": {
+          "default": true,
+          "title": "Lip Sync",
+          "type": "boolean"
+        }
+      },
+      "title": "FacialPlan",
+      "type": "object"
+    },
+    "GenerationMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "generator": {
+          "default": "manual",
+          "minLength": 1,
+          "title": "Generator",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        }
+      },
+      "title": "GenerationMetadata",
+      "type": "object"
+    },
+    "Handedness": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Handedness",
+      "type": "string"
+    },
+    "MotionPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Uri"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Style"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "title": "MotionPlan",
+      "type": "object"
+    },
+    "PerformancePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "character_id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Character Id",
+          "type": "string"
+        },
+        "dialogue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DialoguePlan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "facial": {
+          "$ref": "#/$defs/FacialPlan"
+        },
+        "look_at_id": {
+          "anyOf": [
+            {
+              "description": "Stable lowercase identifier used by CIR references.",
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look At Id"
+        },
+        "motion": {
+          "$ref": "#/$defs/MotionPlan"
+        }
+      },
+      "required": [
+        "character_id",
+        "motion"
+      ],
+      "title": "PerformancePlan",
+      "type": "object"
+    },
+    "ProjectSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "meter",
+          "default": "meter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "-z"
+        },
+        "fps": {
+          "default": 24,
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        },
+        "handedness": {
+          "$ref": "#/$defs/Handedness",
+          "default": "right"
+        },
+        "time_unit": {
+          "const": "second",
+          "default": "second",
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "up_axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "y"
+        }
+      },
+      "title": "ProjectSettings",
+      "type": "object"
+    },
+    "Quaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quaternion",
+      "type": "object"
+    },
+    "Scene": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/SceneBeat"
+          },
+          "minItems": 1,
+          "title": "Beats",
+          "type": "array"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "minLength": 1,
+          "title": "Location",
+          "type": "string"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/Shot"
+          },
+          "minItems": 1,
+          "title": "Shots",
+          "type": "array"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "location",
+        "duration_seconds",
+        "beats",
+        "shots"
+      ],
+      "title": "Scene",
+      "type": "object"
+    },
+    "SceneBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "environment_focus_ids": {
+          "items": {
+            "description": "Stable lowercase identifier used by CIR references.",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Environment Focus Ids",
+          "type": "array"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "narrative_intent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Narrative Intent"
+        },
+        "performances": {
+          "items": {
+            "$ref": "#/$defs/PerformancePlan"
+          },
+          "title": "Performances",
+          "type": "array"
+        },
+        "start_seconds": {
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "start_seconds",
+        "duration_seconds",
+        "description"
+      ],
+      "title": "SceneBeat",
+      "type": "object"
+    },
+    "Shot": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_ids": {
+          "items": {
+            "description": "Stable lowercase identifier used by CIR references.",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Beat Ids",
+          "type": "array"
+        },
+        "camera": {
+          "$ref": "#/$defs/CameraPlan"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by CIR references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ShotPurpose"
+        },
+        "start_seconds": {
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "subject_ids": {
+          "items": {
+            "description": "Stable lowercase identifier used by CIR references.",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Subject Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "beat_ids",
+        "start_seconds",
+        "duration_seconds",
+        "purpose",
+        "description",
+        "camera"
+      ],
+      "title": "Shot",
+      "type": "object"
+    },
+    "ShotPurpose": {
+      "enum": [
+        "establishing",
+        "environment_detail",
+        "dialogue",
+        "reaction",
+        "action",
+        "transition"
+      ],
+      "title": "ShotPurpose",
+      "type": "string"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/Vector3"
+        },
+        "rotation": {
+          "$ref": "#/$defs/Quaternion"
+        },
+        "scale": {
+          "$ref": "#/$defs/Vector3"
+        }
+      },
+      "title": "Transform",
+      "type": "object"
+    },
+    "Vector3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vector3",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/cir/v0.1/project.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "characters": {
+      "items": {
+        "$ref": "#/$defs/Character"
+      },
+      "title": "Characters",
+      "type": "array"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "environment": {
+      "items": {
+        "$ref": "#/$defs/EnvironmentObject"
+      },
+      "title": "Environment",
+      "type": "array"
+    },
+    "generation": {
+      "$ref": "#/$defs/GenerationMetadata"
+    },
+    "id": {
+      "description": "Stable lowercase identifier used by CIR references.",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/Scene"
+      },
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "settings": {
+      "$ref": "#/$defs/ProjectSettings"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "scenes"
+  ],
+  "title": "Project",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cutsceneai-cir"
+version = "0.1.0"
+description = "CIR models and validation utilities for CutSceneAI Studio"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    # The committed JSON Schema is generated with this exact Pydantic release.
+    "pydantic==2.13.4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "jsonschema>=4.22.0,<5.0.0",
+    "mypy>=1.10.0,<2.0.0",
+    "pytest>=8.0.0,<10.0.0",
+    "pytest-cov>=5.0.0,<8.0.0",
+    "ruff>=0.5.0,<1.0.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cutsceneai_cir*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

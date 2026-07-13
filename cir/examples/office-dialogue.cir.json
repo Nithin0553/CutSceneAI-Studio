@@ -1,14 +1,227 @@
 {
-  "project": {
-    "name": "Office Dialogue"
+  "schema_version": "0.1.0",
+  "id": "office-dialogue",
+  "name": "Office Dialogue",
+  "description": "A tense exchange between a manager and an employee.",
+  "settings": {
+    "fps": 24,
+    "distance_unit": "meter",
+    "time_unit": "second",
+    "handedness": "right",
+    "up_axis": "y",
+    "forward_axis": "-z"
   },
-  "scene": {
-    "id": "scene-001",
-    "beats": [
-      {
-        "id": "beat-001",
-        "description": "A tense exchange between two colleagues."
+  "generation": {
+    "generator": "manual-fixture",
+    "prompt_version": "cir-v0.1"
+  },
+  "characters": [
+    {
+      "id": "mina",
+      "name": "Mina",
+      "role": "Manager",
+      "description": "Controlled but visibly frustrated.",
+      "rig_profile": "humanoid",
+      "initial_transform": {
+        "position": {"x": -1.5, "y": 0.0, "z": 1.0}
       }
-    ]
-  }
+    },
+    {
+      "id": "arjun",
+      "name": "Arjun",
+      "role": "Employee",
+      "description": "Defensive and increasingly worried.",
+      "rig_profile": "humanoid",
+      "initial_transform": {
+        "position": {"x": 1.0, "y": 0.0, "z": 0.5}
+      }
+    }
+  ],
+  "environment": [
+    {
+      "id": "contract",
+      "name": "Unsigned Contract",
+      "description": "A contract placed prominently on the conference table.",
+      "importance": 0.95,
+      "initial_transform": {
+        "position": {"x": 0.0, "y": 0.8, "z": 0.0}
+      }
+    },
+    {
+      "id": "conference-table",
+      "name": "Conference Table",
+      "importance": 0.6
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-meeting",
+      "title": "The Meeting",
+      "location": "Corporate conference room",
+      "duration_seconds": 18.0,
+      "beats": [
+        {
+          "id": "beat-arrival",
+          "start_seconds": 0.0,
+          "duration_seconds": 4.0,
+          "description": "Mina enters and notices the unsigned contract.",
+          "narrative_intent": "Establish the room, the characters, and the source of tension.",
+          "environment_focus_ids": ["contract"],
+          "performances": [
+            {
+              "character_id": "mina",
+              "motion": {
+                "prompt": "Walk briskly into the room, stop at the table, and look down at the contract.",
+                "style": "restrained tension"
+              },
+              "facial": {
+                "emotion": "frustrated",
+                "intensity": 0.65,
+                "lip_sync": false
+              },
+              "look_at_id": "contract"
+            }
+          ]
+        },
+        {
+          "id": "beat-confrontation",
+          "start_seconds": 4.0,
+          "duration_seconds": 10.0,
+          "description": "Mina confronts Arjun about the unsigned contract.",
+          "narrative_intent": "Deliver the central conflict and increase pressure.",
+          "environment_focus_ids": ["contract"],
+          "performances": [
+            {
+              "character_id": "mina",
+              "motion": {
+                "prompt": "Point toward the contract, then fold both arms while maintaining eye contact.",
+                "style": "authoritative"
+              },
+              "facial": {
+                "emotion": "angry",
+                "intensity": 0.75,
+                "lip_sync": true
+              },
+              "dialogue": {
+                "text": "You said this would be signed yesterday.",
+                "language": "en",
+                "start_offset_seconds": 1.0
+              },
+              "look_at_id": "arjun"
+            },
+            {
+              "character_id": "arjun",
+              "motion": {
+                "prompt": "Shift weight backward, glance at the contract, and raise one hand defensively.",
+                "style": "uneasy"
+              },
+              "facial": {
+                "emotion": "worried",
+                "intensity": 0.7,
+                "lip_sync": true
+              },
+              "dialogue": {
+                "text": "Legal changed the final clause. I was waiting for approval.",
+                "language": "en",
+                "start_offset_seconds": 5.0
+              },
+              "look_at_id": "mina"
+            }
+          ]
+        },
+        {
+          "id": "beat-reaction",
+          "start_seconds": 14.0,
+          "duration_seconds": 4.0,
+          "description": "Arjun realizes Mina does not accept his explanation.",
+          "narrative_intent": "End on an unresolved emotional reaction.",
+          "performances": [
+            {
+              "character_id": "arjun",
+              "motion": {
+                "prompt": "Lower the raised hand slowly and become still.",
+                "style": "defeated"
+              },
+              "facial": {
+                "emotion": "anxious",
+                "intensity": 0.8,
+                "lip_sync": false
+              },
+              "look_at_id": "mina"
+            }
+          ]
+        }
+      ],
+      "shots": [
+        {
+          "id": "shot-establishing",
+          "beat_ids": ["beat-arrival"],
+          "start_seconds": 0.0,
+          "duration_seconds": 4.0,
+          "purpose": "establishing",
+          "description": "Wide view revealing the office, Mina, Arjun, and the table.",
+          "subject_ids": ["mina", "arjun", "conference-table"],
+          "camera": {
+            "framing": "wide",
+            "angle": "eye_level",
+            "movement": "dolly",
+            "lens_mm": 28.0,
+            "target_ids": ["mina", "arjun"],
+            "composition": "Slow push-in while preserving room geography."
+          }
+        },
+        {
+          "id": "shot-contract-detail",
+          "beat_ids": ["beat-confrontation"],
+          "start_seconds": 4.0,
+          "duration_seconds": 2.0,
+          "purpose": "environment_detail",
+          "description": "Insert shot revealing the unsigned signature line.",
+          "subject_ids": ["contract"],
+          "camera": {
+            "framing": "insert",
+            "angle": "high",
+            "movement": "static",
+            "lens_mm": 70.0,
+            "target_ids": ["contract"],
+            "composition": "Keep the empty signature line in the upper-right intersection."
+          }
+        },
+        {
+          "id": "shot-dialogue",
+          "beat_ids": ["beat-confrontation"],
+          "start_seconds": 6.0,
+          "duration_seconds": 8.0,
+          "purpose": "dialogue",
+          "description": "Over-the-shoulder coverage of the confrontation.",
+          "subject_ids": ["mina", "arjun"],
+          "camera": {
+            "framing": "over_the_shoulder",
+            "angle": "eye_level",
+            "movement": "static",
+            "lens_mm": 50.0,
+            "target_ids": ["mina", "arjun"],
+            "composition": "Prioritize Mina while retaining Arjun in the foreground."
+          }
+        },
+        {
+          "id": "shot-reaction",
+          "beat_ids": ["beat-reaction"],
+          "start_seconds": 14.0,
+          "duration_seconds": 4.0,
+          "purpose": "reaction",
+          "description": "Close-up of Arjun absorbing Mina's response.",
+          "subject_ids": ["arjun"],
+          "camera": {
+            "framing": "close_up",
+            "angle": "eye_level",
+            "movement": "static",
+            "lens_mm": 85.0,
+            "target_ids": ["arjun"],
+            "composition": "Hold steady and preserve negative space toward Mina."
+          }
+        }
+      ]
+    }
+  ]
 }
