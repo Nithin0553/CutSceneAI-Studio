@@ -2,7 +2,7 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
-The repository is currently at **Foundation v0.1**. The CIR contract and validation API are working; generation agents, preview rendering, and engine adapters follow on top of this stable foundation.
+The repository includes the CIR foundation, Director Agent v0.1, and an engine-neutral Preview v0.1 pipeline. Engine adapters build on these stable contracts.
 
 ## What works now
 
@@ -11,6 +11,9 @@ The repository is currently at **Foundation v0.1**. The CIR contract and validat
 - Reference, timeline, coordinate-axis, establishing-shot, and environment-detail validation
 - A complete office-dialogue fixture with one scene, three beats, and four shots
 - `POST /api/v1/cir/validate` with structured success and error responses
+- `POST /api/v1/director/generate` for prompt-to-CIR generation
+- `POST /api/v1/preview/compile` for deterministic preview manifests
+- `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
 - A committed JSON Schema artifact with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -19,9 +22,9 @@ The repository is currently at **Foundation v0.1**. The CIR contract and validat
 | Layer | Responsibility | Status |
 | --- | --- | --- |
 | CIR | Portable cinematic data contract and domain validation | Foundation v0.1 complete |
-| Backend | HTTP boundary for validating and later orchestrating projects | Validation endpoint complete |
-| Director and specialist agents | Convert creative intent into CIR plans | Next milestone |
-| Preview services | Assemble low-cost visual and audio previews | Planned |
+| Backend | HTTP boundary for validation, generation, and preview compilation | v0.1 complete |
+| Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
+| Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
 | Engine adapters | Translate CIR into Unreal, then Unity timelines | Planned |
 
 ## Local setup
@@ -34,7 +37,7 @@ Run these commands from the repository root. Python 3.12 is the recommended loca
 py -3.12 -m venv .venv3.12
 .\.venv3.12\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".\cir[dev]" -e ".\backend[dev]"
+python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\backend[dev]"
 ```
 
 ### macOS or Linux
@@ -43,17 +46,18 @@ python -m pip install -e ".\cir[dev]" -e ".\backend[dev]"
 python3.12 -m venv .venv3.12
 source .venv3.12/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "./cir[dev]" -e "./backend[dev]"
+python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./backend[dev]"
 ```
 
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir\src cir\scripts cir\tests backend\app backend\tests
-python -m ruff format --check cir\src cir\scripts cir\tests backend\app backend\tests
-python -m mypy cir\src backend\app
+python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests backend\app backend\tests
+python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests backend\app backend\tests
+python -m mypy cir\src preview\src backend\app
 python cir\scripts\export_schema.py --check
-python -m pytest cir\tests backend\tests -q --cov=cutsceneai_cir --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python preview\scripts\export_artifacts.py --check
+python -m pytest cir\tests preview\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API
@@ -100,6 +104,7 @@ The API is then available at `http://127.0.0.1:8000`.
 
 - `cir/` — typed CIR package, semantic validation, schema artifact, tests, and examples
 - `backend/` — FastAPI application and API tests
+- `preview/` — portable preview contract, compiler, storyboard renderer, and fixtures
 - `agents/` — Director and specialist agent implementations
 - `adapters/` — engine integrations, beginning with Unreal
 - `shared/` — reusable fixtures and cross-service components
@@ -134,3 +139,19 @@ Send `POST /api/v1/director/generate` with JSON such as:
 
 Keep `OPENAI_API_KEY` in `.env.local`; never commit it. `CUTSCENEAI_DIRECTOR_MODEL` can override
 the default `gpt-5.6-terra` model.
+
+## Preview Pipeline v0.1
+
+Compile the golden CIR fixture into a portable manifest:
+
+```powershell
+$body = Get-Content cir\examples\office-dialogue.cir.json -Raw
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/preview/compile -Method Post -ContentType "application/json" -Body $body
+```
+
+Render the user-visible storyboard timeline:
+
+```powershell
+Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Method Post -ContentType "application/json" -Body $body -OutFile office-dialogue.storyboard.svg
+Start-Process .\office-dialogue.storyboard.svg
+```

@@ -1,0 +1,303 @@
+{
+  "cir_schema_version": "0.1.0",
+  "entities": [
+    {
+      "asset_uri": null,
+      "id": "mina",
+      "initial_transform": {
+        "position": {
+          "x": -1.5,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "kind": "character",
+      "name": "Mina",
+      "placeholder_color": "#6B8890",
+      "placeholder_shape": "capsule"
+    },
+    {
+      "asset_uri": null,
+      "id": "arjun",
+      "initial_transform": {
+        "position": {
+          "x": 1.0,
+          "y": 0.0,
+          "z": 0.5
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "kind": "character",
+      "name": "Arjun",
+      "placeholder_color": "#CA9FC1",
+      "placeholder_shape": "capsule"
+    },
+    {
+      "asset_uri": null,
+      "id": "contract",
+      "initial_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.8,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "kind": "environment",
+      "name": "Unsigned Contract",
+      "placeholder_color": "#9C5371",
+      "placeholder_shape": "box"
+    },
+    {
+      "asset_uri": null,
+      "id": "conference-table",
+      "initial_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "kind": "environment",
+      "name": "Conference Table",
+      "placeholder_color": "#8D6481",
+      "placeholder_shape": "box"
+    }
+  ],
+  "preview_version": "0.1.0",
+  "project_id": "office-dialogue",
+  "project_name": "Office Dialogue",
+  "scenes": [
+    {
+      "camera_cuts": [
+        {
+          "angle": "eye_level",
+          "beat_ids": [
+            "beat-arrival"
+          ],
+          "composition": "Slow push-in while preserving room geography.",
+          "description": "Wide view revealing the office, Mina, Arjun, and the table.",
+          "end_frame": 96,
+          "framing": "wide",
+          "lens_mm": 28.0,
+          "movement": "dolly",
+          "purpose": "establishing",
+          "shot_id": "shot-establishing",
+          "start_frame": 0,
+          "subject_ids": [
+            "mina",
+            "arjun",
+            "conference-table"
+          ],
+          "target_ids": [
+            "mina",
+            "arjun"
+          ],
+          "transform": null
+        },
+        {
+          "angle": "high",
+          "beat_ids": [
+            "beat-confrontation"
+          ],
+          "composition": "Keep the empty signature line in the upper-right intersection.",
+          "description": "Insert shot revealing the unsigned signature line.",
+          "end_frame": 144,
+          "framing": "insert",
+          "lens_mm": 70.0,
+          "movement": "static",
+          "purpose": "environment_detail",
+          "shot_id": "shot-contract-detail",
+          "start_frame": 96,
+          "subject_ids": [
+            "contract"
+          ],
+          "target_ids": [
+            "contract"
+          ],
+          "transform": null
+        },
+        {
+          "angle": "eye_level",
+          "beat_ids": [
+            "beat-confrontation"
+          ],
+          "composition": "Prioritize Mina while retaining Arjun in the foreground.",
+          "description": "Over-the-shoulder coverage of the confrontation.",
+          "end_frame": 336,
+          "framing": "over_the_shoulder",
+          "lens_mm": 50.0,
+          "movement": "static",
+          "purpose": "dialogue",
+          "shot_id": "shot-dialogue",
+          "start_frame": 144,
+          "subject_ids": [
+            "mina",
+            "arjun"
+          ],
+          "target_ids": [
+            "mina",
+            "arjun"
+          ],
+          "transform": null
+        },
+        {
+          "angle": "eye_level",
+          "beat_ids": [
+            "beat-reaction"
+          ],
+          "composition": "Hold steady and preserve negative space toward Mina.",
+          "description": "Close-up of Arjun absorbing Mina's response.",
+          "end_frame": 432,
+          "framing": "close_up",
+          "lens_mm": 85.0,
+          "movement": "static",
+          "purpose": "reaction",
+          "shot_id": "shot-reaction",
+          "start_frame": 336,
+          "subject_ids": [
+            "arjun"
+          ],
+          "target_ids": [
+            "arjun"
+          ],
+          "transform": null
+        }
+      ],
+      "duration_frames": 432,
+      "id": "scene-meeting",
+      "location": "Corporate conference room",
+      "performance_cues": [
+        {
+          "beat_id": "beat-arrival",
+          "character_id": "mina",
+          "dialogue": null,
+          "dialogue_start_frame": null,
+          "emotion": "frustrated",
+          "emotion_intensity": 0.65,
+          "end_frame": 96,
+          "lip_sync": false,
+          "look_at_id": "contract",
+          "motion_prompt": "Walk briskly into the room, stop at the table, and look down at the contract.",
+          "motion_style": "restrained tension",
+          "start_frame": 0
+        },
+        {
+          "beat_id": "beat-confrontation",
+          "character_id": "mina",
+          "dialogue": "You said this would be signed yesterday.",
+          "dialogue_start_frame": 120,
+          "emotion": "angry",
+          "emotion_intensity": 0.75,
+          "end_frame": 336,
+          "lip_sync": true,
+          "look_at_id": "arjun",
+          "motion_prompt": "Point toward the contract, then fold both arms while maintaining eye contact.",
+          "motion_style": "authoritative",
+          "start_frame": 96
+        },
+        {
+          "beat_id": "beat-confrontation",
+          "character_id": "arjun",
+          "dialogue": "Legal changed the final clause. I was waiting for approval.",
+          "dialogue_start_frame": 216,
+          "emotion": "worried",
+          "emotion_intensity": 0.7,
+          "end_frame": 336,
+          "lip_sync": true,
+          "look_at_id": "mina",
+          "motion_prompt": "Shift weight backward, glance at the contract, and raise one hand defensively.",
+          "motion_style": "uneasy",
+          "start_frame": 96
+        },
+        {
+          "beat_id": "beat-reaction",
+          "character_id": "arjun",
+          "dialogue": null,
+          "dialogue_start_frame": null,
+          "emotion": "anxious",
+          "emotion_intensity": 0.8,
+          "end_frame": 432,
+          "lip_sync": false,
+          "look_at_id": "mina",
+          "motion_prompt": "Lower the raised hand slowly and become still.",
+          "motion_style": "defeated",
+          "start_frame": 336
+        }
+      ],
+      "title": "The Meeting"
+    }
+  ],
+  "settings": {
+    "distance_unit": "meter",
+    "forward_axis": "-z",
+    "fps": 24,
+    "handedness": "right",
+    "time_unit": "second",
+    "up_axis": "y"
+  },
+  "warnings": [
+    {
+      "code": "placeholder_character",
+      "entity_id": "mina",
+      "message": "Character 'mina' uses a capsule placeholder."
+    },
+    {
+      "code": "placeholder_character",
+      "entity_id": "arjun",
+      "message": "Character 'arjun' uses a capsule placeholder."
+    },
+    {
+      "code": "placeholder_environment",
+      "entity_id": "contract",
+      "message": "Environment object 'contract' uses a box placeholder."
+    },
+    {
+      "code": "placeholder_environment",
+      "entity_id": "conference-table",
+      "message": "Environment object 'conference-table' uses a box placeholder."
+    }
+  ]
+}
