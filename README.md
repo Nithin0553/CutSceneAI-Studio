@@ -117,3 +117,20 @@ The API is then available at `http://127.0.0.1:8000`.
 7. **Release:** CineBench++ evaluation, packaging, documentation, and public launch
 
 The immediate next milestone after Foundation is a narrow Director Agent: one prompt in, one validated CIR project out, using the office-dialogue fixture as the first regression target.
+
+## Director Agent v0.1
+
+Run the backend from `backend/` with the local environment file:
+
+```powershell
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --env-file ..\.env.local
+```
+
+Send `POST /api/v1/director/generate` with JSON such as:
+
+```json
+{"prompt":"Stage a tense 20-second office dialogue between two coworkers beside a desk."}
+```
+
+Keep `OPENAI_API_KEY` in `.env.local`; never commit it. `CUTSCENEAI_DIRECTOR_MODEL` can override
+the default `gpt-5.6-terra` model.
