@@ -2,7 +2,7 @@
 
 The CutSceneAI Unreal Adapter compiles validated CIR into a deterministic Unreal Sequencer plan
 and a self-contained Unreal Editor Python importer. The plan is the stable, testable contract; the
-generated script turns it into editable Level Sequence assets inside Unreal Engine 5.6.
+generated script turns it into editable Level Sequence assets inside Unreal Engine 5.8.0.
 
 ## Output
 
@@ -53,14 +53,17 @@ Invoke-WebRequest `
   -OutFile cutsceneai-unreal-import.py
 ```
 
-## Import in Unreal Engine 5.6
+## Import in Unreal Engine 5.8.0
 
-1. Create or open an Unreal project.
-2. Enable the **Python Editor Script Plugin** and **Sequencer Scripting** plugin, then restart the
-   editor if prompted.
-3. Choose **Tools > Execute Python Script** and select `cutsceneai-unreal-import.py`.
-4. Open `/Game/CutSceneAI/Sequences/LS_SceneMeeting` in Sequencer.
-5. Confirm the four camera cuts at frames `0`, `96`, `144`, `336`, and the end at `432`.
+1. Install the bundled Microsoft Visual C++ Redistributable from
+   `Engine/Extras/Redist/en-us/vc_redist.x64.exe`; Unreal 5.8 requires version `14.50.35719.0`
+   or newer.
+2. Create or open an Unreal project.
+3. Enable **Python Editor Script Plugin**, **Editor Scripting Utilities**, and
+   **Sequencer Scripting**, then restart the editor if prompted.
+4. Choose **File > Execute Python Script** and select `cutsceneai-unreal-import.py`.
+5. Open `/Game/CutSceneAI/Sequences/LS_SceneMeeting` in Sequencer.
+6. Confirm the four camera cuts at frames `0`, `96`, `144`, `336`, and the end at `432`.
 
 The importer never deletes or replaces assets. If the Level Sequence already exists, it stops with
 an actionable error so replacement remains an intentional editor action.

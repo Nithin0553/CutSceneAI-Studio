@@ -20,7 +20,7 @@ def test_export_unreal_plan_returns_golden_sequence_contract() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["adapter_version"] == "0.1.0"
-    assert body["target_engine_version"] == "5.6"
+    assert body["target_engine_version"] == "5.8.0"
     assert body["sequences"][0]["asset_name"] == "LS_SceneMeeting"
     assert len(body["sequences"][0]["actors"]) == 4
     assert len(body["sequences"][0]["cameras"]) == 4

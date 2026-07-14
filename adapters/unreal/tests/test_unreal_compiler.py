@@ -12,7 +12,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     plan = compile_project(cir_project)
     sequence = plan.sequences[0]
 
-    assert plan.target_engine_version == "5.6"
+    assert plan.target_engine_version == "5.8.0"
     assert sequence.asset_name == "LS_SceneMeeting"
     assert sequence.package_path == "/Game/CutSceneAI/Sequences"
     assert sequence.duration_frames == 432

@@ -124,7 +124,7 @@ The API is then available at `http://127.0.0.1:8000`.
 6. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 7. **Release:** CineBench++ evaluation, packaging, documentation, and public launch
 
-The current milestone is Unreal Adapter v0.1 acceptance in Unreal Engine 5.6. After the golden Level Sequence is verified in-editor, the next portable milestone is the Unity adapter.
+The current milestone is Unreal Adapter v0.1 acceptance in Unreal Engine 5.8.0. After the golden Level Sequence is verified in-editor, the next portable milestone is the Unity adapter.
 
 ## Director Agent v0.1
 
@@ -169,6 +169,6 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/export -Meth
 Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/importer.py -Method Post -ContentType "application/json" -Body $body -OutFile cutsceneai-unreal-import.py
 ```
 
-Enable Unreal Engine 5.6's Python Editor Script and Sequencer Scripting plugins, then run the
-generated script with **Tools > Execute Python Script**. The importer creates
+Enable Unreal Engine 5.8.0's Python Editor Script, Editor Scripting Utilities, and Sequencer
+Scripting plugins, then run the generated script with **File > Execute Python Script**. The importer creates
 `/Game/CutSceneAI/Sequences/LS_SceneMeeting` and refuses to overwrite an existing asset.
