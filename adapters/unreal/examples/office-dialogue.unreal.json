@@ -409,7 +409,7 @@
     "up_axis": "y"
   },
   "target_engine": "Unreal Engine",
-  "target_engine_version": "5.6",
+  "target_engine_version": "5.8.0",
   "warnings": [
     {
       "code": "placeholder_character",

@@ -130,7 +130,7 @@ class UnrealExportPlan(UnrealModel):
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
-    target_engine_version: Literal["5.6"] = "5.6"
+    target_engine_version: Literal["5.8.0"] = "5.8.0"
     project_id: str
     project_name: str
     source_settings: ProjectSettings
