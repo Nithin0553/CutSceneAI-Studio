@@ -22,7 +22,7 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     compile(script, "cutsceneai_unreal_import.py", "exec")
     assert "subsystem.add_spawnable_from_class" in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
-    assert "component.set_current_focal_length" in script
+    assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
     assert "subsystem.save_default_spawnable_state" in script
     assert "unreal.MovieSceneCameraCutTrack" in script
     assert "sequence.add_marked_frame_to_sequence" in script
@@ -57,11 +57,12 @@ def test_importer_configures_live_58_camera_when_template_component_is_missing(
             return self.lens_settings
 
         def set_editor_property(self, name: str, value) -> None:
-            assert name == "lens_settings"
-            self.lens_settings = value
-
-        def set_current_focal_length(self, value: float) -> None:
-            self.current_focal_length = value
+            if name == "lens_settings":
+                self.lens_settings = value
+            elif name == "current_focal_length":
+                self.current_focal_length = value
+            else:
+                raise AssertionError(f"Unexpected camera property: {name}")
 
     class CineCameraActor:
         def __init__(self, component) -> None:

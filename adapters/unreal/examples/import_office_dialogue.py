@@ -98,7 +98,7 @@ def _set_camera_focal_length(component, lens_mm):
         changed = True
     if changed:
         component.set_editor_property("lens_settings", lens_settings)
-    component.set_current_focal_length(lens_mm)
+    component.set_editor_property("current_focal_length", lens_mm)
 
 
 def _add_camera(sequence, subsystem, camera):
