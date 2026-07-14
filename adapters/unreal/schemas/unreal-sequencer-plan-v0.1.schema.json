@@ -1,0 +1,709 @@
+{
+  "$defs": {
+    "Axis": {
+      "enum": [
+        "x",
+        "y",
+        "z",
+        "-x",
+        "-y",
+        "-z"
+      ],
+      "title": "Axis",
+      "type": "string"
+    },
+    "CameraAngle": {
+      "enum": [
+        "eye_level",
+        "low",
+        "high",
+        "dutch",
+        "overhead"
+      ],
+      "title": "CameraAngle",
+      "type": "string"
+    },
+    "CameraFraming": {
+      "enum": [
+        "extreme_wide",
+        "wide",
+        "medium_wide",
+        "medium",
+        "medium_close_up",
+        "close_up",
+        "extreme_close_up",
+        "over_the_shoulder",
+        "point_of_view",
+        "insert"
+      ],
+      "title": "CameraFraming",
+      "type": "string"
+    },
+    "CameraMovement": {
+      "enum": [
+        "static",
+        "pan",
+        "tilt",
+        "dolly",
+        "truck",
+        "crane",
+        "handheld",
+        "orbit"
+      ],
+      "title": "CameraMovement",
+      "type": "string"
+    },
+    "Handedness": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Handedness",
+      "type": "string"
+    },
+    "ProjectSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "meter",
+          "default": "meter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "-z"
+        },
+        "fps": {
+          "default": 24,
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        },
+        "handedness": {
+          "$ref": "#/$defs/Handedness",
+          "default": "right"
+        },
+        "time_unit": {
+          "const": "second",
+          "default": "second",
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "up_axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "y"
+        }
+      },
+      "title": "ProjectSettings",
+      "type": "object"
+    },
+    "ShotPurpose": {
+      "enum": [
+        "establishing",
+        "environment_detail",
+        "dialogue",
+        "reaction",
+        "action",
+        "transition"
+      ],
+      "title": "ShotPurpose",
+      "type": "string"
+    },
+    "UnrealActorBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_class_path": {
+          "title": "Actor Class Path",
+          "type": "string"
+        },
+        "asset_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Path"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/UnrealActorKind"
+        },
+        "placeholder": {
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/$defs/UnrealTransform"
+        }
+      },
+      "required": [
+        "binding_id",
+        "source_entity_id",
+        "display_name",
+        "kind",
+        "actor_class_path",
+        "placeholder",
+        "transform"
+      ],
+      "title": "UnrealActorBinding",
+      "type": "object"
+    },
+    "UnrealActorKind": {
+      "enum": [
+        "character",
+        "environment"
+      ],
+      "title": "UnrealActorKind",
+      "type": "string"
+    },
+    "UnrealCameraBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/CameraAngle"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "composition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Composition"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "framing": {
+          "$ref": "#/$defs/CameraFraming"
+        },
+        "inferred_transform": {
+          "title": "Inferred Transform",
+          "type": "boolean"
+        },
+        "lens_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "look_at_location_cm": {
+          "$ref": "#/$defs/UnrealVector"
+        },
+        "movement": {
+          "$ref": "#/$defs/CameraMovement"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ShotPurpose"
+        },
+        "source_beat_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Beat Ids",
+          "type": "array"
+        },
+        "source_shot_id": {
+          "title": "Source Shot Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "subject_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Subject Binding Ids",
+          "type": "array"
+        },
+        "target_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Binding Ids",
+          "type": "array"
+        },
+        "transform": {
+          "$ref": "#/$defs/UnrealTransform"
+        }
+      },
+      "required": [
+        "binding_id",
+        "source_shot_id",
+        "source_beat_ids",
+        "display_name",
+        "start_frame",
+        "end_frame",
+        "purpose",
+        "description",
+        "framing",
+        "angle",
+        "movement",
+        "lens_mm",
+        "subject_binding_ids",
+        "target_binding_ids",
+        "transform",
+        "look_at_location_cm",
+        "inferred_transform"
+      ],
+      "title": "UnrealCameraBinding",
+      "type": "object"
+    },
+    "UnrealCoordinateSystem": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "centimeter",
+          "default": "centimeter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "const": "x",
+          "default": "x",
+          "title": "Forward Axis",
+          "type": "string"
+        },
+        "handedness": {
+          "const": "left",
+          "default": "left",
+          "title": "Handedness",
+          "type": "string"
+        },
+        "position_mapping": {
+          "const": "X=-Z*100; Y=X*100; Z=Y*100",
+          "default": "X=-Z*100; Y=X*100; Z=Y*100",
+          "title": "Position Mapping",
+          "type": "string"
+        },
+        "up_axis": {
+          "const": "z",
+          "default": "z",
+          "title": "Up Axis",
+          "type": "string"
+        }
+      },
+      "title": "UnrealCoordinateSystem",
+      "type": "object"
+    },
+    "UnrealExportWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "UnrealExportWarning",
+      "type": "object"
+    },
+    "UnrealPerformanceCue": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "dialogue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue"
+        },
+        "dialogue_audio_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue Audio Uri"
+        },
+        "dialogue_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue Language"
+        },
+        "dialogue_start_frame": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue Start Frame"
+        },
+        "emotion": {
+          "title": "Emotion",
+          "type": "string"
+        },
+        "emotion_intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Emotion Intensity",
+          "type": "number"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "facial_asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Facial Asset Uri"
+        },
+        "lip_sync": {
+          "title": "Lip Sync",
+          "type": "boolean"
+        },
+        "look_at_binding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look At Binding Id"
+        },
+        "motion_asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motion Asset Uri"
+        },
+        "motion_prompt": {
+          "title": "Motion Prompt",
+          "type": "string"
+        },
+        "motion_style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motion Style"
+        },
+        "source_beat_id": {
+          "title": "Source Beat Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_beat_id",
+        "actor_binding_id",
+        "start_frame",
+        "end_frame",
+        "motion_prompt",
+        "emotion",
+        "emotion_intensity",
+        "lip_sync"
+      ],
+      "title": "UnrealPerformanceCue",
+      "type": "object"
+    },
+    "UnrealQuaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnrealQuaternion",
+      "type": "object"
+    },
+    "UnrealSceneSequence": {
+      "additionalProperties": false,
+      "properties": {
+        "actors": {
+          "items": {
+            "$ref": "#/$defs/UnrealActorBinding"
+          },
+          "title": "Actors",
+          "type": "array"
+        },
+        "asset_name": {
+          "title": "Asset Name",
+          "type": "string"
+        },
+        "cameras": {
+          "items": {
+            "$ref": "#/$defs/UnrealCameraBinding"
+          },
+          "title": "Cameras",
+          "type": "array"
+        },
+        "duration_frames": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Frames",
+          "type": "integer"
+        },
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "package_path": {
+          "title": "Package Path",
+          "type": "string"
+        },
+        "performance_cues": {
+          "items": {
+            "$ref": "#/$defs/UnrealPerformanceCue"
+          },
+          "title": "Performance Cues",
+          "type": "array"
+        },
+        "source_scene_id": {
+          "title": "Source Scene Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_scene_id",
+        "title",
+        "location",
+        "asset_name",
+        "package_path",
+        "duration_frames",
+        "actors",
+        "performance_cues",
+        "cameras"
+      ],
+      "title": "UnrealSceneSequence",
+      "type": "object"
+    },
+    "UnrealTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "location_cm": {
+          "$ref": "#/$defs/UnrealVector"
+        },
+        "rotation": {
+          "$ref": "#/$defs/UnrealQuaternion"
+        },
+        "scale": {
+          "$ref": "#/$defs/UnrealVector"
+        }
+      },
+      "title": "UnrealTransform",
+      "type": "object"
+    },
+    "UnrealVector": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnrealVector",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/adapters/unreal/v0.1/sequencer-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "coordinate_system": {
+      "$ref": "#/$defs/UnrealCoordinateSystem"
+    },
+    "preview_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Preview Version",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "project_name": {
+      "title": "Project Name",
+      "type": "string"
+    },
+    "sequences": {
+      "items": {
+        "$ref": "#/$defs/UnrealSceneSequence"
+      },
+      "title": "Sequences",
+      "type": "array"
+    },
+    "source_settings": {
+      "$ref": "#/$defs/ProjectSettings"
+    },
+    "target_engine": {
+      "const": "Unreal Engine",
+      "default": "Unreal Engine",
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "const": "5.6",
+      "default": "5.6",
+      "title": "Target Engine Version",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/UnrealExportWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "project_name",
+    "source_settings",
+    "sequences",
+    "warnings"
+  ],
+  "title": "UnrealExportPlan",
+  "type": "object"
+}
