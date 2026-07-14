@@ -2,7 +2,7 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
-The repository includes the CIR foundation, Director Agent v0.1, and an engine-neutral Preview v0.1 pipeline. Engine adapters build on these stable contracts.
+The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1 pipeline, and an Unreal Adapter v0.1 that produces editable Sequencer imports.
 
 ## What works now
 
@@ -14,7 +14,9 @@ The repository includes the CIR foundation, Director Agent v0.1, and an engine-n
 - `POST /api/v1/director/generate` for prompt-to-CIR generation
 - `POST /api/v1/preview/compile` for deterministic preview manifests
 - `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
-- A committed JSON Schema artifact with CI drift detection
+- `POST /api/v1/adapters/unreal/export` for typed Unreal Sequencer plans
+- `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
+- Committed CIR, Preview, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
 ## Architecture
@@ -22,10 +24,10 @@ The repository includes the CIR foundation, Director Agent v0.1, and an engine-n
 | Layer | Responsibility | Status |
 | --- | --- | --- |
 | CIR | Portable cinematic data contract and domain validation | Foundation v0.1 complete |
-| Backend | HTTP boundary for validation, generation, and preview compilation | v0.1 complete |
+| Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Planned |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.1 complete |
 
 ## Local setup
 
@@ -37,7 +39,7 @@ Run these commands from the repository root. Python 3.12 is the recommended loca
 py -3.12 -m venv .venv3.12
 .\.venv3.12\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\backend[dev]"
+python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\adapters\unreal[dev]" -e ".\backend[dev]"
 ```
 
 ### macOS or Linux
@@ -46,18 +48,19 @@ python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\backend[dev]"
 python3.12 -m venv .venv3.12
 source .venv3.12/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./backend[dev]"
+python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./adapters/unreal[dev]" -e "./backend[dev]"
 ```
 
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests backend\app backend\tests
-python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests backend\app backend\tests
-python -m mypy cir\src preview\src backend\app
+python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
+python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
+python -m mypy cir\src preview\src adapters\unreal\src backend\app
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
-python -m pytest cir\tests preview\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python adapters\unreal\scripts\export_artifacts.py --check
+python -m pytest cir\tests preview\tests adapters\unreal\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_unreal --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API
@@ -121,7 +124,7 @@ The API is then available at `http://127.0.0.1:8000`.
 6. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 7. **Release:** CineBench++ evaluation, packaging, documentation, and public launch
 
-The immediate next milestone after Foundation is a narrow Director Agent: one prompt in, one validated CIR project out, using the office-dialogue fixture as the first regression target.
+The current milestone is Unreal Adapter v0.1 acceptance in Unreal Engine 5.6. After the golden Level Sequence is verified in-editor, the next portable milestone is the Unity adapter.
 
 ## Director Agent v0.1
 
@@ -155,3 +158,17 @@ Render the user-visible storyboard timeline:
 Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Method Post -ContentType "application/json" -Body $body -OutFile office-dialogue.storyboard.svg
 Start-Process .\office-dialogue.storyboard.svg
 ```
+
+## Unreal Adapter v0.1
+
+Export an Unreal Sequencer plan and importer from the same golden CIR fixture:
+
+```powershell
+$body = Get-Content cir\examples\office-dialogue.cir.json -Raw
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/export -Method Post -ContentType "application/json" -Body $body
+Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/importer.py -Method Post -ContentType "application/json" -Body $body -OutFile cutsceneai-unreal-import.py
+```
+
+Enable Unreal Engine 5.6's Python Editor Script and Sequencer Scripting plugins, then run the
+generated script with **Tools > Execute Python Script**. The importer creates
+`/Game/CutSceneAI/Sequences/LS_SceneMeeting` and refuses to overwrite an existing asset.

@@ -33,31 +33,34 @@ jobs:
           cache-dependency-path: |
             cir/pyproject.toml
             preview/pyproject.toml
+            adapters/unreal/pyproject.toml
             backend/pyproject.toml
 
       - name: Install development dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./backend[dev]"
+          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./adapters/unreal[dev]" -e "./backend[dev]"
 
       - name: Check lint and formatting
         run: |
-          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests backend/app backend/tests
-          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests backend/app backend/tests
+          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests backend/app backend/tests
+          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests backend/app backend/tests
 
       - name: Check static types
-        run: python -m mypy cir/src preview/src backend/app
+        run: python -m mypy cir/src preview/src adapters/unreal/src backend/app
 
       - name: Check generated contracts
         run: |
           python cir/scripts/export_schema.py --check
           python preview/scripts/export_artifacts.py --check
+          python adapters/unreal/scripts/export_artifacts.py --check
 
       - name: Run tests with coverage
         run: |
-          python -m pytest cir/tests preview/tests backend/tests -q \
+          python -m pytest cir/tests preview/tests adapters/unreal/tests backend/tests -q \
             --cov=cutsceneai_cir \
             --cov=cutsceneai_preview \
+            --cov=cutsceneai_unreal \
             --cov=app \
             --cov-branch \
             --cov-report=term-missing \
