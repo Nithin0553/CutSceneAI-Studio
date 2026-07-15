@@ -19,10 +19,11 @@ def test_export_unreal_plan_returns_golden_sequence_contract() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["adapter_version"] == "0.2.0"
+    assert body["adapter_version"] == "0.3.0"
     assert body["target_engine_version"] == "5.8.0"
     assert body["sequences"][0]["asset_name"] == "LS_SceneMeeting"
     assert len(body["sequences"][0]["actors"]) == 4
+    assert body["sequences"][0]["actors"][0]["mesh_type"] == "static_mesh"
     assert len(body["sequences"][0]["set_pieces"]) == 4
     assert len(body["sequences"][0]["cameras"]) == 4
 
@@ -37,6 +38,19 @@ def test_export_unreal_importer_returns_safe_python_script() -> None:
     )
     compile(response.text, "api_unreal_import.py", "exec")
     assert "unreal.MovieSceneCameraCutTrack" in response.text
+
+
+def test_export_unreal_plan_preserves_character_skeletal_mesh_binding() -> None:
+    value = payload()
+    value["characters"][0]["asset_uri"] = "/Game/Characters/Mannequins/Meshes/SKM_Quinn.SKM_Quinn"
+
+    response = client.post("/api/v1/adapters/unreal/export", json=value)
+
+    assert response.status_code == 200
+    mina = response.json()["sequences"][0]["actors"][0]
+    assert mina["mesh_type"] == "skeletal_mesh"
+    assert mina["actor_class_path"] == "/Script/Engine.SkeletalMeshActor"
+    assert mina["placeholder"] is False
 
 
 def test_unreal_adapter_rejects_invalid_cir() -> None:

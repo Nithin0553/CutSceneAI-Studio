@@ -23,6 +23,11 @@ class UnrealActorKind(str, Enum):
     ENVIRONMENT = "environment"
 
 
+class UnrealMeshType(str, Enum):
+    STATIC_MESH = "static_mesh"
+    SKELETAL_MESH = "skeletal_mesh"
+
+
 class UnrealVector(UnrealModel):
     x: float = 0.0
     y: float = 0.0
@@ -73,6 +78,7 @@ class UnrealActorBinding(UnrealModel):
     source_entity_id: str
     display_name: str
     kind: UnrealActorKind
+    mesh_type: UnrealMeshType
     actor_class_path: str
     asset_path: str | None = None
     placeholder: bool
@@ -140,7 +146,7 @@ class UnrealExportWarning(UnrealModel):
 
 
 class UnrealExportPlan(UnrealModel):
-    adapter_version: Literal["0.2.0"] = "0.2.0"
+    adapter_version: Literal["0.3.0"] = "0.3.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
