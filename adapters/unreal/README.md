@@ -24,6 +24,10 @@ Adapter patch 0.2.1 configures both the Sequencer template and live bound Static
 saving the default spawnable state, so proxy geometry persists into Movie Render Queue sessions.
 Patch 0.2.2 applies the same template/live persistence rule to Cine Camera Actors, preventing Unreal
 5.8 from reopening generated camera bindings at the world origin with a zero rotation.
+Patch 0.2.3 removes the auto-generated zero-valued Transform track from static blocking bindings,
+so Sequencer does not override the persisted actor and camera transforms during evaluation.
+Patch 0.2.4 makes over-the-shoulder blocking subject-aware: the first target is framed as the
+primary subject while the second target is retained as a foreground shoulder reference.
 
 ## Generate the committed artifacts
 

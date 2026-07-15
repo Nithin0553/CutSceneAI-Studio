@@ -111,8 +111,56 @@ def test_compile_infers_deterministic_camera_blocking(cir_project: Project) -> N
     assert cameras[0].transform.location_cm == UnrealVector(x=-675.0, y=-25.0, z=160.0)
     assert cameras[0].transform.rotation.w == 1.0
     assert cameras[1].transform.location_cm == UnrealVector(x=-120.0, y=0.0, z=240.0)
-    assert cameras[2].transform.location_cm == UnrealVector(x=-325.0, y=55.0, z=160.0)
+    assert cameras[2].look_at_location_cm == UnrealVector(x=-100.0, y=-150.0, z=160.0)
+    assert cameras[2].transform.location_cm.x == pytest.approx(0.990195, abs=1e-6)
+    assert cameras[2].transform.location_cm.y == pytest.approx(201.98039, abs=1e-6)
+    assert cameras[2].transform.location_cm.z == 160.0
     assert all(camera.inferred_transform for camera in cameras)
+
+
+def test_over_the_shoulder_camera_keeps_foreground_near_frame_edge(
+    cir_project: Project,
+) -> None:
+    sequence = compile_project(cir_project).sequences[0]
+    camera = sequence.cameras[2]
+    actor_points = {
+        actor.source_entity_id: UnrealVector(
+            x=actor.transform.location_cm.x,
+            y=actor.transform.location_cm.y,
+            z=actor.transform.location_cm.z + 160.0,
+        )
+        for actor in sequence.actors
+        if actor.source_entity_id in {"mina", "arjun"}
+    }
+
+    origin = camera.transform.location_cm
+    primary = actor_points["mina"]
+    foreground = actor_points["arjun"]
+    primary_direction = (primary.x - origin.x, primary.y - origin.y)
+    foreground_direction = (foreground.x - origin.x, foreground.y - origin.y)
+    cross = abs(
+        primary_direction[0] * foreground_direction[1]
+        - primary_direction[1] * foreground_direction[0]
+    )
+    dot = (
+        primary_direction[0] * foreground_direction[0]
+        + primary_direction[1] * foreground_direction[1]
+    )
+
+    assert camera.look_at_location_cm == primary
+    assert 0.15 < cross / dot < 0.2
+
+
+def test_over_the_shoulder_camera_handles_coincident_targets(
+    cir_project: Project,
+) -> None:
+    cir_project.characters[1].initial_transform.position = cir_project.characters[
+        0
+    ].initial_transform.position
+
+    camera = compile_project(cir_project).sequences[0].cameras[2]
+
+    assert camera.transform.location_cm == UnrealVector(x=-350.0, y=-150.0, z=160.0)
 
 
 def test_compile_preserves_performance_and_dialogue_metadata(

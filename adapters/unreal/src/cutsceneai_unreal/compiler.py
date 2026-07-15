@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from math import hypot
 
 from cutsceneai_cir import (
     CameraAngle,
@@ -75,6 +76,9 @@ _CAMERA_HEIGHT_CM = {
     CameraAngle.OVERHEAD: 500.0,
 }
 
+_OVER_THE_SHOULDER_BEHIND_CM = 110.0
+_OVER_THE_SHOULDER_OFFSET_CM = 30.0
+
 
 def compile_project(
     project: Project, *, package_path: str = DEFAULT_PACKAGE_PATH
@@ -131,15 +135,20 @@ def compile_project(
         cameras: list[UnrealCameraBinding] = []
         for cut in preview_scene.camera_cuts:
             target_ids = cut.target_ids or cut.subject_ids
-            look_at = _average_points(
-                point_by_entity[target_id] for target_id in target_ids
-            )
+            target_points = [point_by_entity[target_id] for target_id in target_ids]
+            look_at = _camera_look_at(target_points, cut.framing)
             if cut.transform is None:
                 inferred = True
                 transform = _infer_camera_transform(
                     look_at=look_at,
                     framing=cut.framing,
                     angle=cut.angle,
+                    foreground=(
+                        target_points[1]
+                        if cut.framing is CameraFraming.OVER_THE_SHOULDER
+                        and len(target_points) > 1
+                        else None
+                    ),
                 )
                 warnings.append(
                     UnrealExportWarning(
@@ -445,19 +454,65 @@ def _average_points(points: Iterable[UnrealVector]) -> UnrealVector:
     )
 
 
+def _camera_look_at(
+    target_points: list[UnrealVector], framing: CameraFraming
+) -> UnrealVector:
+    if framing is CameraFraming.OVER_THE_SHOULDER and target_points:
+        return target_points[0]
+    return _average_points(target_points)
+
+
 def _infer_camera_transform(
-    *, look_at: UnrealVector, framing: CameraFraming, angle: CameraAngle
+    *,
+    look_at: UnrealVector,
+    framing: CameraFraming,
+    angle: CameraAngle,
+    foreground: UnrealVector | None = None,
 ) -> UnrealTransform:
-    lateral = 80.0 if framing is CameraFraming.OVER_THE_SHOULDER else 0.0
-    location = UnrealVector(
-        x=look_at.x - _CAMERA_DISTANCE_CM[framing],
-        y=look_at.y + lateral,
-        z=look_at.z + _CAMERA_HEIGHT_CM[angle],
-    )
+    if framing is CameraFraming.OVER_THE_SHOULDER and foreground is not None:
+        location = _over_the_shoulder_location(look_at, foreground, angle)
+    else:
+        location = UnrealVector(
+            x=look_at.x - _CAMERA_DISTANCE_CM[framing],
+            y=look_at.y,
+            z=look_at.z + _CAMERA_HEIGHT_CM[angle],
+        )
     return UnrealTransform(
         location_cm=location,
         rotation=look_at_quaternion(location, look_at),
         scale=UnrealVector(x=1.0, y=1.0, z=1.0),
+    )
+
+
+def _over_the_shoulder_location(
+    primary: UnrealVector, foreground: UnrealVector, angle: CameraAngle
+) -> UnrealVector:
+    toward_x = primary.x - foreground.x
+    toward_y = primary.y - foreground.y
+    distance = hypot(toward_x, toward_y)
+    if distance <= 1e-8:
+        return UnrealVector(
+            x=primary.x - _CAMERA_DISTANCE_CM[CameraFraming.OVER_THE_SHOULDER],
+            y=primary.y,
+            z=primary.z + _CAMERA_HEIGHT_CM[angle],
+        )
+
+    toward_x /= distance
+    toward_y /= distance
+    shoulder_x = -toward_y
+    shoulder_y = toward_x
+    return UnrealVector(
+        x=(
+            foreground.x
+            - toward_x * _OVER_THE_SHOULDER_BEHIND_CM
+            + shoulder_x * _OVER_THE_SHOULDER_OFFSET_CM
+        ),
+        y=(
+            foreground.y
+            - toward_y * _OVER_THE_SHOULDER_BEHIND_CM
+            + shoulder_y * _OVER_THE_SHOULDER_OFFSET_CM
+        ),
+        z=primary.z + _CAMERA_HEIGHT_CM[angle],
     )
 
 

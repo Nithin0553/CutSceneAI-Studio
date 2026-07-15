@@ -24,6 +24,7 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert 'for set_piece in scene["set_pieces"]' in script
     assert "_configure_static_mesh" in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
+    assert "binding.remove_track(track)" in script
     assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
     assert "subsystem.save_default_spawnable_state" in script
     assert "unreal.MovieSceneCameraCutTrack" in script
@@ -73,18 +74,31 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
         def set_actor_scale3d(self, value) -> None:
             self.scale = value
 
+    class MovieScene3DTransformTrack:
+        pass
+
+    class MovieSceneSpawnTrack:
+        pass
+
     class Binding:
         def __init__(self, binding_id: str) -> None:
             self.binding_id = binding_id
             self.template = StaticMeshActor()
             self.live_actor = StaticMeshActor()
             self.display_name = ""
+            self.tracks = [MovieScene3DTransformTrack(), MovieSceneSpawnTrack()]
 
         def get_object_template(self):
             return self.template
 
         def set_display_name(self, value: str) -> None:
             self.display_name = value
+
+        def find_tracks_by_exact_type(self, track_type):
+            return [track for track in self.tracks if type(track) is track_type]
+
+        def remove_track(self, track) -> None:
+            self.tracks.remove(track)
 
     class Subsystem:
         def __init__(self) -> None:
@@ -142,6 +156,7 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     unreal = ModuleType("unreal")
     unreal.StaticMesh = StaticMesh
     unreal.StaticMeshActor = StaticMeshActor
+    unreal.MovieScene3DTransformTrack = MovieScene3DTransformTrack
     unreal.EditorAssetLibrary = EditorAssetLibrary
     unreal.LevelSequenceEditorBlueprintLibrary = BlueprintLibrary
     unreal.Vector = lambda *values: values
@@ -167,9 +182,13 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     assert actor_binding.live_actor.location == (-100.0, -150.0, 90.0)
     assert actor_binding.live_actor.scale == (0.45, 0.45, 1.8)
     assert actor_binding.live_actor.component.mesh is mesh
+    assert len(actor_binding.tracks) == 1
+    assert isinstance(actor_binding.tracks[0], MovieSceneSpawnTrack)
     assert set_binding.display_name == "SET_Floor"
     assert set_binding.template.component.mesh is mesh
     assert set_binding.live_actor.component.mesh is mesh
+    assert len(set_binding.tracks) == 1
+    assert isinstance(set_binding.tracks[0], MovieSceneSpawnTrack)
     assert BlueprintLibrary.force_update_count == 2
     assert subsystem.saved == [actor_binding, set_binding]
 
@@ -228,16 +247,29 @@ def test_importer_configures_template_and_live_58_camera_when_template_component
         def set_actor_scale3d(self, *args) -> None:
             self.transform_calls.append(("scale", args))
 
+    class MovieScene3DTransformTrack:
+        pass
+
+    class MovieSceneSpawnTrack:
+        pass
+
     class Binding:
         def __init__(self, template) -> None:
             self.template = template
             self.display_name = ""
+            self.tracks = [MovieScene3DTransformTrack(), MovieSceneSpawnTrack()]
 
         def get_object_template(self):
             return self.template
 
         def set_display_name(self, value: str) -> None:
             self.display_name = value
+
+        def find_tracks_by_exact_type(self, track_type):
+            return [track for track in self.tracks if type(track) is track_type]
+
+        def remove_track(self, track) -> None:
+            self.tracks.remove(track)
 
     component = CameraComponent()
     live_actor = CineCameraActor(component)
@@ -282,6 +314,7 @@ def test_importer_configures_template_and_live_58_camera_when_template_component
 
     unreal = ModuleType("unreal")
     unreal.CineCameraActor = CineCameraActor
+    unreal.MovieScene3DTransformTrack = MovieScene3DTransformTrack
     unreal.LevelSequenceEditorBlueprintLibrary = BlueprintLibrary
     unreal.Vector = lambda *values: values
     unreal.Quat = Quat
@@ -296,6 +329,8 @@ def test_importer_configures_template_and_live_58_camera_when_template_component
 
     assert result is binding
     assert binding.display_name == "CAM_ShotEstablishing"
+    assert len(binding.tracks) == 1
+    assert isinstance(binding.tracks[0], MovieSceneSpawnTrack)
     assert template_actor.label == "CAM_ShotEstablishing"
     assert template_actor.transform_calls == [
         ("location", ((-675.0, -25.0, 160.0), False, True)),
