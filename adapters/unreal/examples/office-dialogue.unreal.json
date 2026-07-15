@@ -1,5 +1,5 @@
 {
-  "adapter_version": "0.1.0",
+  "adapter_version": "0.2.0",
   "cir_schema_version": "0.1.0",
   "coordinate_system": {
     "distance_unit": "centimeter",
@@ -15,12 +15,33 @@
     {
       "actors": [
         {
-          "actor_class_path": "/Script/Engine.Character",
+          "actor_class_path": "/Script/Engine.StaticMeshActor",
           "asset_path": null,
           "binding_id": "actor:mina",
           "display_name": "ACT_Mina",
           "kind": "character",
           "placeholder": true,
+          "placeholder_visual": {
+            "mesh_asset_path": "/Engine/BasicShapes/Cylinder.Cylinder",
+            "transform": {
+              "location_cm": {
+                "x": -100.0,
+                "y": -150.0,
+                "z": 90.0
+              },
+              "rotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 1.8
+              }
+            }
+          },
           "source_entity_id": "mina",
           "transform": {
             "location_cm": {
@@ -42,12 +63,33 @@
           }
         },
         {
-          "actor_class_path": "/Script/Engine.Character",
+          "actor_class_path": "/Script/Engine.StaticMeshActor",
           "asset_path": null,
           "binding_id": "actor:arjun",
           "display_name": "ACT_Arjun",
           "kind": "character",
           "placeholder": true,
+          "placeholder_visual": {
+            "mesh_asset_path": "/Engine/BasicShapes/Cylinder.Cylinder",
+            "transform": {
+              "location_cm": {
+                "x": -50.0,
+                "y": 100.0,
+                "z": 90.0
+              },
+              "rotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 1.8
+              }
+            }
+          },
           "source_entity_id": "arjun",
           "transform": {
             "location_cm": {
@@ -75,6 +117,27 @@
           "display_name": "ACT_Contract",
           "kind": "environment",
           "placeholder": true,
+          "placeholder_visual": {
+            "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+            "transform": {
+              "location_cm": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 80.5
+              },
+              "rotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "scale": {
+                "x": 0.3,
+                "y": 0.21,
+                "z": 0.01
+              }
+            }
+          },
           "source_entity_id": "contract",
           "transform": {
             "location_cm": {
@@ -102,6 +165,27 @@
           "display_name": "ACT_ConferenceTable",
           "kind": "environment",
           "placeholder": true,
+          "placeholder_visual": {
+            "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+            "transform": {
+              "location_cm": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 37.5
+              },
+              "rotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "scale": {
+                "x": 2.4,
+                "y": 1.2,
+                "z": 0.75
+              }
+            }
+          },
           "source_entity_id": "conference-table",
           "transform": {
             "location_cm": {
@@ -396,6 +480,100 @@
           "start_frame": 336
         }
       ],
+      "set_pieces": [
+        {
+          "binding_id": "set:floor",
+          "display_name": "SET_Floor",
+          "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+          "transform": {
+            "location_cm": {
+              "x": -100.0,
+              "y": 0.0,
+              "z": -3.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 14.0,
+              "y": 9.0,
+              "z": 0.1
+            }
+          }
+        },
+        {
+          "binding_id": "set:back-wall",
+          "display_name": "SET_BackWall",
+          "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+          "transform": {
+            "location_cm": {
+              "x": 600.0,
+              "y": 0.0,
+              "z": 150.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 9.0,
+              "z": 3.0
+            }
+          }
+        },
+        {
+          "binding_id": "set:left-wall",
+          "display_name": "SET_LeftWall",
+          "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+          "transform": {
+            "location_cm": {
+              "x": -100.0,
+              "y": -450.0,
+              "z": 150.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 14.0,
+              "y": 0.1,
+              "z": 3.0
+            }
+          }
+        },
+        {
+          "binding_id": "set:right-wall",
+          "display_name": "SET_RightWall",
+          "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
+          "transform": {
+            "location_cm": {
+              "x": -100.0,
+              "y": 450.0,
+              "z": 150.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 14.0,
+              "y": 0.1,
+              "z": 3.0
+            }
+          }
+        }
+      ],
       "source_scene_id": "scene-meeting",
       "title": "The Meeting"
     }
@@ -413,12 +591,12 @@
   "warnings": [
     {
       "code": "placeholder_character",
-      "message": "Character 'mina' imports as an Unreal Character placeholder.",
+      "message": "Character 'mina' imports as a visible cylinder proxy; skeletal asset resolution is a later adapter phase.",
       "source_id": "mina"
     },
     {
       "code": "placeholder_character",
-      "message": "Character 'arjun' imports as an Unreal Character placeholder.",
+      "message": "Character 'arjun' imports as a visible cylinder proxy; skeletal asset resolution is a later adapter phase.",
       "source_id": "arjun"
     },
     {
@@ -443,7 +621,7 @@
     },
     {
       "code": "camera_movement_metadata_only",
-      "message": "Camera movement 'dolly' is retained as metadata; v0.1 imports a blocking pose for manual keyframing.",
+      "message": "Camera movement 'dolly' is retained as metadata; v0.2 imports a blocking pose for manual keyframing.",
       "source_id": "shot-establishing"
     },
     {

@@ -7,8 +7,10 @@ from cutsceneai_cir import (
     CameraAngle,
     CameraFraming,
     CameraMovement,
+    EnvironmentObject,
     PerformancePlan,
     Project,
+    Transform,
     validate_project_model,
 )
 from cutsceneai_preview import (
@@ -24,8 +26,10 @@ from .models import (
     UnrealCameraBinding,
     UnrealExportPlan,
     UnrealExportWarning,
+    UnrealPlaceholderVisual,
     UnrealPerformanceCue,
     UnrealSceneSequence,
+    UnrealSetPiece,
     UnrealTransform,
     UnrealVector,
 )
@@ -34,6 +38,21 @@ from .models import (
 DEFAULT_PACKAGE_PATH = "/Game/CutSceneAI/Sequences"
 CHARACTER_CLASS_PATH = "/Script/Engine.Character"
 STATIC_MESH_ACTOR_CLASS_PATH = "/Script/Engine.StaticMeshActor"
+PLACEHOLDER_CUBE_PATH = "/Engine/BasicShapes/Cube.Cube"
+PLACEHOLDER_CYLINDER_PATH = "/Engine/BasicShapes/Cylinder.Cylinder"
+
+_CHARACTER_PROXY_SCALE = UnrealVector(x=0.45, y=0.45, z=1.8)
+_CHARACTER_PROXY_OFFSET = UnrealVector(x=0.0, y=0.0, z=90.0)
+_DOCUMENT_PROXY_SCALE = UnrealVector(x=0.3, y=0.21, z=0.01)
+_DOCUMENT_PROXY_OFFSET = UnrealVector(x=0.0, y=0.0, z=0.5)
+_TABLE_PROXY_SCALE = UnrealVector(x=2.4, y=1.2, z=0.75)
+_TABLE_PROXY_OFFSET = UnrealVector(x=0.0, y=0.0, z=37.5)
+_GENERIC_PROXY_SCALE = UnrealVector(x=0.5, y=0.5, z=0.5)
+_GENERIC_PROXY_OFFSET = UnrealVector(x=0.0, y=0.0, z=25.0)
+
+_DOCUMENT_TERMS = ("contract", "document", "paper", "letter", "book")
+_TABLE_TERMS = ("table", "desk", "counter")
+_INTERIOR_TERMS = ("room", "office", "interior", "conference")
 
 _CAMERA_DISTANCE_CM = {
     CameraFraming.EXTREME_WIDE: 900.0,
@@ -143,7 +162,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.1 imports a blocking pose for manual keyframing."
+                            "v0.2 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
@@ -183,6 +202,7 @@ def compile_project(
                 asset_name=f"LS_{_unreal_name(source_scene.id)}",
                 package_path=package_path,
                 duration_frames=preview_scene.duration_frames,
+                set_pieces=_compile_set_pieces(source_scene.location),
                 actors=actor_bindings,
                 performance_cues=performance_cues,
                 cameras=cameras,
@@ -206,16 +226,26 @@ def _compile_actors(
     environment_by_id = {item.id: item for item in project.environment}
     bindings: list[UnrealActorBinding] = []
     for entity in entities:
+        placeholder_visual: UnrealPlaceholderVisual | None
         if entity.kind.value == "character":
             asset_path = None
             placeholder = True
             kind = UnrealActorKind.CHARACTER
-            actor_class_path = CHARACTER_CLASS_PATH
+            actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
+            placeholder_visual = _placeholder_visual(
+                transform=convert_transform(entity.initial_transform),
+                mesh_asset_path=PLACEHOLDER_CYLINDER_PATH,
+                scale_multiplier=_CHARACTER_PROXY_SCALE,
+                location_offset_cm=_CHARACTER_PROXY_OFFSET,
+            )
             warnings.append(
                 UnrealExportWarning(
                     code="placeholder_character",
                     source_id=entity.id,
-                    message=f"Character '{entity.id}' imports as an Unreal Character placeholder.",
+                    message=(
+                        f"Character '{entity.id}' imports as a visible cylinder proxy; "
+                        "skeletal asset resolution is a later adapter phase."
+                    ),
                 )
             )
         else:
@@ -224,6 +254,11 @@ def _compile_actors(
             placeholder = asset_path is None
             kind = UnrealActorKind.ENVIRONMENT
             actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
+            placeholder_visual = (
+                _environment_placeholder_visual(source_item, entity.initial_transform)
+                if placeholder
+                else None
+            )
             if source_item.asset_uri is not None and asset_path is None:
                 warnings.append(
                     UnrealExportWarning(
@@ -256,10 +291,107 @@ def _compile_actors(
                 actor_class_path=actor_class_path,
                 asset_path=asset_path,
                 placeholder=placeholder,
+                placeholder_visual=placeholder_visual,
                 transform=convert_transform(entity.initial_transform),
             )
         )
     return bindings
+
+
+def _environment_placeholder_visual(
+    source_item: EnvironmentObject, transform: Transform
+) -> UnrealPlaceholderVisual:
+    searchable = " ".join(
+        value
+        for value in (source_item.id, source_item.name, source_item.description)
+        if value
+    ).lower()
+    if any(term in searchable for term in _DOCUMENT_TERMS):
+        scale = _DOCUMENT_PROXY_SCALE
+        offset = _DOCUMENT_PROXY_OFFSET
+    elif any(term in searchable for term in _TABLE_TERMS):
+        scale = _TABLE_PROXY_SCALE
+        offset = _TABLE_PROXY_OFFSET
+    else:
+        scale = _GENERIC_PROXY_SCALE
+        offset = _GENERIC_PROXY_OFFSET
+    return _placeholder_visual(
+        transform=convert_transform(transform),
+        mesh_asset_path=PLACEHOLDER_CUBE_PATH,
+        scale_multiplier=scale,
+        location_offset_cm=offset,
+    )
+
+
+def _placeholder_visual(
+    *,
+    transform: UnrealTransform,
+    mesh_asset_path: str,
+    scale_multiplier: UnrealVector,
+    location_offset_cm: UnrealVector,
+) -> UnrealPlaceholderVisual:
+    return UnrealPlaceholderVisual(
+        mesh_asset_path=mesh_asset_path,
+        transform=UnrealTransform(
+            location_cm=UnrealVector(
+                x=transform.location_cm.x + location_offset_cm.x,
+                y=transform.location_cm.y + location_offset_cm.y,
+                z=transform.location_cm.z + location_offset_cm.z,
+            ),
+            rotation=transform.rotation,
+            scale=UnrealVector(
+                x=transform.scale.x * scale_multiplier.x,
+                y=transform.scale.y * scale_multiplier.y,
+                z=transform.scale.z * scale_multiplier.z,
+            ),
+        ),
+    )
+
+
+def _compile_set_pieces(location: str) -> list[UnrealSetPiece]:
+    pieces = [
+        _set_piece(
+            binding_id="set:floor",
+            display_name="SET_Floor",
+            location=UnrealVector(x=-100.0, y=0.0, z=-3.0),
+            scale=UnrealVector(x=14.0, y=9.0, z=0.1),
+        )
+    ]
+    if any(term in location.lower() for term in _INTERIOR_TERMS):
+        pieces.extend(
+            [
+                _set_piece(
+                    binding_id="set:back-wall",
+                    display_name="SET_BackWall",
+                    location=UnrealVector(x=600.0, y=0.0, z=150.0),
+                    scale=UnrealVector(x=0.1, y=9.0, z=3.0),
+                ),
+                _set_piece(
+                    binding_id="set:left-wall",
+                    display_name="SET_LeftWall",
+                    location=UnrealVector(x=-100.0, y=-450.0, z=150.0),
+                    scale=UnrealVector(x=14.0, y=0.1, z=3.0),
+                ),
+                _set_piece(
+                    binding_id="set:right-wall",
+                    display_name="SET_RightWall",
+                    location=UnrealVector(x=-100.0, y=450.0, z=150.0),
+                    scale=UnrealVector(x=14.0, y=0.1, z=3.0),
+                ),
+            ]
+        )
+    return pieces
+
+
+def _set_piece(
+    *, binding_id: str, display_name: str, location: UnrealVector, scale: UnrealVector
+) -> UnrealSetPiece:
+    return UnrealSetPiece(
+        binding_id=binding_id,
+        display_name=display_name,
+        mesh_asset_path=PLACEHOLDER_CUBE_PATH,
+        transform=UnrealTransform(location_cm=location, scale=scale),
+    )
 
 
 def _compile_performance_cue(

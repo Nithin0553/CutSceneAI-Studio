@@ -46,6 +46,18 @@ class UnrealTransform(UnrealModel):
     scale: UnrealVector = Field(default_factory=_unit_scale)
 
 
+class UnrealPlaceholderVisual(UnrealModel):
+    mesh_asset_path: str
+    transform: UnrealTransform
+
+
+class UnrealSetPiece(UnrealModel):
+    binding_id: str
+    display_name: str
+    mesh_asset_path: str
+    transform: UnrealTransform
+
+
 class UnrealCoordinateSystem(UnrealModel):
     distance_unit: Literal["centimeter"] = "centimeter"
     handedness: Literal["left"] = "left"
@@ -64,6 +76,7 @@ class UnrealActorBinding(UnrealModel):
     actor_class_path: str
     asset_path: str | None = None
     placeholder: bool
+    placeholder_visual: UnrealPlaceholderVisual | None = None
     transform: UnrealTransform
 
 
@@ -114,6 +127,7 @@ class UnrealSceneSequence(UnrealModel):
     asset_name: str
     package_path: str
     duration_frames: int = Field(gt=0)
+    set_pieces: list[UnrealSetPiece]
     actors: list[UnrealActorBinding]
     performance_cues: list[UnrealPerformanceCue]
     cameras: list[UnrealCameraBinding]
@@ -126,7 +140,7 @@ class UnrealExportWarning(UnrealModel):
 
 
 class UnrealExportPlan(UnrealModel):
-    adapter_version: Literal["0.1.0"] = "0.1.0"
+    adapter_version: Literal["0.2.0"] = "0.2.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"

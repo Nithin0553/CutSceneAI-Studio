@@ -2,7 +2,7 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
-The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1 pipeline, and an Unreal Adapter v0.1 that produces editable Sequencer imports.
+The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1 pipeline, and an Unreal Adapter v0.2 that produces editable Sequencer imports with visible proxy scene assembly.
 
 ## What works now
 
@@ -16,6 +16,7 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 - `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
 - `POST /api/v1/adapters/unreal/export` for typed Unreal Sequencer plans
 - `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
+- Asset-independent Unreal proxy characters, semantic props, and editable interior set shells
 - Committed CIR, Preview, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -27,7 +28,7 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.1 complete |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.2 in acceptance |
 
 ## Local setup
 
@@ -124,7 +125,7 @@ The API is then available at `http://127.0.0.1:8000`.
 6. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 7. **Release:** CineBench++ evaluation, packaging, documentation, and public launch
 
-The current milestone is Unreal Adapter v0.1 acceptance in Unreal Engine 5.8.0. After the golden Level Sequence is verified in-editor, the next portable milestone is the Unity adapter.
+The current milestone is Unreal Adapter v0.2 visible scene-assembly acceptance in Unreal Engine 5.8.0. After the proxy Level Sequence and render are verified in-editor, the next portable milestone is the Unity adapter.
 
 ## Director Agent v0.1
 
@@ -159,7 +160,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Meth
 Start-Process .\office-dialogue.storyboard.svg
 ```
 
-## Unreal Adapter v0.1
+## Unreal Adapter v0.2
 
 Export an Unreal Sequencer plan and importer from the same golden CIR fixture:
 
@@ -171,4 +172,5 @@ Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/importer.py 
 
 Enable Unreal Engine 5.8.0's Python Editor Script, Editor Scripting Utilities, and Sequencer
 Scripting plugins, then run the generated script with **File > Execute Python Script**. The importer creates
-`/Game/CutSceneAI/Sequences/LS_SceneMeeting` and refuses to overwrite an existing asset.
+`/Game/CutSceneAI/Sequences/LS_SceneMeeting` with proxy characters, semantic props, an interior shell,
+and four camera cuts. It refuses to overwrite an existing asset.

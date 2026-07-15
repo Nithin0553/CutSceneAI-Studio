@@ -16,6 +16,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     assert sequence.asset_name == "LS_SceneMeeting"
     assert sequence.package_path == "/Game/CutSceneAI/Sequences"
     assert sequence.duration_frames == 432
+    assert len(sequence.set_pieces) == 4
     assert len(sequence.actors) == 4
     assert len(sequence.performance_cues) == 4
     assert len(sequence.cameras) == 4
@@ -48,6 +49,59 @@ def test_compile_converts_golden_actor_positions(cir_project: Project) -> None:
     assert actors["contract"].transform.location_cm == UnrealVector(
         x=0.0, y=0.0, z=80.0
     )
+
+
+def test_compile_builds_visible_asset_independent_proxy_assembly(
+    cir_project: Project,
+) -> None:
+    sequence = compile_project(cir_project).sequences[0]
+    actors = {actor.source_entity_id: actor for actor in sequence.actors}
+
+    mina = actors["mina"]
+    assert mina.actor_class_path == "/Script/Engine.StaticMeshActor"
+    assert mina.placeholder_visual is not None
+    assert mina.placeholder_visual.mesh_asset_path == (
+        "/Engine/BasicShapes/Cylinder.Cylinder"
+    )
+    assert mina.placeholder_visual.transform.location_cm == UnrealVector(
+        x=-100.0, y=-150.0, z=90.0
+    )
+    assert mina.placeholder_visual.transform.scale == UnrealVector(
+        x=0.45, y=0.45, z=1.8
+    )
+
+    contract = actors["contract"]
+    assert contract.placeholder_visual is not None
+    assert contract.placeholder_visual.transform.location_cm == UnrealVector(
+        x=0.0, y=0.0, z=80.5
+    )
+    assert contract.placeholder_visual.transform.scale == UnrealVector(
+        x=0.3, y=0.21, z=0.01
+    )
+
+    table = actors["conference-table"]
+    assert table.placeholder_visual is not None
+    assert table.placeholder_visual.transform.location_cm.z == 37.5
+    assert table.placeholder_visual.transform.scale == UnrealVector(
+        x=2.4, y=1.2, z=0.75
+    )
+
+    assert [piece.display_name for piece in sequence.set_pieces] == [
+        "SET_Floor",
+        "SET_BackWall",
+        "SET_LeftWall",
+        "SET_RightWall",
+    ]
+
+
+def test_compile_non_interior_scene_uses_portable_floor_stage(
+    cir_project: Project,
+) -> None:
+    cir_project.scenes[0].location = "Forest clearing"
+
+    set_pieces = compile_project(cir_project).sequences[0].set_pieces
+
+    assert [piece.display_name for piece in set_pieces] == ["SET_Floor"]
 
 
 def test_compile_infers_deterministic_camera_blocking(cir_project: Project) -> None:
@@ -164,6 +218,7 @@ def test_unreal_environment_asset_paths_disable_placeholders(
 
     assert contract.asset_path == "/Game/Props/SM_Contract.SM_Contract"
     assert contract.placeholder is False
+    assert contract.placeholder_visual is None
 
 
 def test_non_unreal_asset_uri_is_reported(cir_project: Project) -> None:

@@ -21,6 +21,8 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
 
     compile(script, "cutsceneai_unreal_import.py", "exec")
     assert "subsystem.add_spawnable_from_class" in script
+    assert 'for set_piece in scene["set_pieces"]' in script
+    assert "_configure_static_mesh" in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
     assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
     assert "subsystem.save_default_spawnable_state" in script
@@ -29,6 +31,117 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert "save_loaded_asset" in script
     assert "delete_asset" not in script
     assert "Refusing to replace existing asset" in script
+
+
+def test_importer_builds_visible_proxy_actor_and_room_set_piece(
+    unreal_plan: UnrealExportPlan,
+    monkeypatch,
+) -> None:
+    script = render_unreal_import_script(unreal_plan)
+
+    class StaticMesh:
+        pass
+
+    class StaticMeshComponent:
+        def __init__(self) -> None:
+            self.mesh = None
+
+        def set_static_mesh(self, mesh) -> None:
+            self.mesh = mesh
+
+    class StaticMeshActor:
+        def __init__(self) -> None:
+            self.component = StaticMeshComponent()
+            self.label = ""
+            self.location = None
+            self.rotation = None
+            self.scale = None
+
+        def get_editor_property(self, name: str):
+            assert name == "static_mesh_component"
+            return self.component
+
+        def set_actor_label(self, value: str) -> None:
+            self.label = value
+
+        def set_actor_location(self, value, sweep: bool, teleport: bool) -> None:
+            self.location = value
+
+        def set_actor_rotation(self, value, teleport: bool) -> None:
+            self.rotation = value
+
+        def set_actor_scale3d(self, value) -> None:
+            self.scale = value
+
+    class Binding:
+        def __init__(self) -> None:
+            self.template = StaticMeshActor()
+            self.display_name = ""
+
+        def get_object_template(self):
+            return self.template
+
+        def set_display_name(self, value: str) -> None:
+            self.display_name = value
+
+    class Subsystem:
+        def __init__(self) -> None:
+            self.bindings = []
+            self.saved = []
+
+        def add_spawnable_from_class(self, sequence, actor_class):
+            assert actor_class is StaticMeshActor
+            binding = Binding()
+            self.bindings.append(binding)
+            return binding
+
+        def save_default_spawnable_state(self, value) -> None:
+            self.saved.append(value)
+
+    class Quat:
+        def __init__(self, *values) -> None:
+            self.values = values
+
+        def rotator(self):
+            return self.values
+
+    mesh = StaticMesh()
+
+    class EditorAssetLibrary:
+        @staticmethod
+        def load_asset(path: str):
+            assert path in {
+                "/Engine/BasicShapes/Cube.Cube",
+                "/Engine/BasicShapes/Cylinder.Cylinder",
+            }
+            return mesh
+
+    unreal = ModuleType("unreal")
+    unreal.StaticMesh = StaticMesh
+    unreal.EditorAssetLibrary = EditorAssetLibrary
+    unreal.Vector = lambda *values: values
+    unreal.Quat = Quat
+    unreal.load_class = lambda outer, path: StaticMeshActor
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    subsystem = Subsystem()
+    sequence = object()
+
+    actor = unreal_plan.sequences[0].actors[0].model_dump(mode="json")
+    actor_binding = namespace["_add_actor"](sequence, subsystem, actor)
+    set_piece = unreal_plan.sequences[0].set_pieces[0].model_dump(mode="json")
+    set_binding = namespace["_add_set_piece"](sequence, subsystem, set_piece)
+
+    assert actor_binding.display_name == "ACT_Mina"
+    assert actor_binding.template.label == "ACT_Mina"
+    assert actor_binding.template.location == (-100.0, -150.0, 90.0)
+    assert actor_binding.template.scale == (0.45, 0.45, 1.8)
+    assert actor_binding.template.component.mesh is mesh
+    assert set_binding.display_name == "SET_Floor"
+    assert set_binding.template.component.mesh is mesh
+    assert subsystem.saved == [actor_binding, set_binding]
 
 
 def test_importer_configures_live_58_camera_when_template_component_is_missing(
