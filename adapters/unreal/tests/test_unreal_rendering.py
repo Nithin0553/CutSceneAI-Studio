@@ -174,7 +174,7 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     assert subsystem.saved == [actor_binding, set_binding]
 
 
-def test_importer_configures_live_58_camera_when_template_component_is_missing(
+def test_importer_configures_template_and_live_58_camera_when_template_component_is_missing(
     unreal_plan: UnrealExportPlan,
     monkeypatch,
 ) -> None:
@@ -257,6 +257,8 @@ def test_importer_configures_live_58_camera_when_template_component_is_missing(
             return binding
 
         def save_default_spawnable_state(self, value) -> None:
+            assert template_actor.transform_calls
+            assert live_actor.transform_calls
             self.saved.append(value)
 
     subsystem = Subsystem()
@@ -294,7 +296,14 @@ def test_importer_configures_live_58_camera_when_template_component_is_missing(
 
     assert result is binding
     assert binding.display_name == "CAM_ShotEstablishing"
+    assert template_actor.label == "CAM_ShotEstablishing"
+    assert template_actor.transform_calls == [
+        ("location", ((-675.0, -25.0, 160.0), False, True)),
+        ("rotation", ((0.0, 0.0, 0.0, 1.0), True)),
+        ("scale", ((1.0, 1.0, 1.0),)),
+    ]
     assert live_actor.label == "CAM_ShotEstablishing"
+    assert live_actor.transform_calls == template_actor.transform_calls
     assert component.current_focal_length == 28.0
     assert component.lens_settings.values["min_focal_length"] == 28.0
     assert subsystem.saved == [binding]
