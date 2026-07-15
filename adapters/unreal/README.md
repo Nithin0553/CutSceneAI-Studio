@@ -22,6 +22,8 @@ actor bindings, four generated set pieces, four cameras, four cuts, and four per
 Supplying an Unreal `/Game/...` environment asset path bypasses that entity's proxy visual.
 Adapter patch 0.2.1 configures both the Sequencer template and live bound Static Mesh Actor before
 saving the default spawnable state, so proxy geometry persists into Movie Render Queue sessions.
+Patch 0.2.2 applies the same template/live persistence rule to Cine Camera Actors, preventing Unreal
+5.8 from reopening generated camera bindings at the world origin with a zero rotation.
 
 ## Generate the committed artifacts
 
