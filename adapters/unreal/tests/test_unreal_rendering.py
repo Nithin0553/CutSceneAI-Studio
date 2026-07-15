@@ -74,8 +74,10 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
             self.scale = value
 
     class Binding:
-        def __init__(self) -> None:
+        def __init__(self, binding_id: str) -> None:
+            self.binding_id = binding_id
             self.template = StaticMeshActor()
+            self.live_actor = StaticMeshActor()
             self.display_name = ""
 
         def get_object_template(self):
@@ -91,7 +93,7 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
 
         def add_spawnable_from_class(self, sequence, actor_class):
             assert actor_class is StaticMeshActor
-            binding = Binding()
+            binding = Binding(f"binding-{len(self.bindings)}")
             self.bindings.append(binding)
             return binding
 
@@ -116,9 +118,32 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
             }
             return mesh
 
+    subsystem = Subsystem()
+
+    class Sequence:
+        @staticmethod
+        def get_binding_id(binding: Binding) -> str:
+            return binding.binding_id
+
+    class BlueprintLibrary:
+        force_update_count = 0
+
+        @classmethod
+        def force_update(cls) -> None:
+            cls.force_update_count += 1
+
+        @staticmethod
+        def get_bound_objects(binding_id: str):
+            binding = next(
+                item for item in subsystem.bindings if item.binding_id == binding_id
+            )
+            return [binding.live_actor]
+
     unreal = ModuleType("unreal")
     unreal.StaticMesh = StaticMesh
+    unreal.StaticMeshActor = StaticMeshActor
     unreal.EditorAssetLibrary = EditorAssetLibrary
+    unreal.LevelSequenceEditorBlueprintLibrary = BlueprintLibrary
     unreal.Vector = lambda *values: values
     unreal.Quat = Quat
     unreal.load_class = lambda outer, path: StaticMeshActor
@@ -126,8 +151,7 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
     exec(script, namespace)
-    subsystem = Subsystem()
-    sequence = object()
+    sequence = Sequence()
 
     actor = unreal_plan.sequences[0].actors[0].model_dump(mode="json")
     actor_binding = namespace["_add_actor"](sequence, subsystem, actor)
@@ -139,8 +163,14 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     assert actor_binding.template.location == (-100.0, -150.0, 90.0)
     assert actor_binding.template.scale == (0.45, 0.45, 1.8)
     assert actor_binding.template.component.mesh is mesh
+    assert actor_binding.live_actor.label == "ACT_Mina"
+    assert actor_binding.live_actor.location == (-100.0, -150.0, 90.0)
+    assert actor_binding.live_actor.scale == (0.45, 0.45, 1.8)
+    assert actor_binding.live_actor.component.mesh is mesh
     assert set_binding.display_name == "SET_Floor"
     assert set_binding.template.component.mesh is mesh
+    assert set_binding.live_actor.component.mesh is mesh
+    assert BlueprintLibrary.force_update_count == 2
     assert subsystem.saved == [actor_binding, set_binding]
 
 

@@ -20,6 +20,8 @@ For each CIR scene, v0.1 creates a Level Sequence plan containing:
 The golden office scene produces `/Game/CutSceneAI/Sequences/LS_SceneMeeting` with four semantic
 actor bindings, four generated set pieces, four cameras, four cuts, and four performance cues.
 Supplying an Unreal `/Game/...` environment asset path bypasses that entity's proxy visual.
+Adapter patch 0.2.1 configures both the Sequencer template and live bound Static Mesh Actor before
+saving the default spawnable state, so proxy geometry persists into Movie Render Queue sessions.
 
 ## Generate the committed artifacts
 
