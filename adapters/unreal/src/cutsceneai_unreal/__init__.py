@@ -15,6 +15,7 @@ from .conversion import (
 from .models import (
     UnrealActorBinding,
     UnrealActorKind,
+    UnrealAnimationSection,
     UnrealCameraBinding,
     UnrealCoordinateSystem,
     UnrealExportPlan,
@@ -47,6 +48,7 @@ __all__ = [
     "UNREAL_PLAN_SCHEMA_ID",
     "UnrealActorBinding",
     "UnrealActorKind",
+    "UnrealAnimationSection",
     "UnrealCameraBinding",
     "UnrealCoordinateSystem",
     "UnrealExportPlan",

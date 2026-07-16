@@ -24,6 +24,7 @@ from .conversion import convert_transform, look_at_quaternion
 from .models import (
     UnrealActorBinding,
     UnrealActorKind,
+    UnrealAnimationSection,
     UnrealCameraBinding,
     UnrealExportPlan,
     UnrealExportWarning,
@@ -122,15 +123,29 @@ def compile_project(
                 preview_scene.performance_cues, source_performances, strict=True
             )
         ]
+        animation_sections = _compile_animation_sections(
+            performance_cues=performance_cues,
+            actor_bindings=actor_bindings,
+            warnings=warnings,
+        )
         if performance_cues:
+            missing_count = len(performance_cues) - len(animation_sections)
+            if missing_count:
+                message = (
+                    f"{missing_count} of {len(performance_cues)} performance cues have no "
+                    "compatible Unreal animation section; their motion intent and all facial, "
+                    "dialogue-audio, and look-at data remain editable Sequencer markers."
+                )
+            else:
+                message = (
+                    "Explicit animation assets compile as editable Sequencer sections; motion "
+                    "prompts plus facial, dialogue-audio, and look-at intent remain markers."
+                )
             warnings.append(
                 UnrealExportWarning(
                     code="performance_metadata_only",
                     source_id=source_scene.id,
-                    message=(
-                        "Performance cues are imported as editable Sequencer markers; "
-                        "animation and audio asset binding is a later adapter phase."
-                    ),
+                    message=message,
                 )
             )
 
@@ -173,7 +188,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.3 imports a blocking pose for manual keyframing."
+                            "v0.4 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
@@ -216,6 +231,7 @@ def compile_project(
                 set_pieces=_compile_set_pieces(source_scene.location),
                 actors=actor_bindings,
                 performance_cues=performance_cues,
+                animation_sections=animation_sections,
                 cameras=cameras,
             )
         )
@@ -468,6 +484,59 @@ def _compile_performance_cue(
             else None
         ),
     )
+
+
+def _compile_animation_sections(
+    *,
+    performance_cues: list[UnrealPerformanceCue],
+    actor_bindings: list[UnrealActorBinding],
+    warnings: list[UnrealExportWarning],
+) -> list[UnrealAnimationSection]:
+    actor_by_binding_id = {actor.binding_id: actor for actor in actor_bindings}
+    sections: list[UnrealAnimationSection] = []
+    for cue in performance_cues:
+        if cue.motion_asset_uri is None:
+            continue
+
+        asset_path = _unreal_asset_path(cue.motion_asset_uri)
+        if asset_path is None:
+            warnings.append(
+                UnrealExportWarning(
+                    code="unsupported_animation_uri",
+                    source_id=cue.source_beat_id,
+                    message=(
+                        f"Motion asset URI '{cue.motion_asset_uri}' is not an Unreal /Game path; "
+                        "the cue remains marker metadata."
+                    ),
+                )
+            )
+            continue
+
+        actor = actor_by_binding_id[cue.actor_binding_id]
+        if actor.mesh_type is not UnrealMeshType.SKELETAL_MESH:
+            warnings.append(
+                UnrealExportWarning(
+                    code="animation_requires_skeletal_mesh",
+                    source_id=cue.source_beat_id,
+                    message=(
+                        f"Motion asset '{asset_path}' requires character "
+                        f"'{actor.source_entity_id}' to use an Unreal Skeletal Mesh; the cue "
+                        "remains marker metadata."
+                    ),
+                )
+            )
+            continue
+
+        sections.append(
+            UnrealAnimationSection(
+                source_beat_id=cue.source_beat_id,
+                actor_binding_id=cue.actor_binding_id,
+                asset_path=asset_path,
+                start_frame=cue.start_frame,
+                end_frame=cue.end_frame,
+            )
+        )
+    return sections
 
 
 def _entity_target_point(entity: PreviewEntity) -> UnrealVector:

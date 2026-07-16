@@ -105,6 +105,14 @@ class UnrealPerformanceCue(UnrealModel):
     look_at_binding_id: str | None = None
 
 
+class UnrealAnimationSection(UnrealModel):
+    source_beat_id: str
+    actor_binding_id: str
+    asset_path: str = Field(pattern=r"^/Game/")
+    start_frame: int = Field(ge=0)
+    end_frame: int = Field(gt=0)
+
+
 class UnrealCameraBinding(UnrealModel):
     binding_id: str
     source_shot_id: str
@@ -136,6 +144,7 @@ class UnrealSceneSequence(UnrealModel):
     set_pieces: list[UnrealSetPiece]
     actors: list[UnrealActorBinding]
     performance_cues: list[UnrealPerformanceCue]
+    animation_sections: list[UnrealAnimationSection]
     cameras: list[UnrealCameraBinding]
 
 
@@ -146,7 +155,7 @@ class UnrealExportWarning(UnrealModel):
 
 
 class UnrealExportPlan(UnrealModel):
-    adapter_version: Literal["0.3.0"] = "0.3.0"
+    adapter_version: Literal["0.4.0"] = "0.4.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
