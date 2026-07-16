@@ -18,6 +18,7 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 - `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
 - Asset-independent Unreal proxy characters, semantic props, and editable interior set shells
 - Optional CIR character asset references resolved to editable Unreal Skeletal Mesh spawnables
+- Compatible CIR motion asset references resolved to editable, frame-aligned Anim Sequence sections
 - Committed CIR, Preview, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -29,7 +30,7 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.4 in acceptance |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.4 complete; Unity planned |
 
 ## Local setup
 
@@ -115,18 +116,31 @@ The API is then available at `http://127.0.0.1:8000`.
 - `shared/` — reusable fixtures and cross-service components
 - `tests/` — future acceptance and integration suites
 - `infrastructure/` — deployment assets
+- `ROADMAP.md` — ordered product milestones and acceptance gates through Studio v1.0
+- `CHANGELOG.md` — user-visible release history and current unreleased scope
+- `docs/releases/` — durable release notes and engine acceptance records
 
 ## Delivery roadmap
+
+The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.md`](ROADMAP.md).
 
 1. **Foundation v0.1:** CIR contract, golden fixture, validation, schema, API, and CI
 2. **Director planning:** prompt-to-CIR generation with deterministic structured output and evals
 3. **Preview pipeline:** blocking, camera, performance, dialogue, and environment previews
-4. **Unreal adapter:** CIR-to-Sequencer export and golden-scene acceptance test
-5. **Unity adapter:** portable validation of the same CIR contract
-6. **Studio editing:** prompt-driven revisions with traceable CIR diffs
-7. **Release:** CineBench++ evaluation, packaging, documentation, and public launch
+4. **Unreal adapter through v0.4:** CIR-to-Sequencer export, asset binding, animation sections,
+   and a completed Unreal Engine 5.8 golden-scene acceptance test
+5. **Unreal production pipeline:** dialogue audio, generated voice, environment resolution,
+   camera trajectories, body motion, and facial performance
+6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
+7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
+8. **Release:** CineBench++ evaluation, packaging, hardening, documentation, and public launch
 
-The current milestone is Unreal Adapter v0.4 animation asset-binding acceptance in Unreal Engine 5.8.0. Characters with an Unreal `/Game/...` Skeletal Mesh path become editable Skeletal Mesh spawnables, and compatible `MotionPlan.asset_uri` paths become frame-aligned Anim Sequence sections. Asset discovery, compatibility inference, retargeting, AI motion generation, facial animation, and audio binding remain later milestones.
+Unreal Adapter v0.4 completed acceptance in Unreal Engine 5.8.0 on 2026-07-16. Characters with an
+Unreal `/Game/...` Skeletal Mesh path become editable Skeletal Mesh spawnables, and compatible
+`MotionPlan.asset_uri` paths become frame-aligned Anim Sequence sections. The next milestone is
+Unreal Adapter v0.5 dialogue audio binding. See the
+[v0.4 release notes](docs/releases/unreal-adapter-v0.4.0.md) for the automated and live-engine
+evidence.
 
 ## Director Agent v0.1
 
