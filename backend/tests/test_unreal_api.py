@@ -42,7 +42,9 @@ def test_export_unreal_importer_returns_safe_python_script() -> None:
 
 def test_export_unreal_plan_preserves_character_skeletal_mesh_binding() -> None:
     value = payload()
-    value["characters"][0]["asset_uri"] = "/Game/Characters/Mannequins/Meshes/SKM_Quinn.SKM_Quinn"
+    value["characters"][0]["asset_uri"] = (
+        "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+    )
 
     response = client.post("/api/v1/adapters/unreal/export", json=value)
 

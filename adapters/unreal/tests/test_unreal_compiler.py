@@ -281,14 +281,16 @@ def test_unreal_character_asset_path_creates_skeletal_mesh_binding(
 ) -> None:
     cir_project.characters[
         0
-    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"
+    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
 
     plan = compile_project(cir_project)
     mina = next(
         actor for actor in plan.sequences[0].actors if actor.source_entity_id == "mina"
     )
 
-    assert mina.asset_path == ("/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny")
+    assert mina.asset_path == (
+        "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+    )
     assert mina.actor_class_path == SKELETAL_MESH_ACTOR_CLASS_PATH
     assert mina.mesh_type is UnrealMeshType.SKELETAL_MESH
     assert mina.placeholder is False

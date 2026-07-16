@@ -87,14 +87,16 @@ an actionable error so replacement remains an intentional editor action.
 ## Bind Manny and Quinn for the v0.3 acceptance test
 
 1. In the Content Drawer, choose **Add > Add Feature or Content Pack** and add **Third Person**.
-2. Find `SKM_Manny` and `SKM_Quinn` under `Characters/Mannequins/Meshes`.
+2. Find `SKM_Manny_Simple` and `SKM_Quinn_Simple` under
+   `Characters/Mannequins/Meshes`.
 3. Right-click each Skeletal Mesh and choose **Copy Reference**. CIR uses only the object path inside
-   the quotes, for example `/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny`.
+   the quotes, for example
+   `/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple`.
 4. Copy `cir/examples/office-dialogue.cir.json` to `office-dialogue.characters.cir.json` and add an
    `asset_uri` to each existing character object. For Mina, the added field is:
 
 ```json
-"asset_uri": "/Game/Characters/Mannequins/Meshes/SKM_Quinn.SKM_Quinn"
+"asset_uri": "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
 ```
 
 Use the Manny path for Arjun and preserve every other character field.

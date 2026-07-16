@@ -38,13 +38,13 @@ def test_models_forbid_unknown_fields() -> None:
 def test_character_accepts_engine_neutral_asset_uri() -> None:
     payload = load_example()
     payload["characters"][0]["asset_uri"] = (
-        "/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"
+        "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
     )
 
     project = validate_project(payload)
 
     assert project.characters[0].asset_uri == (
-        "/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"
+        "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
     )
 
 

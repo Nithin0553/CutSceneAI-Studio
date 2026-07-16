@@ -199,7 +199,7 @@ def test_importer_configures_template_and_live_skeletal_character(
     cir_project: Project,
     monkeypatch,
 ) -> None:
-    asset_path = "/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"
+    asset_path = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
     cir_project.characters[0].asset_uri = asset_path
     plan = compile_project(cir_project)
     script = render_unreal_import_script(plan)
