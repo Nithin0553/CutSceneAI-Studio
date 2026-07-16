@@ -25,6 +25,9 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert "_configure_static_mesh" in script
     assert "_configure_skeletal_mesh" in script
     assert "set_skeletal_mesh_asset" in script
+    assert "unreal.MovieSceneSkeletalAnimationTrack" in script
+    assert '"animation", _load_animation' in script
+    assert 'params.set_editor_property("force_custom_mode", True)' in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
     assert "binding.remove_track(track)" in script
     assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
@@ -340,6 +343,184 @@ def test_importer_configures_template_and_live_skeletal_character(
     assert len(binding.tracks) == 1
     assert isinstance(binding.tracks[0], MovieSceneSpawnTrack)
     assert subsystem.saved == [binding]
+
+
+def test_importer_adds_editable_skeletal_animation_sections(
+    cir_project: Project,
+    monkeypatch,
+) -> None:
+    animation_path = "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+    cir_project.characters[
+        0
+    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+    cir_project.scenes[0].beats[0].performances[0].motion.asset_uri = animation_path
+    plan = compile_project(cir_project)
+    script = render_unreal_import_script(plan)
+
+    class AnimSequenceBase:
+        pass
+
+    class Params:
+        def __init__(self) -> None:
+            self.values = {}
+
+        def set_editor_property(self, name: str, value) -> None:
+            self.values[name] = value
+
+    class MovieSceneSkeletalAnimationSection:
+        def __init__(self) -> None:
+            self.frame_range = None
+            self.params = Params()
+
+        def set_range(self, start_frame: int, end_frame: int) -> None:
+            self.frame_range = (start_frame, end_frame)
+
+        def get_editor_property(self, name: str):
+            assert name == "params"
+            return self.params
+
+        def set_editor_property(self, name: str, value) -> None:
+            assert name == "params"
+            self.params = value
+
+    class MovieSceneSkeletalAnimationTrack:
+        def __init__(self) -> None:
+            self.display_name = ""
+            self.sections = []
+
+        def set_display_name(self, value: str) -> None:
+            self.display_name = value
+
+        def add_section(self):
+            section = MovieSceneSkeletalAnimationSection()
+            self.sections.append(section)
+            return section
+
+    class Binding:
+        def __init__(self) -> None:
+            self.tracks = []
+
+        def add_track(self, track_type):
+            assert track_type is MovieSceneSkeletalAnimationTrack
+            track = track_type()
+            self.tracks.append(track)
+            return track
+
+    animation_asset = AnimSequenceBase()
+
+    class EditorAssetLibrary:
+        @staticmethod
+        def load_asset(path: str):
+            assert path == animation_path
+            return animation_asset
+
+    unreal = ModuleType("unreal")
+    unreal.AnimSequenceBase = AnimSequenceBase
+    unreal.MovieSceneSkeletalAnimationSection = MovieSceneSkeletalAnimationSection
+    unreal.MovieSceneSkeletalAnimationTrack = MovieSceneSkeletalAnimationTrack
+    unreal.EditorAssetLibrary = EditorAssetLibrary
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    binding = Binding()
+    animations = [
+        section.model_dump(mode="json")
+        for section in plan.sequences[0].animation_sections
+    ]
+
+    namespace["_add_animation_sections"]({"actor:mina": binding}, animations)
+
+    assert len(binding.tracks) == 1
+    track = binding.tracks[0]
+    assert track.display_name == "CutSceneAI Animation"
+    assert len(track.sections) == 1
+    section = track.sections[0]
+    assert section.frame_range == (0, 96)
+    assert section.params.values == {
+        "animation": animation_asset,
+        "force_custom_mode": True,
+    }
+
+
+def test_importer_reuses_one_animation_track_per_actor(
+    cir_project: Project,
+    monkeypatch,
+) -> None:
+    animation_path = "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+    cir_project.characters[
+        0
+    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+    for beat in cir_project.scenes[0].beats:
+        for performance in beat.performances:
+            if performance.character_id == "mina":
+                performance.motion.asset_uri = animation_path
+    plan = compile_project(cir_project)
+    script = render_unreal_import_script(plan)
+
+    class AnimSequenceBase:
+        pass
+
+    class Params:
+        def set_editor_property(self, name: str, value) -> None:
+            return None
+
+    class MovieSceneSkeletalAnimationSection:
+        def set_range(self, start_frame: int, end_frame: int) -> None:
+            return None
+
+        @staticmethod
+        def get_editor_property(name: str):
+            return Params()
+
+        @staticmethod
+        def set_editor_property(name: str, value) -> None:
+            return None
+
+    class MovieSceneSkeletalAnimationTrack:
+        def __init__(self) -> None:
+            self.sections = []
+
+        def set_display_name(self, value: str) -> None:
+            return None
+
+        def add_section(self):
+            section = MovieSceneSkeletalAnimationSection()
+            self.sections.append(section)
+            return section
+
+    class Binding:
+        def __init__(self) -> None:
+            self.tracks = []
+
+        def add_track(self, track_type):
+            track = track_type()
+            self.tracks.append(track)
+            return track
+
+    unreal = ModuleType("unreal")
+    unreal.AnimSequenceBase = AnimSequenceBase
+    unreal.MovieSceneSkeletalAnimationSection = MovieSceneSkeletalAnimationSection
+    unreal.MovieSceneSkeletalAnimationTrack = MovieSceneSkeletalAnimationTrack
+    unreal.EditorAssetLibrary = type(
+        "EditorAssetLibrary",
+        (),
+        {"load_asset": staticmethod(lambda path: AnimSequenceBase())},
+    )
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    binding = Binding()
+    animations = [
+        section.model_dump(mode="json")
+        for section in plan.sequences[0].animation_sections
+    ]
+
+    namespace["_add_animation_sections"]({"actor:mina": binding}, animations)
+
+    assert len(binding.tracks) == 1
+    assert len(binding.tracks[0].sections) == 2
 
 
 def test_importer_configures_template_and_live_58_camera_when_template_component_is_missing(

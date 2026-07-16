@@ -1,22 +1,26 @@
-# Unreal Adapter v0.3
+# Unreal Adapter v0.4
 
 The CutSceneAI Unreal Adapter compiles validated CIR into a deterministic Unreal Sequencer plan
 and a self-contained Unreal Editor Python importer. The plan is the stable, testable contract; the
 generated script turns it into editable Level Sequence assets inside Unreal Engine 5.8.0. Version
-0.3 keeps deterministic proxy scene assembly and adds optional Skeletal Mesh character binding.
+0.4 keeps deterministic proxy scene assembly and Skeletal Mesh binding, then adds explicit,
+frame-aligned Anim Sequence sections for CIR motion assets.
 
 ## Output
 
-For each CIR scene, v0.3 creates a Level Sequence plan containing:
+For each CIR scene, v0.4 creates a Level Sequence plan containing:
 
 - Character and environment spawnable bindings with meter-to-centimeter coordinate conversion
 - Visible 180 cm character proxies and semantic document, table, and generic-object dimensions
 - Skeletal Mesh character spawnables when `Character.asset_uri` contains an Unreal `/Game/...` path
+- Editable skeletal Animation tracks when `MotionPlan.asset_uri` contains a compatible Unreal
+  `/Game/...` Anim Sequence path
 - An editable floor stage plus a three-wall shell for indoor scene locations
 - A Cine Camera Actor per CIR shot and an exact frame-aligned Camera Cuts track
 - Focal lengths, shot purpose, composition, targets, and source IDs
-- Performance and dialogue markers retaining motion, facial, lip-sync, and look-at intent
-- Explicit warnings for placeholders, inferred cameras, and metadata awaiting animation binding
+- Performance and dialogue markers retaining motion prompts, facial, lip-sync, and look-at intent
+- Explicit warnings for placeholders, inferred cameras, unsupported animation paths, and remaining
+  metadata-only features
 
 The golden office scene produces `/Game/CutSceneAI/Sequences/LS_SceneMeeting` with four semantic
 actor bindings, four generated set pieces, four cameras, four cuts, and four performance cues.
@@ -32,6 +36,9 @@ primary subject while the second target is retained as a foreground shoulder ref
 Version 0.3.0 adds an explicit `mesh_type` to the adapter plan and configures both the template and
 live `SkeletalMeshActor` before saving its default spawnable state. Missing or unsupported character
 asset URIs retain the existing visible cylinder fallback.
+Version 0.4.0 adds a typed `animation_sections` collection. The importer groups sections by actor,
+creates one editable `MovieSceneSkeletalAnimationTrack` per actor, assigns the referenced animation,
+sets the exact CIR start/end frame range, and enables custom animation mode for Sequencer playback.
 
 ## Generate the committed artifacts
 
@@ -44,7 +51,7 @@ python adapters\unreal\scripts\export_artifacts.py --check
 
 The generated products are:
 
-- `schemas/unreal-sequencer-plan-v0.3.schema.json`
+- `schemas/unreal-sequencer-plan-v0.4.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
 
@@ -84,41 +91,82 @@ Invoke-WebRequest `
 The importer never deletes or replaces assets. If the Level Sequence already exists, it stops with
 an actionable error so replacement remains an intentional editor action.
 
-## Bind Manny and Quinn for the v0.3 acceptance test
+## Bind mannequin animations for the v0.4 acceptance test
 
-1. In the Content Drawer, choose **Add > Add Feature or Content Pack** and add **Third Person**.
-2. Find `SKM_Manny_Simple` and `SKM_Quinn_Simple` under
-   `Characters/Mannequins/Meshes`.
-3. Right-click each Skeletal Mesh and choose **Copy Reference**. CIR uses only the object path inside
-   the quotes, for example
-   `/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple`.
-4. Copy `cir/examples/office-dialogue.cir.json` to `office-dialogue.characters.cir.json` and add an
-   `asset_uri` to each existing character object. For Mina, the added field is:
+1. Complete the v0.3 character acceptance first: the Third Person content pack is installed, Mina
+   uses `SKM_Quinn_Simple`, and Arjun uses `SKM_Manny_Simple`.
+2. In the Content Drawer, open `Characters/Mannequins/Animations`. Find `MF_Idle` under `Quinn` and
+   `MM_Idle` under `Manny`.
+3. Right-click each Anim Sequence and choose **Copy Reference**. CIR uses only the object path inside
+   the quotes. The standard Third Person paths are:
 
 ```json
-"asset_uri": "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+"/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+"/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"
 ```
 
-Use the Manny path for Arjun and preserve every other character field.
+If Unreal shows a different path, use the copied reference from your project.
 
-5. Generate a new importer from that CIR file:
+4. From the repository root, create an animated copy of the already working character CIR file:
 
 ```powershell
-$body = Get-Content .\office-dialogue.characters.cir.json -Raw
+$cir = Get-Content .\office-dialogue.characters.cir.json -Raw | ConvertFrom-Json
+$quinnIdle = "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+$mannyIdle = "/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"
+
+foreach ($beat in $cir.scenes[0].beats) {
+    foreach ($performance in $beat.performances) {
+        $animation = if ($performance.character_id -eq "mina") { $quinnIdle } else { $mannyIdle }
+        $performance.motion | Add-Member `
+            -NotePropertyName asset_uri `
+            -NotePropertyValue $animation `
+            -Force
+    }
+}
+
+$cir | ConvertTo-Json -Depth 30 | Set-Content .\office-dialogue.animated.cir.json
+```
+
+5. Start the backend, compile the plan, and verify that it contains four animation sections:
+
+```powershell
+$body = Get-Content .\office-dialogue.animated.cir.json -Raw
+$plan = Invoke-RestMethod `
+    -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/export `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
+
+$plan.sequences[0].animation_sections |
+    Select-Object actor_binding_id, start_frame, end_frame, asset_path
+```
+
+The rows should cover `0-96` and `96-336` for Mina, plus `96-336` and `336-432` for Arjun.
+
+6. Generate the v0.4 importer:
+
+```powershell
 Invoke-WebRequest `
   -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/importer.py `
   -Method Post `
   -ContentType "application/json" `
   -Body $body `
-  -OutFile cutsceneai-unreal-characters.py
+  -OutFile cutsceneai-unreal-animated.py
 ```
 
-6. Delete the previous `LS_SceneMeeting` intentionally, execute the new importer, save, restart the
-   editor, and confirm Mina and Arjun remain Skeletal Mesh spawnables in Sequencer and MRQ.
+7. Delete the previous `LS_SceneMeeting` intentionally, execute `cutsceneai-unreal-animated.py`, and
+   save all.
+8. Open `LS_SceneMeeting`. Expand `ACT_Mina` and `ACT_Arjun`; each must have one **CutSceneAI
+   Animation** track containing two editable sections. Scrub the timeline and confirm both mannequin
+   poses animate.
+9. Restart Unreal, reopen `L_CutSceneAI_Preview` and the sequence, then confirm the tracks and motion
+   persisted.
+10. Run MRQ again. Acceptance requires 432 frames, both characters animated and visible, working
+    camera cuts, and no black or empty frames.
 
-## v0.3 boundary
+## v0.4 boundary
 
-This release resolves explicit Skeletal Mesh object paths; it does not search a project, choose an
-asset, infer skeleton compatibility, or retarget animation. Motion generation, animation-track and
+This release resolves explicit Skeletal Mesh and Anim Sequence object paths; it does not search a
+project, choose an asset, infer skeleton compatibility, or retarget animation. AI motion generation,
 Control Rig keying, facial animation, dialogue audio placement, camera movement curves, and automated
 final rendering remain later adapter phases and are identified in the plan warnings.

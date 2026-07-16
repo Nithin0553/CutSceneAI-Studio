@@ -1,5 +1,5 @@
 {
-  "adapter_version": "0.3.0",
+  "adapter_version": "0.4.0",
   "cir_schema_version": "0.1.0",
   "coordinate_system": {
     "distance_unit": "centimeter",
@@ -211,6 +211,7 @@
           }
         }
       ],
+      "animation_sections": [],
       "asset_name": "LS_SceneMeeting",
       "cameras": [
         {
@@ -615,7 +616,7 @@
     },
     {
       "code": "performance_metadata_only",
-      "message": "Performance cues are imported as editable Sequencer markers; animation and audio asset binding is a later adapter phase.",
+      "message": "4 of 4 performance cues have no compatible Unreal animation section; their motion intent and all facial, dialogue-audio, and look-at data remain editable Sequencer markers.",
       "source_id": "scene-meeting"
     },
     {
@@ -625,7 +626,7 @@
     },
     {
       "code": "camera_movement_metadata_only",
-      "message": "Camera movement 'dolly' is retained as metadata; v0.3 imports a blocking pose for manual keyframing.",
+      "message": "Camera movement 'dolly' is retained as metadata; v0.4 imports a blocking pose for manual keyframing.",
       "source_id": "shot-establishing"
     },
     {

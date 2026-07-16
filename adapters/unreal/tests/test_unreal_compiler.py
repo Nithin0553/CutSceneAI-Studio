@@ -25,6 +25,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     assert len(sequence.set_pieces) == 4
     assert len(sequence.actors) == 4
     assert len(sequence.performance_cues) == 4
+    assert sequence.animation_sections == []
     assert len(sequence.cameras) == 4
     assert sequence.cameras[0].source_beat_ids == ["beat-arrival"]
     assert sequence.cameras[0].subject_binding_ids == [
@@ -183,6 +184,87 @@ def test_compile_preserves_performance_and_dialogue_metadata(
     assert cues[1].dialogue_start_frame == 120
     assert cues[2].look_at_binding_id == "actor:mina"
     assert cues[2].dialogue_start_frame == 216
+
+
+def test_compile_creates_editable_animation_sections_for_skeletal_characters(
+    cir_project: Project,
+) -> None:
+    quinn_mesh = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+    manny_mesh = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+    quinn_idle = "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+    manny_idle = "/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"
+    cir_project.characters[0].asset_uri = quinn_mesh
+    cir_project.characters[1].asset_uri = manny_mesh
+    for beat in cir_project.scenes[0].beats:
+        for performance in beat.performances:
+            performance.motion.asset_uri = (
+                quinn_idle if performance.character_id == "mina" else manny_idle
+            )
+
+    plan = compile_project(cir_project)
+    sections = plan.sequences[0].animation_sections
+
+    assert [section.actor_binding_id for section in sections] == [
+        "actor:mina",
+        "actor:mina",
+        "actor:arjun",
+        "actor:arjun",
+    ]
+    assert [(section.start_frame, section.end_frame) for section in sections] == [
+        (0, 96),
+        (96, 336),
+        (96, 336),
+        (336, 432),
+    ]
+    assert [section.asset_path for section in sections] == [
+        quinn_idle,
+        quinn_idle,
+        manny_idle,
+        manny_idle,
+    ]
+    performance_warning = next(
+        warning
+        for warning in plan.warnings
+        if warning.code == "performance_metadata_only"
+    )
+    assert "Explicit animation assets compile" in performance_warning.message
+
+
+def test_compile_rejects_non_unreal_animation_uri(
+    cir_project: Project,
+) -> None:
+    cir_project.characters[
+        0
+    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple"
+    cir_project.scenes[0].beats[0].performances[
+        0
+    ].motion.asset_uri = "https://example.com/mina.fbx"
+
+    plan = compile_project(cir_project)
+
+    assert plan.sequences[0].animation_sections == []
+    assert any(
+        warning.code == "unsupported_animation_uri"
+        and warning.source_id == "beat-arrival"
+        for warning in plan.warnings
+    )
+
+
+def test_compile_requires_skeletal_mesh_for_animation_section(
+    cir_project: Project,
+) -> None:
+    cir_project.scenes[0].beats[0].performances[
+        0
+    ].motion.asset_uri = "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
+
+    plan = compile_project(cir_project)
+
+    assert plan.sequences[0].animation_sections == []
+    assert any(
+        warning.code == "animation_requires_skeletal_mesh"
+        and warning.source_id == "beat-arrival"
+        for warning in plan.warnings
+    )
 
 
 def test_compile_reports_v01_fallbacks_explicitly(cir_project: Project) -> None:
