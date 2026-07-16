@@ -6,6 +6,14 @@ generated script turns it into editable Level Sequence assets inside Unreal Engi
 0.4 keeps deterministic proxy scene assembly and Skeletal Mesh binding, then adds explicit,
 frame-aligned Anim Sequence sections for CIR motion assets.
 
+## Status
+
+Version 0.4.0 completed its Unreal Engine 5.8.0 acceptance gate on 2026-07-16. The generated
+animation tracks persisted after restart, both mannequin characters animated in Movie Render Queue,
+all four camera cuts worked, and the sequence produced 432 non-empty frames. The full evidence and
+known boundaries are recorded in the
+[v0.4 release notes](../../docs/releases/unreal-adapter-v0.4.0.md).
+
 ## Output
 
 For each CIR scene, v0.4 creates a Level Sequence plan containing:
@@ -95,17 +103,22 @@ an actionable error so replacement remains an intentional editor action.
 
 1. Complete the v0.3 character acceptance first: the Third Person content pack is installed, Mina
    uses `SKM_Quinn_Simple`, and Arjun uses `SKM_Manny_Simple`.
-2. In the Content Drawer, open `Characters/Mannequins/Animations`. Find `MF_Idle` under `Quinn` and
-   `MM_Idle` under `Manny`.
-3. Right-click each Anim Sequence and choose **Copy Reference**. CIR uses only the object path inside
-   the quotes. The standard Third Person paths are:
+2. In the Content Drawer, search all project content for `MF_Idle` and `MM_Idle`; the exact folder
+   layout varies between Third Person content pack revisions.
+3. Right-click each Anim Sequence and choose **Copy Reference**. CIR uses only the `/Game/...`
+   object path inside the quotes, not the surrounding `/Script/Engine.AnimSequence'...'` wrapper.
+   Common layouts include:
 
 ```json
 "/Game/Characters/Mannequins/Animations/Quinn/MF_Idle.MF_Idle"
 "/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"
+"/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"
 ```
 
-If Unreal shows a different path, use the copied reference from your project.
+If Unreal shows a different path, use the copied `/Game/...` reference from your project. The
+accepted Unreal 5.8 project exposed only the `Anims/Unarmed/MM_Idle` asset; that animation was
+compatible with both `SKM_Quinn_Simple` and `SKM_Manny_Simple`. Skeleton compatibility remains
+project-specific, so verify both characters move normally rather than assuming one asset fits both.
 
 4. From the repository root, create an animated copy of the already working character CIR file:
 
