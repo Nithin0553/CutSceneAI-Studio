@@ -2,7 +2,10 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
-The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1 pipeline, and an Unreal Adapter v0.4 that produces editable Sequencer imports with proxy fallback, optional Skeletal Mesh character binding, and explicit Anim Sequence sections.
+The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
+pipeline, and an Unreal Adapter v0.5 candidate that produces editable Sequencer imports with proxy
+fallback, optional Skeletal Mesh character binding, explicit Anim Sequence sections, and
+speaker-associated dialogue audio sections.
 
 ## What works now
 
@@ -19,6 +22,8 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 - Asset-independent Unreal proxy characters, semantic props, and editable interior set shells
 - Optional CIR character asset references resolved to editable Unreal Skeletal Mesh spawnables
 - Compatible CIR motion asset references resolved to editable, frame-aligned Anim Sequence sections
+- Compatible CIR dialogue audio references resolved to editable, frame-aligned, non-looping audio
+  sections grouped by speaker
 - Committed CIR, Preview, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -30,7 +35,7 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.4 complete; Unity planned |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.5 in acceptance; Unity planned |
 
 ## Local setup
 
@@ -127,18 +132,17 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 1. **Foundation v0.1:** CIR contract, golden fixture, validation, schema, API, and CI
 2. **Director planning:** prompt-to-CIR generation with deterministic structured output and evals
 3. **Preview pipeline:** blocking, camera, performance, dialogue, and environment previews
-4. **Unreal adapter through v0.4:** CIR-to-Sequencer export, asset binding, animation sections,
-   and a completed Unreal Engine 5.8 golden-scene acceptance test
+4. **Unreal adapter through v0.5:** CIR-to-Sequencer export, asset binding, animation sections,
+   and dialogue audio sections; v0.4 completed Unreal 5.8 acceptance and v0.5 is next
 5. **Unreal production pipeline:** dialogue audio, generated voice, environment resolution,
    camera trajectories, body motion, and facial performance
 6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
 7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 8. **Release:** CineBench++ evaluation, packaging, hardening, documentation, and public launch
 
-Unreal Adapter v0.4 completed acceptance in Unreal Engine 5.8.0 on 2026-07-16. Characters with an
-Unreal `/Game/...` Skeletal Mesh path become editable Skeletal Mesh spawnables, and compatible
-`MotionPlan.asset_uri` paths become frame-aligned Anim Sequence sections. The next milestone is
-Unreal Adapter v0.5 dialogue audio binding. See the
+Unreal Adapter v0.4 completed acceptance in Unreal Engine 5.8.0 on 2026-07-16. The v0.5 candidate
+adds typed dialogue audio sections for explicit Unreal `/Game/...` sound assets; live restart and
+Movie Render Queue acceptance remain required before the milestone is complete. See the
 [v0.4 release notes](docs/releases/unreal-adapter-v0.4.0.md) for the automated and live-engine
 evidence.
 
@@ -175,7 +179,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Meth
 Start-Process .\office-dialogue.storyboard.svg
 ```
 
-## Unreal Adapter v0.4
+## Unreal Adapter v0.5 candidate
 
 Export an Unreal Sequencer plan and importer from the same golden CIR fixture:
 
@@ -191,5 +195,7 @@ Scripting plugins, then run the generated script with **File > Execute Python Sc
 and four camera cuts. When a CIR character supplies `asset_uri` as an Unreal `/Game/...` Skeletal
 Mesh object path, the importer binds that asset instead of creating the cylinder proxy. When that
 character's performance motion supplies a compatible Unreal `/Game/...` Anim Sequence object path,
-the importer adds an editable Animation track with an exact CIR frame range. It refuses to overwrite
-an existing Level Sequence.
+the importer adds an editable Animation track with an exact CIR frame range. When dialogue supplies
+an Unreal `/Game/...` Sound Wave or Sound Cue object path in `audio_uri`, the importer adds one
+non-looping root Audio track per speaker and places the section at the CIR dialogue start frame. It
+refuses to overwrite an existing Level Sequence.

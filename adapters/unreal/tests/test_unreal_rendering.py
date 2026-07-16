@@ -28,6 +28,9 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert "unreal.MovieSceneSkeletalAnimationTrack" in script
     assert '"animation", _load_animation' in script
     assert 'params.set_editor_property("force_custom_mode", True)' in script
+    assert "unreal.MovieSceneAudioTrack" in script
+    assert 'section.set_sound(_load_sound(audio["asset_path"]))' in script
+    assert "section.set_looping(False)" in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
     assert "binding.remove_track(track)" in script
     assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
@@ -521,6 +524,171 @@ def test_importer_reuses_one_animation_track_per_actor(
 
     assert len(binding.tracks) == 1
     assert len(binding.tracks[0].sections) == 2
+
+
+def test_importer_adds_non_looping_dialogue_audio_tracks_per_speaker(
+    cir_project: Project,
+    monkeypatch,
+) -> None:
+    audio_paths = [
+        "/Game/CutSceneAI/Audio/SW_Mina_Line01.SW_Mina_Line01",
+        "/Game/CutSceneAI/Audio/SW_Arjun_Line01.SW_Arjun_Line01",
+    ]
+    for performance, audio_path in zip(
+        cir_project.scenes[0].beats[1].performances, audio_paths, strict=True
+    ):
+        assert performance.dialogue is not None
+        performance.dialogue.audio_uri = audio_path
+    plan = compile_project(cir_project)
+    script = render_unreal_import_script(plan)
+
+    class SoundBase:
+        def __init__(self, path: str) -> None:
+            self.path = path
+
+    class MovieSceneAudioSection:
+        def __init__(self) -> None:
+            self.sound = None
+            self.frame_range = None
+            self.looping = None
+
+        def set_sound(self, sound) -> None:
+            self.sound = sound
+
+        def set_range(self, start_frame: int, end_frame: int) -> None:
+            self.frame_range = (start_frame, end_frame)
+
+        def set_looping(self, looping: bool) -> None:
+            self.looping = looping
+
+    class MovieSceneAudioTrack:
+        def __init__(self) -> None:
+            self.display_name = ""
+            self.sections = []
+
+        def set_display_name(self, value: str) -> None:
+            self.display_name = value
+
+        def add_section(self):
+            section = MovieSceneAudioSection()
+            self.sections.append(section)
+            return section
+
+    class Sequence:
+        def __init__(self) -> None:
+            self.tracks = []
+
+        def add_track(self, track_type):
+            assert track_type is MovieSceneAudioTrack
+            track = track_type()
+            self.tracks.append(track)
+            return track
+
+    sounds = {path: SoundBase(path) for path in audio_paths}
+
+    class EditorAssetLibrary:
+        @staticmethod
+        def load_asset(path: str):
+            return sounds[path]
+
+    unreal = ModuleType("unreal")
+    unreal.SoundBase = SoundBase
+    unreal.MovieSceneAudioSection = MovieSceneAudioSection
+    unreal.MovieSceneAudioTrack = MovieSceneAudioTrack
+    unreal.EditorAssetLibrary = EditorAssetLibrary
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    sequence = Sequence()
+    actors = [actor.model_dump(mode="json") for actor in plan.sequences[0].actors]
+    audio_sections = [
+        section.model_dump(mode="json") for section in plan.sequences[0].audio_sections
+    ]
+
+    namespace["_add_dialogue_audio_sections"](sequence, actors, audio_sections)
+
+    assert [track.display_name for track in sequence.tracks] == [
+        "CutSceneAI Dialogue - ACT_Mina",
+        "CutSceneAI Dialogue - ACT_Arjun",
+    ]
+    assert [track.sections[0].frame_range for track in sequence.tracks] == [
+        (120, 336),
+        (216, 336),
+    ]
+    assert [track.sections[0].sound for track in sequence.tracks] == [
+        sounds[audio_paths[0]],
+        sounds[audio_paths[1]],
+    ]
+    assert all(track.sections[0].looping is False for track in sequence.tracks)
+
+
+def test_importer_reuses_one_dialogue_audio_track_per_speaker(
+    cir_project: Project,
+    monkeypatch,
+) -> None:
+    audio_path = "/Game/CutSceneAI/Audio/SW_Mina_Line01.SW_Mina_Line01"
+    dialogue = cir_project.scenes[0].beats[1].performances[0].dialogue
+    assert dialogue is not None
+    dialogue.audio_uri = audio_path
+    plan = compile_project(cir_project)
+    script = render_unreal_import_script(plan)
+
+    class SoundBase:
+        pass
+
+    class MovieSceneAudioSection:
+        def set_sound(self, sound) -> None:
+            return None
+
+        def set_range(self, start_frame: int, end_frame: int) -> None:
+            return None
+
+        def set_looping(self, looping: bool) -> None:
+            return None
+
+    class MovieSceneAudioTrack:
+        def __init__(self) -> None:
+            self.sections = []
+
+        def set_display_name(self, value: str) -> None:
+            return None
+
+        def add_section(self):
+            section = MovieSceneAudioSection()
+            self.sections.append(section)
+            return section
+
+    class Sequence:
+        def __init__(self) -> None:
+            self.tracks = []
+
+        def add_track(self, track_type):
+            track = track_type()
+            self.tracks.append(track)
+            return track
+
+    unreal = ModuleType("unreal")
+    unreal.SoundBase = SoundBase
+    unreal.MovieSceneAudioSection = MovieSceneAudioSection
+    unreal.MovieSceneAudioTrack = MovieSceneAudioTrack
+    unreal.EditorAssetLibrary = type(
+        "EditorAssetLibrary",
+        (),
+        {"load_asset": staticmethod(lambda path: SoundBase())},
+    )
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    sequence = Sequence()
+    actors = [actor.model_dump(mode="json") for actor in plan.sequences[0].actors]
+    audio = plan.sequences[0].audio_sections[0].model_dump(mode="json")
+
+    namespace["_add_dialogue_audio_sections"](sequence, actors, [audio, audio])
+
+    assert len(sequence.tracks) == 1
+    assert len(sequence.tracks[0].sections) == 2
 
 
 def test_importer_configures_template_and_live_58_camera_when_template_component_is_missing(

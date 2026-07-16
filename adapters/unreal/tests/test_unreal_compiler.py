@@ -18,6 +18,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     plan = compile_project(cir_project)
     sequence = plan.sequences[0]
 
+    assert plan.adapter_version == "0.5.0"
     assert plan.target_engine_version == "5.8.0"
     assert sequence.asset_name == "LS_SceneMeeting"
     assert sequence.package_path == "/Game/CutSceneAI/Sequences"
@@ -26,6 +27,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     assert len(sequence.actors) == 4
     assert len(sequence.performance_cues) == 4
     assert sequence.animation_sections == []
+    assert sequence.audio_sections == []
     assert len(sequence.cameras) == 4
     assert sequence.cameras[0].source_beat_ids == ["beat-arrival"]
     assert sequence.cameras[0].subject_binding_ids == [
@@ -186,6 +188,75 @@ def test_compile_preserves_performance_and_dialogue_metadata(
     assert cues[2].dialogue_start_frame == 216
 
 
+def test_compile_creates_speaker_associated_dialogue_audio_sections(
+    cir_project: Project,
+) -> None:
+    mina_audio = "/Game/CutSceneAI/Audio/SW_Mina_Line01.SW_Mina_Line01"
+    arjun_audio = "/Game/CutSceneAI/Audio/SW_Arjun_Line01.SW_Arjun_Line01"
+    mina_dialogue = cir_project.scenes[0].beats[1].performances[0].dialogue
+    arjun_dialogue = cir_project.scenes[0].beats[1].performances[1].dialogue
+    assert mina_dialogue is not None
+    assert arjun_dialogue is not None
+    mina_dialogue.audio_uri = mina_audio
+    arjun_dialogue.audio_uri = arjun_audio
+
+    plan = compile_project(cir_project)
+    sections = plan.sequences[0].audio_sections
+
+    assert [section.actor_binding_id for section in sections] == [
+        "actor:mina",
+        "actor:arjun",
+    ]
+    assert [(section.start_frame, section.end_frame) for section in sections] == [
+        (120, 336),
+        (216, 336),
+    ]
+    assert [section.asset_path for section in sections] == [mina_audio, arjun_audio]
+    assert [section.dialogue_text for section in sections] == [
+        "You said this would be signed yesterday.",
+        "Legal changed the final clause. I was waiting for approval.",
+    ]
+    dialogue_warning = next(
+        warning for warning in plan.warnings if warning.code == "dialogue_metadata_only"
+    )
+    assert "Explicit dialogue audio assets compile" in dialogue_warning.message
+
+
+def test_compile_rejects_non_unreal_dialogue_audio_uri(
+    cir_project: Project,
+) -> None:
+    dialogue = cir_project.scenes[0].beats[1].performances[0].dialogue
+    assert dialogue is not None
+    dialogue.audio_uri = "https://example.com/mina.wav"
+
+    plan = compile_project(cir_project)
+
+    assert plan.sequences[0].audio_sections == []
+    assert any(
+        warning.code == "unsupported_audio_uri"
+        and warning.source_id == "beat-confrontation"
+        for warning in plan.warnings
+    )
+
+
+def test_compile_skips_dialogue_audio_starting_at_performance_end(
+    cir_project: Project,
+) -> None:
+    dialogue = cir_project.scenes[0].beats[1].performances[0].dialogue
+    assert dialogue is not None
+    dialogue.audio_uri = "/Game/CutSceneAI/Audio/SW_Mina_Line01.SW_Mina_Line01"
+    dialogue.start_offset_seconds = 10.0
+
+    plan = compile_project(cir_project)
+
+    assert plan.sequences[0].audio_sections == []
+    assert any(
+        warning.code == "dialogue_audio_out_of_range"
+        and warning.source_id == "beat-confrontation"
+        for warning in plan.warnings
+    )
+
+
 def test_compile_creates_editable_animation_sections_for_skeletal_characters(
     cir_project: Project,
 ) -> None:
@@ -275,6 +346,7 @@ def test_compile_reports_v01_fallbacks_explicitly(cir_project: Project) -> None:
     assert codes.count("inferred_camera_transform") == 4
     assert codes.count("camera_movement_metadata_only") == 1
     assert codes.count("performance_metadata_only") == 1
+    assert codes.count("dialogue_metadata_only") == 1
 
 
 def test_scene_without_performances_has_no_performance_warning(
@@ -289,6 +361,7 @@ def test_scene_without_performances_has_no_performance_warning(
     assert "performance_metadata_only" not in {
         warning.code for warning in plan.warnings
     }
+    assert "dialogue_metadata_only" not in {warning.code for warning in plan.warnings}
 
 
 def test_camera_without_targets_blocks_toward_world_origin(

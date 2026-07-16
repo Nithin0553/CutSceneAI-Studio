@@ -5,7 +5,20 @@ versions until the first unified Studio release.
 
 ## Unreleased
 
-- Next milestone: Unreal Adapter v0.5 dialogue audio binding.
+### Added
+
+- Unreal Adapter v0.5 candidate with typed `audio_sections` in the Sequencer plan and JSON Schema.
+- Compilation of compatible CIR `DialoguePlan.audio_uri` values into speaker-associated sections
+  beginning at the exact dialogue start frame and ending at the enclosing performance boundary.
+- One named, non-looping `MovieSceneAudioTrack` per speaker in the generated Unreal importer.
+- Explicit warnings for unsupported Unreal audio paths and dialogue starts outside the performance
+  range.
+- API, schema, compiler, and generated-importer tests for dialogue audio binding.
+
+### Pending acceptance
+
+- Confirm two dialogue clips and their speaker tracks persist after an Unreal Engine 5.8 restart.
+- Confirm Movie Render Queue produces synchronized WAV audio alongside the 432-frame image render.
 
 ## Unreal Adapter 0.4.0 - 2026-07-16
 
