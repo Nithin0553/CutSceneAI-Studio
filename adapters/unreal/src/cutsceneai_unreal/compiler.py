@@ -27,6 +27,7 @@ from .models import (
     UnrealCameraBinding,
     UnrealExportPlan,
     UnrealExportWarning,
+    UnrealMeshType,
     UnrealPlaceholderVisual,
     UnrealPerformanceCue,
     UnrealSceneSequence,
@@ -37,7 +38,8 @@ from .models import (
 
 
 DEFAULT_PACKAGE_PATH = "/Game/CutSceneAI/Sequences"
-CHARACTER_CLASS_PATH = "/Script/Engine.Character"
+SKELETAL_MESH_ACTOR_CLASS_PATH = "/Script/Engine.SkeletalMeshActor"
+CHARACTER_CLASS_PATH = SKELETAL_MESH_ACTOR_CLASS_PATH
 STATIC_MESH_ACTOR_CLASS_PATH = "/Script/Engine.StaticMeshActor"
 PLACEHOLDER_CUBE_PATH = "/Engine/BasicShapes/Cube.Cube"
 PLACEHOLDER_CYLINDER_PATH = "/Engine/BasicShapes/Cylinder.Cylinder"
@@ -171,7 +173,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.2 imports a blocking pose for manual keyframing."
+                            "v0.3 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
@@ -232,49 +234,81 @@ def _compile_actors(
     entities: list[PreviewEntity],
     warnings: list[UnrealExportWarning],
 ) -> list[UnrealActorBinding]:
+    character_by_id = {item.id: item for item in project.characters}
     environment_by_id = {item.id: item for item in project.environment}
     bindings: list[UnrealActorBinding] = []
     for entity in entities:
         placeholder_visual: UnrealPlaceholderVisual | None
         if entity.kind.value == "character":
-            asset_path = None
-            placeholder = True
-            kind = UnrealActorKind.CHARACTER
-            actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
-            placeholder_visual = _placeholder_visual(
-                transform=convert_transform(entity.initial_transform),
-                mesh_asset_path=PLACEHOLDER_CYLINDER_PATH,
-                scale_multiplier=_CHARACTER_PROXY_SCALE,
-                location_offset_cm=_CHARACTER_PROXY_OFFSET,
-            )
-            warnings.append(
-                UnrealExportWarning(
-                    code="placeholder_character",
-                    source_id=entity.id,
-                    message=(
-                        f"Character '{entity.id}' imports as a visible cylinder proxy; "
-                        "skeletal asset resolution is a later adapter phase."
-                    ),
-                )
-            )
-        else:
-            source_item = environment_by_id[entity.id]
-            asset_path = _unreal_asset_path(source_item.asset_uri)
+            source_character = character_by_id[entity.id]
+            asset_path = _unreal_asset_path(source_character.asset_uri)
             placeholder = asset_path is None
-            kind = UnrealActorKind.ENVIRONMENT
-            actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
+            kind = UnrealActorKind.CHARACTER
+            mesh_type = (
+                UnrealMeshType.STATIC_MESH
+                if placeholder
+                else UnrealMeshType.SKELETAL_MESH
+            )
+            actor_class_path = (
+                STATIC_MESH_ACTOR_CLASS_PATH
+                if placeholder
+                else SKELETAL_MESH_ACTOR_CLASS_PATH
+            )
             placeholder_visual = (
-                _environment_placeholder_visual(source_item, entity.initial_transform)
+                _placeholder_visual(
+                    transform=convert_transform(entity.initial_transform),
+                    mesh_asset_path=PLACEHOLDER_CYLINDER_PATH,
+                    scale_multiplier=_CHARACTER_PROXY_SCALE,
+                    location_offset_cm=_CHARACTER_PROXY_OFFSET,
+                )
                 if placeholder
                 else None
             )
-            if source_item.asset_uri is not None and asset_path is None:
+            if source_character.asset_uri is not None and asset_path is None:
                 warnings.append(
                     UnrealExportWarning(
                         code="unsupported_asset_uri",
                         source_id=entity.id,
                         message=(
-                            f"Asset URI '{source_item.asset_uri}' is not an Unreal /Game path; "
+                            f"Character asset URI '{source_character.asset_uri}' is not an Unreal "
+                            "/Game path; a cylinder proxy will be imported."
+                        ),
+                    )
+                )
+            elif placeholder:
+                warnings.append(
+                    UnrealExportWarning(
+                        code="placeholder_character",
+                        source_id=entity.id,
+                        message=(
+                            f"Character '{entity.id}' imports as a visible cylinder proxy; "
+                            "set Character.asset_uri to an Unreal /Game Skeletal Mesh path "
+                            "to bind a production asset."
+                        ),
+                    )
+                )
+        else:
+            source_environment = environment_by_id[entity.id]
+            asset_path = _unreal_asset_path(source_environment.asset_uri)
+            placeholder = asset_path is None
+            kind = UnrealActorKind.ENVIRONMENT
+            mesh_type = UnrealMeshType.STATIC_MESH
+            actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
+            placeholder_visual = (
+                _environment_placeholder_visual(
+                    source_environment, entity.initial_transform
+                )
+                if placeholder
+                else None
+            )
+            if source_environment.asset_uri is not None and asset_path is None:
+                warnings.append(
+                    UnrealExportWarning(
+                        code="unsupported_asset_uri",
+                        source_id=entity.id,
+                        message=(
+                            f"Asset URI '{source_environment.asset_uri}' is not an Unreal "
+                            "/Game path; "
                             "a placeholder will be imported."
                         ),
                     )
@@ -297,6 +331,7 @@ def _compile_actors(
                 source_entity_id=entity.id,
                 display_name=f"ACT_{_unreal_name(entity.id)}",
                 kind=kind,
+                mesh_type=mesh_type,
                 actor_class_path=actor_class_path,
                 asset_path=asset_path,
                 placeholder=placeholder,

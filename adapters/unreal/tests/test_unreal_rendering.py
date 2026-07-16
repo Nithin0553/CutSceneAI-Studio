@@ -23,6 +23,8 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert "subsystem.add_spawnable_from_class" in script
     assert 'for set_piece in scene["set_pieces"]' in script
     assert "_configure_static_mesh" in script
+    assert "_configure_skeletal_mesh" in script
+    assert "set_skeletal_mesh_asset" in script
     assert "LevelSequenceEditorBlueprintLibrary.get_bound_objects" in script
     assert "binding.remove_track(track)" in script
     assert 'component.set_editor_property("current_focal_length", lens_mm)' in script
@@ -191,6 +193,153 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     assert isinstance(set_binding.tracks[0], MovieSceneSpawnTrack)
     assert BlueprintLibrary.force_update_count == 2
     assert subsystem.saved == [actor_binding, set_binding]
+
+
+def test_importer_configures_template_and_live_skeletal_character(
+    cir_project: Project,
+    monkeypatch,
+) -> None:
+    asset_path = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+    cir_project.characters[0].asset_uri = asset_path
+    plan = compile_project(cir_project)
+    script = render_unreal_import_script(plan)
+
+    class SkeletalMesh:
+        pass
+
+    class SkeletalMeshComponent:
+        def __init__(self) -> None:
+            self.mesh = None
+
+        def set_skeletal_mesh_asset(self, mesh) -> None:
+            self.mesh = mesh
+
+    class SkeletalMeshActor:
+        def __init__(self) -> None:
+            self.component = SkeletalMeshComponent()
+            self.label = ""
+            self.location = None
+            self.rotation = None
+            self.scale = None
+
+        def get_editor_property(self, name: str):
+            assert name == "skeletal_mesh_component"
+            return self.component
+
+        def set_actor_label(self, value: str) -> None:
+            self.label = value
+
+        def set_actor_location(self, value, sweep: bool, teleport: bool) -> None:
+            self.location = value
+
+        def set_actor_rotation(self, value, teleport: bool) -> None:
+            self.rotation = value
+
+        def set_actor_scale3d(self, value) -> None:
+            self.scale = value
+
+    class MovieScene3DTransformTrack:
+        pass
+
+    class MovieSceneSpawnTrack:
+        pass
+
+    class Binding:
+        def __init__(self) -> None:
+            self.binding_id = "skeletal-binding"
+            self.template = SkeletalMeshActor()
+            self.live_actor = SkeletalMeshActor()
+            self.display_name = ""
+            self.tracks = [MovieScene3DTransformTrack(), MovieSceneSpawnTrack()]
+
+        def get_object_template(self):
+            return self.template
+
+        def set_display_name(self, value: str) -> None:
+            self.display_name = value
+
+        def find_tracks_by_exact_type(self, track_type):
+            return [track for track in self.tracks if type(track) is track_type]
+
+        def remove_track(self, track) -> None:
+            self.tracks.remove(track)
+
+    binding = Binding()
+
+    class Subsystem:
+        def __init__(self) -> None:
+            self.saved = []
+
+        def add_spawnable_from_class(self, sequence, actor_class):
+            assert actor_class is SkeletalMeshActor
+            return binding
+
+        def save_default_spawnable_state(self, value) -> None:
+            self.saved.append(value)
+
+    subsystem = Subsystem()
+
+    class Sequence:
+        @staticmethod
+        def get_binding_id(value: Binding) -> str:
+            assert value is binding
+            return binding.binding_id
+
+    class BlueprintLibrary:
+        @staticmethod
+        def force_update() -> None:
+            return None
+
+        @staticmethod
+        def get_bound_objects(binding_id: str):
+            assert binding_id == binding.binding_id
+            return [binding.live_actor]
+
+    mesh = SkeletalMesh()
+
+    class EditorAssetLibrary:
+        @staticmethod
+        def load_asset(path: str):
+            assert path == asset_path
+            return mesh
+
+    class Quat:
+        def __init__(self, *values) -> None:
+            self.values = values
+
+        def rotator(self):
+            return self.values
+
+    unreal = ModuleType("unreal")
+    unreal.SkeletalMesh = SkeletalMesh
+    unreal.SkeletalMeshActor = SkeletalMeshActor
+    unreal.MovieScene3DTransformTrack = MovieScene3DTransformTrack
+    unreal.EditorAssetLibrary = EditorAssetLibrary
+    unreal.LevelSequenceEditorBlueprintLibrary = BlueprintLibrary
+    unreal.Vector = lambda *values: values
+    unreal.Quat = Quat
+    unreal.load_class = lambda outer, path: SkeletalMeshActor
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {"__name__": "cutsceneai_generated_importer"}
+    exec(script, namespace)
+    actor = next(
+        item for item in plan.sequences[0].actors if item.source_entity_id == "mina"
+    ).model_dump(mode="json")
+
+    result = namespace["_add_actor"](Sequence(), subsystem, actor)
+
+    assert result is binding
+    assert binding.display_name == "ACT_Mina"
+    assert binding.template.label == "ACT_Mina"
+    assert binding.template.location == (-100.0, -150.0, 0.0)
+    assert binding.template.component.mesh is mesh
+    assert binding.live_actor.label == "ACT_Mina"
+    assert binding.live_actor.location == (-100.0, -150.0, 0.0)
+    assert binding.live_actor.component.mesh is mesh
+    assert len(binding.tracks) == 1
+    assert isinstance(binding.tracks[0], MovieSceneSpawnTrack)
+    assert subsystem.saved == [binding]
 
 
 def test_importer_configures_template_and_live_58_camera_when_template_component_is_missing(

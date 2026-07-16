@@ -15,7 +15,7 @@ from cutsceneai_unreal import (
 
 
 UNREAL_ROOT = Path(__file__).resolve().parents[1]
-SCHEMA = UNREAL_ROOT / "schemas" / "unreal-sequencer-plan-v0.2.schema.json"
+SCHEMA = UNREAL_ROOT / "schemas" / "unreal-sequencer-plan-v0.3.schema.json"
 EXAMPLE = UNREAL_ROOT / "examples" / "office-dialogue.unreal.json"
 
 

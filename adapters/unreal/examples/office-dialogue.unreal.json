@@ -1,5 +1,5 @@
 {
-  "adapter_version": "0.2.0",
+  "adapter_version": "0.3.0",
   "cir_schema_version": "0.1.0",
   "coordinate_system": {
     "distance_unit": "centimeter",
@@ -20,6 +20,7 @@
           "binding_id": "actor:mina",
           "display_name": "ACT_Mina",
           "kind": "character",
+          "mesh_type": "static_mesh",
           "placeholder": true,
           "placeholder_visual": {
             "mesh_asset_path": "/Engine/BasicShapes/Cylinder.Cylinder",
@@ -68,6 +69,7 @@
           "binding_id": "actor:arjun",
           "display_name": "ACT_Arjun",
           "kind": "character",
+          "mesh_type": "static_mesh",
           "placeholder": true,
           "placeholder_visual": {
             "mesh_asset_path": "/Engine/BasicShapes/Cylinder.Cylinder",
@@ -116,6 +118,7 @@
           "binding_id": "actor:contract",
           "display_name": "ACT_Contract",
           "kind": "environment",
+          "mesh_type": "static_mesh",
           "placeholder": true,
           "placeholder_visual": {
             "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
@@ -164,6 +167,7 @@
           "binding_id": "actor:conference-table",
           "display_name": "ACT_ConferenceTable",
           "kind": "environment",
+          "mesh_type": "static_mesh",
           "placeholder": true,
           "placeholder_visual": {
             "mesh_asset_path": "/Engine/BasicShapes/Cube.Cube",
@@ -591,12 +595,12 @@
   "warnings": [
     {
       "code": "placeholder_character",
-      "message": "Character 'mina' imports as a visible cylinder proxy; skeletal asset resolution is a later adapter phase.",
+      "message": "Character 'mina' imports as a visible cylinder proxy; set Character.asset_uri to an Unreal /Game Skeletal Mesh path to bind a production asset.",
       "source_id": "mina"
     },
     {
       "code": "placeholder_character",
-      "message": "Character 'arjun' imports as a visible cylinder proxy; skeletal asset resolution is a later adapter phase.",
+      "message": "Character 'arjun' imports as a visible cylinder proxy; set Character.asset_uri to an Unreal /Game Skeletal Mesh path to bind a production asset.",
       "source_id": "arjun"
     },
     {
@@ -621,7 +625,7 @@
     },
     {
       "code": "camera_movement_metadata_only",
-      "message": "Camera movement 'dolly' is retained as metadata; v0.2 imports a blocking pose for manual keyframing.",
+      "message": "Camera movement 'dolly' is retained as metadata; v0.3 imports a blocking pose for manual keyframing.",
       "source_id": "shot-establishing"
     },
     {

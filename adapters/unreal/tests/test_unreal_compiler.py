@@ -3,7 +3,13 @@ from copy import deepcopy
 import pytest
 
 from cutsceneai_cir import CIRValidationError, Project, Quaternion, Transform, Vector3
-from cutsceneai_unreal import UnrealVector, compile_project, render_unreal_plan
+from cutsceneai_unreal import (
+    SKELETAL_MESH_ACTOR_CLASS_PATH,
+    UnrealMeshType,
+    UnrealVector,
+    compile_project,
+    render_unreal_plan,
+)
 
 
 def test_compile_office_dialogue_creates_editable_sequence_contract(
@@ -59,6 +65,7 @@ def test_compile_builds_visible_asset_independent_proxy_assembly(
 
     mina = actors["mina"]
     assert mina.actor_class_path == "/Script/Engine.StaticMeshActor"
+    assert mina.mesh_type is UnrealMeshType.STATIC_MESH
     assert mina.placeholder_visual is not None
     assert mina.placeholder_visual.mesh_asset_path == (
         "/Engine/BasicShapes/Cylinder.Cylinder"
@@ -267,6 +274,50 @@ def test_unreal_environment_asset_paths_disable_placeholders(
     assert contract.asset_path == "/Game/Props/SM_Contract.SM_Contract"
     assert contract.placeholder is False
     assert contract.placeholder_visual is None
+
+
+def test_unreal_character_asset_path_creates_skeletal_mesh_binding(
+    cir_project: Project,
+) -> None:
+    cir_project.characters[
+        0
+    ].asset_uri = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+
+    plan = compile_project(cir_project)
+    mina = next(
+        actor for actor in plan.sequences[0].actors if actor.source_entity_id == "mina"
+    )
+
+    assert mina.asset_path == (
+        "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+    )
+    assert mina.actor_class_path == SKELETAL_MESH_ACTOR_CLASS_PATH
+    assert mina.mesh_type is UnrealMeshType.SKELETAL_MESH
+    assert mina.placeholder is False
+    assert mina.placeholder_visual is None
+    assert not any(
+        warning.code == "placeholder_character" and warning.source_id == "mina"
+        for warning in plan.warnings
+    )
+
+
+def test_non_unreal_character_asset_uri_falls_back_to_proxy(
+    cir_project: Project,
+) -> None:
+    cir_project.characters[0].asset_uri = "https://example.com/mina.fbx"
+
+    plan = compile_project(cir_project)
+    mina = next(
+        actor for actor in plan.sequences[0].actors if actor.source_entity_id == "mina"
+    )
+
+    assert mina.mesh_type is UnrealMeshType.STATIC_MESH
+    assert mina.placeholder is True
+    assert mina.placeholder_visual is not None
+    assert any(
+        warning.code == "unsupported_asset_uri" and warning.source_id == "mina"
+        for warning in plan.warnings
+    )
 
 
 def test_non_unreal_asset_uri_is_reported(cir_project: Project) -> None:

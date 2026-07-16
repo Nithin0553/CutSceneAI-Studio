@@ -130,6 +130,7 @@ class Character(CIRModel):
     role: str | None = None
     description: str | None = None
     rig_profile: str | None = None
+    asset_uri: str | None = None
     initial_transform: Transform = Field(default_factory=Transform)
 
 

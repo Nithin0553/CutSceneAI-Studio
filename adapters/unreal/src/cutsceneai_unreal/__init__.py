@@ -1,6 +1,7 @@
 from .compiler import (
     CHARACTER_CLASS_PATH,
     DEFAULT_PACKAGE_PATH,
+    SKELETAL_MESH_ACTOR_CLASS_PATH,
     STATIC_MESH_ACTOR_CLASS_PATH,
     compile_project,
 )
@@ -18,6 +19,7 @@ from .models import (
     UnrealCoordinateSystem,
     UnrealExportPlan,
     UnrealExportWarning,
+    UnrealMeshType,
     UnrealPlaceholderVisual,
     UnrealPerformanceCue,
     UnrealQuaternion,
@@ -40,6 +42,7 @@ __all__ = [
     "CHARACTER_CLASS_PATH",
     "DEFAULT_PACKAGE_PATH",
     "JSON_SCHEMA_DIALECT",
+    "SKELETAL_MESH_ACTOR_CLASS_PATH",
     "STATIC_MESH_ACTOR_CLASS_PATH",
     "UNREAL_PLAN_SCHEMA_ID",
     "UnrealActorBinding",
@@ -48,6 +51,7 @@ __all__ = [
     "UnrealCoordinateSystem",
     "UnrealExportPlan",
     "UnrealExportWarning",
+    "UnrealMeshType",
     "UnrealPlaceholderVisual",
     "UnrealPerformanceCue",
     "UnrealQuaternion",
