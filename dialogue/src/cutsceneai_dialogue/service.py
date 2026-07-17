@@ -8,7 +8,7 @@ from typing import Protocol
 
 from cutsceneai_cir import Project
 
-from .audio import inspect_wav
+from .audio import inspect_wav, normalize_wav
 from .errors import DialogueAudioError, DialogueInputError, DialogueOutputError
 from .models import (
     AudioProvenance,
@@ -154,7 +154,8 @@ def build_recorded_bundle(
     files: dict[str, bytes] = {}
     for cue in plan.cues:
         recording = recordings[cue.cue_id]
-        metadata = inspect_wav(recording.data)
+        audio_data = normalize_wav(recording.data)
+        metadata = inspect_wav(audio_data)
         relative_path = f"audio/{cue.output_filename}"
         uri = _portable_uri(project.id, cue.output_filename)
         provenance = AudioProvenance(
@@ -173,7 +174,7 @@ def build_recorded_bundle(
         clips.append(clip)
         if warning is not None:
             warnings.append(warning)
-        files[relative_path] = recording.data
+        files[relative_path] = audio_data
         _set_audio_uri(updated, cue.scene_id, cue.beat_id, cue.performance_index, uri)
 
     manifest = DialogueManifest(
@@ -233,7 +234,8 @@ class DialogueEngine:
                     f"Speech provider returned incomplete provenance for '{cue.cue_id}'."
                 )
             try:
-                metadata = inspect_wav(result.data)
+                audio_data = normalize_wav(result.data)
+                metadata = inspect_wav(audio_data)
             except DialogueAudioError as exc:
                 raise DialogueOutputError(
                     f"Speech provider returned invalid WAV audio for '{cue.cue_id}': {exc}"
@@ -262,7 +264,7 @@ class DialogueEngine:
             clips.append(clip)
             if warning is not None:
                 warnings.append(warning)
-            files[relative_path] = result.data
+            files[relative_path] = audio_data
             _set_audio_uri(updated, cue.scene_id, cue.beat_id, cue.performance_index, uri)
 
         manifest = DialogueManifest(

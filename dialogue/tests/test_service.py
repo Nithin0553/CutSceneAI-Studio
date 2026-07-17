@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+from hashlib import sha256
 from io import BytesIO
 import json
+from struct import unpack_from
 from zipfile import ZipFile
 
 import pytest
@@ -20,7 +22,7 @@ from cutsceneai_dialogue import (
     render_dialogue_bundle,
 )
 
-from dialogue.tests.helpers import make_wav
+from dialogue.tests.helpers import make_streaming_wav, make_wav
 
 
 def recordings(project: Project, *, duration_seconds: float = 1.0) -> dict[str, RecordedAudioInput]:
@@ -178,6 +180,24 @@ def test_tts_engine_uses_per_character_voices_and_disclosure(project: Project) -
     with ZipFile(BytesIO(render_dialogue_bundle(bundle))) as archive:
         disclosure = archive.read("AI_VOICE_DISCLOSURE.txt").decode()
         assert "AI-generated" in disclosure
+
+
+def test_tts_engine_canonicalizes_streaming_wav_headers(project: Project) -> None:
+    bundle = asyncio.run(
+        DialogueEngine(FakeSpeechBackend(make_streaming_wav())).synthesize_project(
+            project, default_voice=VoiceProfile(voice="cedar")
+        )
+    )
+
+    clip = bundle.manifest.clips[0]
+    audio = bundle.audio_files[clip.relative_path]
+    data_chunk_offset = audio.index(b"data", 12)
+
+    assert unpack_from("<I", audio, 4)[0] == len(audio) - 8
+    assert unpack_from("<I", audio, data_chunk_offset + 4)[0] == (
+        len(audio) - data_chunk_offset - 8
+    )
+    assert clip.wav.sha256 == sha256(audio).hexdigest()
 
 
 def test_tts_engine_rejects_unknown_voice_profile(project: Project) -> None:

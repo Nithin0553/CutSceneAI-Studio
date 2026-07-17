@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from hashlib import sha256
+from struct import unpack_from
 
 import pytest
-from cutsceneai_dialogue import DialogueAudioError, inspect_wav
+from cutsceneai_dialogue import DialogueAudioError, inspect_wav, normalize_wav
 
-from dialogue.tests.helpers import make_wav
+from dialogue.tests.helpers import make_streaming_wav, make_wav
 
 
 def test_inspect_wav_returns_exact_timing_and_digest() -> None:
@@ -42,7 +44,37 @@ def test_inspect_wav_enforces_size_limit(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_inspect_wav_rejects_truncated_frame_data() -> None:
     with pytest.raises(DialogueAudioError, match="truncated"):
-        inspect_wav(make_wav()[:-10])
+        inspect_wav(normalize_wav(make_wav()[:-10]))
+
+
+@pytest.mark.parametrize("size_sentinel", [0x7FFFFFFF, 0xFFFFFFFF])
+def test_normalize_wav_canonicalizes_streaming_size_sentinels(size_sentinel: int) -> None:
+    streamed = make_streaming_wav(size_sentinel=size_sentinel)
+
+    normalized = normalize_wav(streamed)
+    metadata = inspect_wav(normalized)
+    data_chunk_offset = normalized.index(b"data", 12)
+
+    assert unpack_from("<I", normalized, 4)[0] == len(normalized) - 8
+    assert unpack_from("<I", normalized, data_chunk_offset + 4)[0] == (
+        len(normalized) - data_chunk_offset - 8
+    )
+    assert metadata.frame_count == 8_000
+    assert metadata.sha256 == sha256(normalized).hexdigest()
+
+
+def test_normalize_wav_rejects_misaligned_streaming_payload() -> None:
+    with pytest.raises(DialogueAudioError, match="truncated"):
+        normalize_wav(make_streaming_wav()[:-1])
+
+
+def test_normalize_wav_canonicalizes_a_riff_only_sentinel() -> None:
+    streamed = bytearray(make_wav())
+    streamed[4:8] = (0xFFFFFFFF).to_bytes(4, "little")
+
+    normalized = normalize_wav(bytes(streamed))
+
+    assert unpack_from("<I", normalized, 4)[0] == len(normalized) - 8
 
 
 class FakeWav:

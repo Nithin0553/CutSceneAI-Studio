@@ -1,4 +1,4 @@
-from .audio import MAX_WAV_BYTES, inspect_wav
+from .audio import MAX_WAV_BYTES, inspect_wav, normalize_wav
 from .errors import (
     DialogueAudioError,
     DialogueConfigurationError,
@@ -74,6 +74,7 @@ __all__ = [
     "dialogue_manifest_json_schema",
     "dialogue_plan_json_schema",
     "inspect_wav",
+    "normalize_wav",
     "plan_project",
     "render_dialogue_bundle",
     "render_dialogue_manifest",

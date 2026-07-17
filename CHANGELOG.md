@@ -18,6 +18,8 @@ versions until the first unified Studio release.
 - `POST /api/v1/dialogue/plan` and `POST /api/v1/dialogue/synthesize`, with OpenAI speech provided
   through a replaceable backend and no live calls in automated tests.
 - `cutsceneai-dialogue` CLI commands for planning cues and bundling recorded audio.
+- Canonicalization of streamed provider WAV headers with placeholder RIFF/data lengths, preserving
+  strict rejection of genuinely truncated or frame-misaligned PCM payloads.
 
 ### Boundaries
 
@@ -29,7 +31,7 @@ versions until the first unified Studio release.
 
 - Ruff check and formatting, mypy across 45 source files, and CIR, Preview, Dialogue, and Unreal
   artifact-drift checks passed locally.
-- 142 automated tests passed with 97.82% branch-aware coverage; OpenAI speech tests use a fake
+- 147 automated tests passed with 97.78% branch-aware coverage; OpenAI speech tests use a fake
   streaming client and make no billable provider calls.
 - Live provider and audible-WAV acceptance remains required before the milestone is merged.
 
