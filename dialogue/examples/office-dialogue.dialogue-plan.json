@@ -1,0 +1,37 @@
+{
+  "cir_schema_version": "0.1.0",
+  "cues": [
+    {
+      "beat_end_seconds": 14.0,
+      "beat_id": "beat-confrontation",
+      "character_id": "mina",
+      "cue_id": "dialogue-scene-meeting-beat-confrontation-mina-1",
+      "existing_audio_uri": null,
+      "language": "en",
+      "output_filename": "dialogue-scene-meeting-beat-confrontation-mina-1.wav",
+      "performance_index": 0,
+      "scene_id": "scene-meeting",
+      "start_frame": 120,
+      "start_seconds": 5.0,
+      "text": "You said this would be signed yesterday."
+    },
+    {
+      "beat_end_seconds": 14.0,
+      "beat_id": "beat-confrontation",
+      "character_id": "arjun",
+      "cue_id": "dialogue-scene-meeting-beat-confrontation-arjun-2",
+      "existing_audio_uri": null,
+      "language": "en",
+      "output_filename": "dialogue-scene-meeting-beat-confrontation-arjun-2.wav",
+      "performance_index": 1,
+      "scene_id": "scene-meeting",
+      "start_frame": 216,
+      "start_seconds": 9.0,
+      "text": "Legal changed the final clause. I was waiting for approval."
+    }
+  ],
+  "dialogue_version": "0.1.0",
+  "fps": 24,
+  "project_id": "office-dialogue",
+  "warnings": []
+}

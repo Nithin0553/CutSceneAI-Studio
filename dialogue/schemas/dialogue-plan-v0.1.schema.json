@@ -1,0 +1,170 @@
+{
+  "$defs": {
+    "DialogueCue": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_end_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Beat End Seconds",
+          "type": "number"
+        },
+        "beat_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Beat Id",
+          "type": "string"
+        },
+        "character_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Character Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "existing_audio_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Existing Audio Uri"
+        },
+        "language": {
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "output_filename": {
+          "pattern": "^[a-z][a-z0-9_-]*\\.wav$",
+          "title": "Output Filename",
+          "type": "string"
+        },
+        "performance_index": {
+          "minimum": 0,
+          "title": "Performance Index",
+          "type": "integer"
+        },
+        "scene_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "start_seconds": {
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cue_id",
+        "scene_id",
+        "beat_id",
+        "character_id",
+        "performance_index",
+        "text",
+        "language",
+        "start_seconds",
+        "start_frame",
+        "beat_end_seconds",
+        "output_filename"
+      ],
+      "title": "DialogueCue",
+      "type": "object"
+    },
+    "DialogueWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "cue_id",
+        "message"
+      ],
+      "title": "DialogueWarning",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/dialogue/v0.1/render-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "cues": {
+      "items": {
+        "$ref": "#/$defs/DialogueCue"
+      },
+      "title": "Cues",
+      "type": "array"
+    },
+    "dialogue_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Dialogue Version",
+      "type": "string"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "project_id": {
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/DialogueWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "fps",
+    "cues",
+    "warnings"
+  ],
+  "title": "DialogueRenderPlan",
+  "type": "object"
+}
