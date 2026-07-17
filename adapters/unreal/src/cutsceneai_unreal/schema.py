@@ -7,7 +7,7 @@ from .models import UnrealExportPlan
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 UNREAL_PLAN_SCHEMA_ID = (
-    "https://schemas.cutsceneai.dev/adapters/unreal/v0.5/sequencer-plan.schema.json"
+    "https://schemas.cutsceneai.dev/adapters/unreal/v0.6/sequencer-plan.schema.json"
 )
 
 

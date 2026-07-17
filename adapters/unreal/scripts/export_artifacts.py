@@ -14,7 +14,7 @@ from cutsceneai_unreal import (
 ROOT = Path(__file__).resolve().parents[3]
 CIR_EXAMPLE = ROOT / "cir" / "examples" / "office-dialogue.cir.json"
 SCHEMA_OUTPUT = (
-    ROOT / "adapters" / "unreal" / "schemas" / "unreal-sequencer-plan-v0.5.schema.json"
+    ROOT / "adapters" / "unreal" / "schemas" / "unreal-sequencer-plan-v0.6.schema.json"
 )
 EXAMPLE_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "office-dialogue.unreal.json"
@@ -36,7 +36,7 @@ def expected_artifacts() -> dict[Path, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export deterministic Unreal Adapter v0.5 artifacts."
+        description="Export deterministic Unreal Adapter v0.6 artifacts."
     )
     parser.add_argument(
         "--check", action="store_true", help="Fail if committed artifacts drift."

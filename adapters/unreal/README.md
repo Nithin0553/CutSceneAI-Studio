@@ -1,10 +1,10 @@
-# Unreal Adapter v0.5
+# Unreal Adapter v0.6
 
 The CutSceneAI Unreal Adapter compiles validated CIR into a deterministic Unreal Sequencer plan
 and a self-contained Unreal Editor Python importer. The plan is the stable, testable contract; the
 generated script turns it into editable Level Sequence assets inside Unreal Engine 5.8.0. Version
-0.5 keeps deterministic scene, character, animation, and camera assembly, then adds explicit,
-speaker-associated Audio sections for CIR dialogue sound assets.
+0.6 keeps deterministic scene, character, animation, camera, and explicit-audio assembly, then adds
+verified import of portable Dialogue v0.1 WAV bundles with exact manifest timing.
 
 ## Status
 
@@ -14,11 +14,13 @@ camera cuts persisted after restart. Movie Render Queue produced 432 non-empty P
 (`0000-0431`) and two synchronized WAV outputs; both lines played once at the expected timeline
 positions, with no black frames or output-log errors. The automated gate passed 91 tests at 97.41%
 branch-aware coverage, and CI run 87 passed on Python 3.11, 3.12, and 3.13. Component tag and GitHub
-release publication remain deferred until permissions are available.
+release publication remain deferred until permissions are available. Version 0.6.0 has completed
+its automated contract, security, compiler, package, API, and generated-script gates; its Unreal
+5.8 restart and Movie Render Queue acceptance is the next required step.
 
 ## Output
 
-For each CIR scene, v0.5 creates a Level Sequence plan containing:
+For each CIR scene, v0.6 creates a Level Sequence plan containing:
 
 - Character and environment spawnable bindings with meter-to-centimeter coordinate conversion
 - Visible 180 cm character proxies and semantic document, table, and generic-object dimensions
@@ -27,6 +29,8 @@ For each CIR scene, v0.5 creates a Level Sequence plan containing:
   `/Game/...` Anim Sequence path
 - Editable, non-looping Audio tracks grouped by speaker when `DialoguePlan.audio_uri` contains a
   compatible Unreal `/Game/...` Sound Wave or Sound Cue path
+- Optional checksum-verified WAV imports mapped from portable `cutsceneai://dialogue/...` URIs to
+  deterministic `/Game/CutSceneAI/Audio/SW_*` Sound Wave targets
 - An editable floor stage plus a three-wall shell for indoor scene locations
 - A Cine Camera Actor per CIR shot and an exact frame-aligned Camera Cuts track
 - Focal lengths, shot purpose, composition, targets, and source IDs
@@ -57,6 +61,13 @@ importer creates one root `MovieSceneAudioTrack` per speaker, names it after the
 assigns the sound, preserves the exact dialogue start, and disables looping. CIR 0.1 has no audio
 duration field, so the deterministic section end is the enclosing performance end; shorter sound
 assets finish naturally rather than looping.
+Version 0.6.0 adds typed `audio_imports`, a strict Dialogue ZIP loader, and a deterministic Unreal
+import ZIP. The server verifies archive paths and limits, CIR/manifest identity, exact cue mapping,
+AI-voice disclosure, WAV structure, duration, and SHA-256 before producing any engine plan. The
+generated Unreal script then rechecks each extracted WAV checksum, preflights every Sound Wave and
+Level Sequence target, refuses replacement, imports through `AssetImportTask`, and verifies the
+result as a `SoundBase`. Audio section end frames come from the Dialogue manifest rather than the
+enclosing performance range.
 
 ## Generate the committed artifacts
 
@@ -69,7 +80,7 @@ python adapters\unreal\scripts\export_artifacts.py --check
 
 The generated products are:
 
-- `schemas/unreal-sequencer-plan-v0.5.schema.json`
+- `schemas/unreal-sequencer-plan-v0.6.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
 
@@ -108,6 +119,38 @@ Invoke-WebRequest `
 
 The importer never deletes or replaces assets. If the Level Sequence already exists, it stops with
 an actionable error so replacement remains an intentional editor action.
+
+## Import a portable Dialogue bundle with v0.6
+
+With the backend running, send the already accepted Dialogue v0.1 ZIP as raw `application/zip`:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/dialogue-bundle `
+  -Method Post `
+  -ContentType "application/zip" `
+  -InFile .\office-dialogue.tts.zip `
+  -OutFile .\office-dialogue.unreal-v0.6.zip
+
+$output = Join-Path $PWD "office-dialogue.unreal-v0.6"
+Expand-Archive .\office-dialogue.unreal-v0.6.zip -DestinationPath $output -Force
+$plan = Get-Content "$output\unreal.plan.json" -Raw | ConvertFrom-Json
+
+$plan.adapter_version
+$plan.audio_imports |
+  Select-Object source_cue_id, source_relative_path, asset_path
+$plan.sequences[0].audio_sections |
+  Select-Object source_cue_id, start_frame, end_frame, timing_source, asset_path
+```
+
+Expected for the accepted live office bundle: adapter `0.6.0`, two imports, Mina at frames
+`120-178`, Arjun at `216-302`, and `timing_source=dialogue_manifest`. Keep the extracted folder
+intact and execute `$output\cutsceneai-unreal-import.py` through **File > Execute Python Script**;
+the script needs the adjacent `audio` folder. It stops before import if a WAV changed, a source file
+is missing, two targets collide, or any target asset already exists.
+
+The complete restart and MRQ checklist is in
+[`docs/acceptance/unreal-adapter-v0.6.md`](../../docs/acceptance/unreal-adapter-v0.6.md).
 
 ## Bind mannequin animations for the v0.4 acceptance test
 
@@ -273,13 +316,13 @@ Invoke-WebRequest `
     [MRQ export-format documentation](https://dev.epicgames.com/documentation/unreal-engine/cinematic-rendering-export-formats-in-unreal-engine)
     confirms WAV Audio can be emitted alongside image sequences.
 
-## v0.5 boundary
+## v0.6 boundary
 
-Version 0.5 resolves explicit Skeletal Mesh, Anim Sequence, and dialogue Sound Wave or Sound Cue
-object paths; it does not search a project, create or select voices, generate speech, calculate audio
-duration, infer skeleton compatibility, or retarget animation. TTS and recorded-audio ingestion are
-the next Dialogue Engine milestone. Control Rig keying, facial animation, spatial audio attachment,
-camera movement curves, and unattended final rendering remain later phases and are identified in the
-plan warnings.
+Version 0.6 securely imports WAV files already present in a verified Dialogue v0.1 bundle and maps
+their portable URIs to deterministic Unreal Sound Waves. It does not overwrite or update existing
+assets, search the Unreal project for alternatives, infer skeleton compatibility, retarget
+animation, attach spatial audio, generate lip-sync or facial animation, key camera movement curves,
+or launch unattended final rendering. Broader project asset discovery and environment resolution
+belong to Unreal v0.7.
 
 Implementation and Unreal acceptance history: [pull request #14](https://github.com/Nithin0553/CutSceneAI-Studio/pull/14).

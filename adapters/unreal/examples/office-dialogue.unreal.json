@@ -1,5 +1,6 @@
 {
-  "adapter_version": "0.5.0",
+  "adapter_version": "0.6.0",
+  "audio_imports": [],
   "cir_schema_version": "0.1.0",
   "coordinate_system": {
     "distance_unit": "centimeter",
@@ -632,7 +633,7 @@
     },
     {
       "code": "camera_movement_metadata_only",
-      "message": "Camera movement 'dolly' is retained as metadata; v0.5 imports a blocking pose for manual keyframing.",
+      "message": "Camera movement 'dolly' is retained as metadata; v0.6 imports a blocking pose for manual keyframing.",
       "source_id": "shot-establishing"
     },
     {

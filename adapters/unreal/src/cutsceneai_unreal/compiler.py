@@ -215,7 +215,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.5 imports a blocking pose for manual keyframing."
+                            "v0.6 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
