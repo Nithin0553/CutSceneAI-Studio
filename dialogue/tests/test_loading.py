@@ -4,7 +4,7 @@ import asyncio
 from io import BytesIO
 import json
 import os
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 import pytest
 from cutsceneai_cir import Project
@@ -47,7 +47,11 @@ def _rewrite(
         for name in existing.namelist():
             rewritten.writestr(name, updates.get(name, existing.read(name)))
         for name, value in additions.items():
-            rewritten.writestr(name, value)
+            member = ZipInfo(name)
+            # ZipInfo normalizes backslashes on Windows. Reset filename so security tests create
+            # the raw, intentionally malformed archive member they are meant to exercise.
+            member.filename = name
+            rewritten.writestr(member, value)
     return output.getvalue()
 
 
