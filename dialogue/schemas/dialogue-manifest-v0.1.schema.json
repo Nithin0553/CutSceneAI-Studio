@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "AudioProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "ai_generated": {
+          "title": "Ai Generated",
+          "type": "boolean"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instructions"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "original_filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Filename"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "source": {
+          "$ref": "#/$defs/DialogueSource"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "maximum": 4.0,
+              "minimum": 0.25,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Speed"
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice"
+        }
+      },
+      "required": [
+        "source",
+        "ai_generated"
+      ],
+      "title": "AudioProvenance",
+      "type": "object"
+    },
+    "DialogueClip": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_end_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Beat End Seconds",
+          "type": "number"
+        },
+        "beat_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Beat Id",
+          "type": "string"
+        },
+        "character_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Character Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "end_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "End Seconds",
+          "type": "number"
+        },
+        "fits_within_beat": {
+          "title": "Fits Within Beat",
+          "type": "boolean"
+        },
+        "language": {
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AudioProvenance"
+        },
+        "relative_path": {
+          "pattern": "^audio/[a-z][a-z0-9_-]*\\.wav$",
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "scene_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "start_seconds": {
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "uri": {
+          "minLength": 1,
+          "title": "Uri",
+          "type": "string"
+        },
+        "wav": {
+          "$ref": "#/$defs/WavMetadata"
+        }
+      },
+      "required": [
+        "cue_id",
+        "scene_id",
+        "beat_id",
+        "character_id",
+        "text",
+        "language",
+        "uri",
+        "relative_path",
+        "start_seconds",
+        "end_seconds",
+        "start_frame",
+        "end_frame",
+        "beat_end_seconds",
+        "fits_within_beat",
+        "wav",
+        "provenance"
+      ],
+      "title": "DialogueClip",
+      "type": "object"
+    },
+    "DialogueSource": {
+      "enum": [
+        "recorded",
+        "tts"
+      ],
+      "title": "DialogueSource",
+      "type": "string"
+    },
+    "DialogueWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "cue_id",
+        "message"
+      ],
+      "title": "DialogueWarning",
+      "type": "object"
+    },
+    "WavMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "channels": {
+          "maximum": 2,
+          "minimum": 1,
+          "title": "Channels",
+          "type": "integer"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "format": {
+          "const": "wav",
+          "default": "wav",
+          "title": "Format",
+          "type": "string"
+        },
+        "frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Frame Count",
+          "type": "integer"
+        },
+        "mime_type": {
+          "const": "audio/wav",
+          "default": "audio/wav",
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "sample_rate_hz": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Rate Hz",
+          "type": "integer"
+        },
+        "sample_width_bytes": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Sample Width Bytes",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "byte_length",
+        "frame_count",
+        "sample_rate_hz",
+        "channels",
+        "sample_width_bytes",
+        "duration_seconds"
+      ],
+      "title": "WavMetadata",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/dialogue/v0.1/manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ai_voice_disclosure_required": {
+      "title": "Ai Voice Disclosure Required",
+      "type": "boolean"
+    },
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "clips": {
+      "items": {
+        "$ref": "#/$defs/DialogueClip"
+      },
+      "title": "Clips",
+      "type": "array"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "manifest_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/DialogueWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "fps",
+    "ai_voice_disclosure_required",
+    "clips",
+    "warnings"
+  ],
+  "title": "DialogueManifest",
+  "type": "object"
+}

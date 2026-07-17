@@ -3,9 +3,8 @@
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
 The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
-pipeline, and an Unreal Adapter v0.5 that produces editable Sequencer imports with proxy
-fallback, optional Skeletal Mesh character binding, explicit Anim Sequence sections, and
-speaker-associated dialogue audio sections.
+pipeline, an Unreal Adapter v0.5 that produces editable Sequencer imports, and Dialogue Engine
+v0.1 for recorded WAV ingestion and pluggable generated speech with exact timing and provenance.
 
 ## What works now
 
@@ -19,12 +18,16 @@ speaker-associated dialogue audio sections.
 - `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
 - `POST /api/v1/adapters/unreal/export` for typed Unreal Sequencer plans
 - `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
+- `POST /api/v1/dialogue/plan` for deterministic cue IDs, filenames, and frame positions
+- `POST /api/v1/dialogue/synthesize` for portable generated-speech WAV bundles
+- Recorded PCM WAV bundling through the `cutsceneai-dialogue` CLI
+- Exact audio duration, hashes, source provenance, per-character voice profiles, and timing warnings
 - Asset-independent Unreal proxy characters, semantic props, and editable interior set shells
 - Optional CIR character asset references resolved to editable Unreal Skeletal Mesh spawnables
 - Compatible CIR motion asset references resolved to editable, frame-aligned Anim Sequence sections
 - Compatible CIR dialogue audio references resolved to editable, frame-aligned, non-looping audio
   sections grouped by speaker
-- Committed CIR, Preview, and Unreal JSON Schema artifacts with CI drift detection
+- Committed CIR, Preview, Dialogue, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
 ## Architecture
@@ -35,6 +38,7 @@ speaker-associated dialogue audio sections.
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
+| Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 in acceptance |
 | Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.5 complete; Unity planned |
 
 ## Local setup
@@ -47,7 +51,7 @@ Run these commands from the repository root. Python 3.12 is the recommended loca
 py -3.12 -m venv .venv3.12
 .\.venv3.12\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\adapters\unreal[dev]" -e ".\backend[dev]"
+python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -e ".\adapters\unreal[dev]" -e ".\backend[dev]"
 ```
 
 ### macOS or Linux
@@ -56,19 +60,20 @@ python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\adapters\unreal[
 python3.12 -m venv .venv3.12
 source .venv3.12/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./adapters/unreal[dev]" -e "./backend[dev]"
+python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./adapters/unreal[dev]" -e "./backend[dev]"
 ```
 
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
-python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
-python -m mypy cir\src preview\src adapters\unreal\src backend\app
+python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
+python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
+python -m mypy cir\src preview\src dialogue\src adapters\unreal\src backend\app
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
+python dialogue\scripts\export_artifacts.py --check
 python adapters\unreal\scripts\export_artifacts.py --check
-python -m pytest cir\tests preview\tests adapters\unreal\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_unreal --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python -m pytest cir\tests preview\tests dialogue\tests adapters\unreal\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_unreal --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API
@@ -116,6 +121,7 @@ The API is then available at `http://127.0.0.1:8000`.
 - `cir/` — typed CIR package, semantic validation, schema artifact, tests, and examples
 - `backend/` — FastAPI application and API tests
 - `preview/` — portable preview contract, compiler, storyboard renderer, and fixtures
+- `dialogue/` — recorded-audio bundling, pluggable speech generation, timing, and provenance
 - `agents/` — Director and specialist agent implementations
 - `adapters/` — engine integrations, beginning with Unreal
 - `shared/` — reusable fixtures and cross-service components
@@ -124,6 +130,7 @@ The API is then available at `http://127.0.0.1:8000`.
 - `ROADMAP.md` — ordered product milestones and acceptance gates through Studio v1.0
 - `CHANGELOG.md` — user-visible release history and current unreleased scope
 - `docs/releases/` — durable release notes and engine acceptance records
+- `docs/acceptance/` — repeatable live-provider and engine milestone gates
 
 ## Delivery roadmap
 
@@ -134,7 +141,7 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 3. **Preview pipeline:** blocking, camera, performance, dialogue, and environment previews
 4. **Unreal adapter through v0.5:** CIR-to-Sequencer export, asset binding, animation sections,
    and dialogue audio sections, with Unreal 5.8 acceptance complete
-5. **Unreal production pipeline:** dialogue audio, generated voice, environment resolution,
+5. **Unreal production pipeline:** generated voice, environment resolution,
    camera trajectories, body motion, and facial performance
 6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
 7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
@@ -143,8 +150,8 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 Unreal Adapter v0.5 completed acceptance in Unreal Engine 5.8.0 on 2026-07-17. It adds typed
 dialogue audio sections for explicit Unreal `/Game/...` sound assets. The speaker tracks persisted
 after restart, and Movie Render Queue produced 432 non-empty PNG frames plus synchronized WAV audio
-without regressing animation or camera cuts. The next milestone is Dialogue Engine v0.1. Component
-tag and GitHub release publication remain deferred until permissions are available.
+without regressing animation or camera cuts. Dialogue Engine v0.1 is now in automated acceptance.
+Component tag and GitHub release publication remain deferred until permissions are available.
 
 ## Director Agent v0.1
 
@@ -199,3 +206,10 @@ the importer adds an editable Animation track with an exact CIR frame range. Whe
 an Unreal `/Game/...` Sound Wave or Sound Cue object path in `audio_uri`, the importer adds one
 non-looping root Audio track per speaker and places the section at the CIR dialogue start frame. It
 refuses to overwrite an existing Level Sequence.
+
+## Dialogue Engine v0.1
+
+Dialogue Engine plans stable cues, accepts recorded WAV files, or generates speech through a
+replaceable backend. See [`dialogue/README.md`](dialogue/README.md) for the contract and usage, and
+[`docs/acceptance/dialogue-engine-v0.1.md`](docs/acceptance/dialogue-engine-v0.1.md) for the complete
+Windows acceptance gate. Live synthesis is never part of CI.

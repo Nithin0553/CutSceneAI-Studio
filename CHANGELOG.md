@@ -5,8 +5,35 @@ versions until the first unified Studio release.
 
 ## Unreleased
 
-- Next milestone: Dialogue Engine v0.1 for recorded-audio ingestion, pluggable TTS, voice metadata,
-  provenance, and duration-aware timing.
+### Added
+
+- Dialogue Engine v0.1 package with provider-neutral cue planning, recorded PCM WAV ingestion, and
+  pluggable asynchronous speech generation.
+- Stable cue IDs and `cutsceneai://dialogue/...` URIs derived from validated CIR scene, beat,
+  character, and performance identities.
+- Exact WAV duration, frame ranges, SHA-256 hashes, voice settings, provider request metadata, and
+  recorded/generated provenance in a public manifest contract.
+- Byte-for-byte deterministic ZIP bundles containing updated CIR, manifest, WAV files, and a
+  generated-voice disclosure notice when applicable.
+- `POST /api/v1/dialogue/plan` and `POST /api/v1/dialogue/synthesize`, with OpenAI speech provided
+  through a replaceable backend and no live calls in automated tests.
+- `cutsceneai-dialogue` CLI commands for planning cues and bundling recorded audio.
+- Canonicalization of streamed provider WAV headers with placeholder RIFF/data lengths, preserving
+  strict rejection of genuinely truncated or frame-misaligned PCM payloads.
+
+### Boundaries
+
+- CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
+  beat and shot pacing are never silently extended. Unreal asset import, portable-URI resolution,
+  facial animation, and voice cloning remain later milestones.
+
+### Validated
+
+- Ruff check and formatting, mypy across 45 source files, and CIR, Preview, Dialogue, and Unreal
+  artifact-drift checks passed locally.
+- 147 automated tests passed with 97.78% branch-aware coverage; OpenAI speech tests use a fake
+  streaming client and make no billable provider calls.
+- Live provider and audible-WAV acceptance remains required before the milestone is merged.
 
 ## Unreal Adapter 0.5.0 - 2026-07-17
 

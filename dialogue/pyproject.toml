@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cutsceneai-dialogue"
+version = "0.1.0"
+description = "Recorded-audio and pluggable speech generation for CutSceneAI Studio"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "cutsceneai-cir>=0.1.0,<0.2.0",
+    "pydantic==2.13.4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "jsonschema>=4.22.0,<5.0.0",
+    "mypy>=1.10.0,<2.0.0",
+    "pytest>=8.0.0,<10.0.0",
+    "pytest-cov>=5.0.0,<8.0.0",
+    "ruff>=0.5.0,<1.0.0"
+]
+
+[project.scripts]
+cutsceneai-dialogue = "cutsceneai_dialogue.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cutsceneai_dialogue*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
