@@ -1,4 +1,4 @@
-# Unreal Adapter v0.5 candidate
+# Unreal Adapter v0.5
 
 The CutSceneAI Unreal Adapter compiles validated CIR into a deterministic Unreal Sequencer plan
 and a self-contained Unreal Editor Python importer. The plan is the stable, testable contract; the
@@ -8,11 +8,13 @@ speaker-associated Audio sections for CIR dialogue sound assets.
 
 ## Status
 
-Version 0.5.0 is an acceptance candidate. Its automated contract, compiler, importer, API, and
-artifact tests pass locally; it is not complete until two dialogue clips persist after an Unreal
-Engine 5.8 restart and remain synchronized in Movie Render Queue WAV output. Version 0.4.0 completed
-its engine acceptance gate on 2026-07-16; that evidence remains in the
-[v0.4 release notes](../../docs/releases/unreal-adapter-v0.4.0.md).
+Version 0.5.0 completed its Unreal Engine 5.8 acceptance gate on 2026-07-17. Mina's
+`120-336` and Arjun's `216-336` dialogue sections, sound assignments, animation sections, and
+camera cuts persisted after restart. Movie Render Queue produced 432 non-empty PNG frames
+(`0000-0431`) and two synchronized WAV outputs; both lines played once at the expected timeline
+positions, with no black frames or output-log errors. The automated gate passed 91 tests at 97.41%
+branch-aware coverage, and CI run 87 passed on Python 3.11, 3.12, and 3.13. Component tag and GitHub
+release publication remain deferred until permissions are available.
 
 ## Output
 
@@ -273,9 +275,11 @@ Invoke-WebRequest `
 
 ## v0.5 boundary
 
-This candidate resolves explicit Skeletal Mesh, Anim Sequence, and dialogue Sound Wave or Sound Cue
+Version 0.5 resolves explicit Skeletal Mesh, Anim Sequence, and dialogue Sound Wave or Sound Cue
 object paths; it does not search a project, create or select voices, generate speech, calculate audio
 duration, infer skeleton compatibility, or retarget animation. TTS and recorded-audio ingestion are
 the next Dialogue Engine milestone. Control Rig keying, facial animation, spatial audio attachment,
 camera movement curves, and unattended final rendering remain later phases and are identified in the
 plan warnings.
+
+Implementation and Unreal acceptance history: [pull request #14](https://github.com/Nithin0553/CutSceneAI-Studio/pull/14).
