@@ -57,17 +57,20 @@ def _archive_files(data: bytes) -> dict[str, bytes]:
     try:
         with ZipFile(BytesIO(data), "r") as archive:
             members = archive.infolist()
-            names = [member.filename for member in members]
             if len(members) > MAX_DIALOGUE_BUNDLE_ENTRIES:
                 raise DialogueInputError("Dialogue bundle contains too many archive entries.")
-            if len(set(names)) != len(names):
-                raise DialogueInputError("Dialogue bundle contains duplicate archive paths.")
 
             total_size = 0
+            names: list[str] = []
             for member in members:
-                if member.is_dir() or not _safe_member_name(member.filename):
+                raw_name = member.orig_filename
+                if (
+                    member.is_dir()
+                    or member.filename != raw_name
+                    or not _safe_member_name(raw_name)
+                ):
                     raise DialogueInputError(
-                        f"Dialogue bundle contains an unsafe archive path: {member.filename!r}."
+                        f"Dialogue bundle contains an unsafe archive path: {raw_name!r}."
                     )
                 if member.flag_bits & 0x1:
                     raise DialogueInputError("Encrypted dialogue bundle entries are not supported.")
@@ -80,6 +83,9 @@ def _archive_files(data: bytes) -> dict[str, bytes]:
                     raise DialogueInputError(
                         "Dialogue bundle expands beyond the v0.1 uncompressed-size limit."
                     )
+                names.append(member.filename)
+            if len(set(names)) != len(names):
+                raise DialogueInputError("Dialogue bundle contains duplicate archive paths.")
             return {member.filename: archive.read(member) for member in members}
     except DialogueInputError:
         raise

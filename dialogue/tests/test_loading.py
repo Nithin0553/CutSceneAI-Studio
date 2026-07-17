@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from io import BytesIO
 import json
+import os
 from zipfile import ZipFile
 
 import pytest
@@ -69,6 +70,16 @@ def test_load_dialogue_bundle_rejects_unsafe_archive_paths(project: Project, nam
     data = _rewrite(_bundle_bytes(project), additions={name: b"unsafe"})
 
     with pytest.raises(DialogueInputError, match="unsafe archive path"):
+        load_dialogue_bundle(data)
+
+
+def test_load_dialogue_bundle_checks_raw_path_before_windows_normalization(
+    project: Project, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = _rewrite(_bundle_bytes(project), additions={"audio\\bad.wav": b"unsafe"})
+    monkeypatch.setattr(os, "sep", "\\")
+
+    with pytest.raises(DialogueInputError, match=r"unsafe archive path: 'audio\\\\bad\.wav'"):
         load_dialogue_bundle(data)
 
 
