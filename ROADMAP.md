@@ -13,8 +13,8 @@ versions until the unified CutSceneAI Studio v1.0 release.
 | ---: | --- | --- | --- |
 | 0 | Foundation and Unreal vertical slice - complete | CIR 0.1, Director 0.1, Preview 0.1, and Unreal Adapter 0.4 | Prompt-to-CIR, storyboard, character and animation bindings, camera cuts, and a 432-frame MRQ render pass |
 | 1 | v0.4 release closure - publication deferred | Current documentation, changelog, and release notes; tag when permissions allow | Clean install instructions and the golden-scene acceptance record match `main` |
-| 2 | Unreal Adapter v0.5 - dialogue audio binding - in acceptance | Typed, speaker-associated, frame-aligned Sequencer audio sections | Two dialogue clips persist after restart and remain synchronized in MRQ |
-| 3 | Dialogue Engine v0.1 | Recorded-audio ingestion, pluggable TTS, voice metadata, provenance, and duration calculation | Script dialogue can import or generate audio and update CIR timing deterministically |
+| 2 | Unreal Adapter v0.5 - dialogue audio binding - complete | Typed, speaker-associated, frame-aligned Sequencer audio sections | Two dialogue clips persist after restart and remain synchronized in MRQ |
+| 3 | Dialogue Engine v0.1 - next | Recorded-audio ingestion, pluggable TTS, voice metadata, provenance, and duration calculation | Script dialogue can import or generate audio and update CIR timing deterministically |
 | 4 | Asset Resolver and Environment v0.1 | Project asset index, deterministic matching, props, sets, and environment-detail and establishing shots | Office and outdoor fixtures resolve assets predictably with visible fallbacks |
 | 5 | Cinematography v0.1 and Unreal v0.8 | Keyframed camera trajectories, focus and lens curves, composition checks, and automated MRQ jobs | Smooth framing passes cinematic checks and renders unattended |
 | 6 | Character Performance v0.1 and Unreal v0.9 | Skeleton compatibility, retargeting, root motion, transitions, and pluggable text-to-motion generation | Generated or selected motion works across supported characters without T-poses |
