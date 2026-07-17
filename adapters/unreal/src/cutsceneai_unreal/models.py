@@ -114,13 +114,27 @@ class UnrealAnimationSection(UnrealModel):
 
 
 class UnrealAudioSection(UnrealModel):
+    source_cue_id: str | None = None
     source_beat_id: str
     actor_binding_id: str
     asset_path: str = Field(pattern=r"^/Game/")
     start_frame: int = Field(ge=0)
     end_frame: int = Field(gt=0)
+    timing_source: Literal["performance_range", "dialogue_manifest"] = (
+        "performance_range"
+    )
     dialogue_text: str
     language: str
+
+
+class UnrealAudioImport(UnrealModel):
+    source_cue_id: str
+    source_uri: str = Field(pattern=r"^cutsceneai://dialogue/")
+    source_relative_path: str = Field(pattern=r"^audio/[a-z][a-z0-9_-]*\.wav$")
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    destination_path: str = Field(pattern=r"^/Game/")
+    asset_name: str = Field(pattern=r"^SW_[A-Za-z][A-Za-z0-9_]*$")
+    asset_path: str = Field(pattern=r"^/Game/")
 
 
 class UnrealCameraBinding(UnrealModel):
@@ -166,7 +180,7 @@ class UnrealExportWarning(UnrealModel):
 
 
 class UnrealExportPlan(UnrealModel):
-    adapter_version: Literal["0.5.0"] = "0.5.0"
+    adapter_version: Literal["0.6.0"] = "0.6.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
@@ -177,5 +191,6 @@ class UnrealExportPlan(UnrealModel):
     coordinate_system: UnrealCoordinateSystem = Field(
         default_factory=UnrealCoordinateSystem
     )
+    audio_imports: list[UnrealAudioImport] = Field(default_factory=list)
     sequences: list[UnrealSceneSequence]
     warnings: list[UnrealExportWarning]

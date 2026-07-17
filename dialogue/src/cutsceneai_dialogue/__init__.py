@@ -7,6 +7,12 @@ from .errors import (
     DialogueOutputError,
     DialogueProviderError,
 )
+from .loading import (
+    MAX_DIALOGUE_BUNDLE_BYTES,
+    MAX_DIALOGUE_BUNDLE_ENTRIES,
+    MAX_DIALOGUE_BUNDLE_UNCOMPRESSED_BYTES,
+    load_dialogue_bundle,
+)
 from .models import (
     AudioProvenance,
     DialogueClip,
@@ -31,6 +37,7 @@ from .schema import (
     write_dialogue_schemas,
 )
 from .serialization import (
+    AI_VOICE_DISCLOSURE_TEXT,
     render_dialogue_bundle,
     render_dialogue_manifest,
     render_dialogue_plan,
@@ -45,6 +52,7 @@ from .service import (
 )
 
 __all__ = [
+    "AI_VOICE_DISCLOSURE_TEXT",
     "AudioProvenance",
     "DIALOGUE_MANIFEST_SCHEMA_ID",
     "DIALOGUE_PLAN_SCHEMA_ID",
@@ -64,6 +72,9 @@ __all__ = [
     "DialogueWarning",
     "JSON_SCHEMA_DIALECT",
     "MAX_WAV_BYTES",
+    "MAX_DIALOGUE_BUNDLE_BYTES",
+    "MAX_DIALOGUE_BUNDLE_ENTRIES",
+    "MAX_DIALOGUE_BUNDLE_UNCOMPRESSED_BYTES",
     "RecordedAudioInput",
     "SpeechBackend",
     "SpeechBackendResult",
@@ -74,6 +85,7 @@ __all__ = [
     "dialogue_manifest_json_schema",
     "dialogue_plan_json_schema",
     "inspect_wav",
+    "load_dialogue_bundle",
     "normalize_wav",
     "plan_project",
     "render_dialogue_bundle",

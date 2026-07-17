@@ -12,10 +12,17 @@ from .conversion import (
     convert_transform,
     look_at_quaternion,
 )
+from .dialogue_import import (
+    DEFAULT_AUDIO_PACKAGE_PATH,
+    UnrealDialogueImportPackage,
+    compile_dialogue_bundle,
+    render_unreal_dialogue_import_package,
+)
 from .models import (
     UnrealActorBinding,
     UnrealActorKind,
     UnrealAnimationSection,
+    UnrealAudioImport,
     UnrealAudioSection,
     UnrealCameraBinding,
     UnrealCoordinateSystem,
@@ -42,6 +49,7 @@ from .serialization import render_unreal_plan
 
 __all__ = [
     "CHARACTER_CLASS_PATH",
+    "DEFAULT_AUDIO_PACKAGE_PATH",
     "DEFAULT_PACKAGE_PATH",
     "JSON_SCHEMA_DIALECT",
     "SKELETAL_MESH_ACTOR_CLASS_PATH",
@@ -50,9 +58,11 @@ __all__ = [
     "UnrealActorBinding",
     "UnrealActorKind",
     "UnrealAnimationSection",
+    "UnrealAudioImport",
     "UnrealAudioSection",
     "UnrealCameraBinding",
     "UnrealCoordinateSystem",
+    "UnrealDialogueImportPackage",
     "UnrealExportPlan",
     "UnrealExportWarning",
     "UnrealMeshType",
@@ -64,12 +74,14 @@ __all__ = [
     "UnrealTransform",
     "UnrealVector",
     "compile_project",
+    "compile_dialogue_bundle",
     "convert_position",
     "convert_quaternion",
     "convert_scale",
     "convert_transform",
     "look_at_quaternion",
     "render_unreal_import_script",
+    "render_unreal_dialogue_import_package",
     "render_unreal_plan",
     "render_unreal_plan_json_schema",
     "unreal_plan_json_schema",
