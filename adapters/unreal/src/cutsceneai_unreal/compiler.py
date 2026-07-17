@@ -25,6 +25,7 @@ from .models import (
     UnrealActorBinding,
     UnrealActorKind,
     UnrealAnimationSection,
+    UnrealAudioSection,
     UnrealCameraBinding,
     UnrealExportPlan,
     UnrealExportWarning,
@@ -128,22 +129,48 @@ def compile_project(
             actor_bindings=actor_bindings,
             warnings=warnings,
         )
+        audio_sections = _compile_audio_sections(
+            performance_cues=performance_cues,
+            warnings=warnings,
+        )
         if performance_cues:
             missing_count = len(performance_cues) - len(animation_sections)
             if missing_count:
                 message = (
                     f"{missing_count} of {len(performance_cues)} performance cues have no "
-                    "compatible Unreal animation section; their motion intent and all facial, "
-                    "dialogue-audio, and look-at data remain editable Sequencer markers."
+                    "compatible Unreal animation section; their motion intent plus facial and "
+                    "look-at data remain editable Sequencer markers."
                 )
             else:
                 message = (
                     "Explicit animation assets compile as editable Sequencer sections; motion "
-                    "prompts plus facial, dialogue-audio, and look-at intent remain markers."
+                    "prompts plus facial and look-at intent remain markers."
                 )
             warnings.append(
                 UnrealExportWarning(
                     code="performance_metadata_only",
+                    source_id=source_scene.id,
+                    message=message,
+                )
+            )
+
+        dialogue_cues = [cue for cue in performance_cues if cue.dialogue is not None]
+        if dialogue_cues:
+            missing_count = len(dialogue_cues) - len(audio_sections)
+            if missing_count:
+                message = (
+                    f"{missing_count} of {len(dialogue_cues)} dialogue cues have no compatible "
+                    "Unreal audio section; their text, language, and timing remain editable "
+                    "Sequencer markers."
+                )
+            else:
+                message = (
+                    "Explicit dialogue audio assets compile as editable, speaker-associated "
+                    "Sequencer sections; text, language, and timing remain markers."
+                )
+            warnings.append(
+                UnrealExportWarning(
+                    code="dialogue_metadata_only",
                     source_id=source_scene.id,
                     message=message,
                 )
@@ -188,7 +215,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.4 imports a blocking pose for manual keyframing."
+                            "v0.5 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
@@ -232,6 +259,7 @@ def compile_project(
                 actors=actor_bindings,
                 performance_cues=performance_cues,
                 animation_sections=animation_sections,
+                audio_sections=audio_sections,
                 cameras=cameras,
             )
         )
@@ -534,6 +562,60 @@ def _compile_animation_sections(
                 asset_path=asset_path,
                 start_frame=cue.start_frame,
                 end_frame=cue.end_frame,
+            )
+        )
+    return sections
+
+
+def _compile_audio_sections(
+    *,
+    performance_cues: list[UnrealPerformanceCue],
+    warnings: list[UnrealExportWarning],
+) -> list[UnrealAudioSection]:
+    sections: list[UnrealAudioSection] = []
+    for cue in performance_cues:
+        if cue.dialogue is None or cue.dialogue_audio_uri is None:
+            continue
+
+        asset_path = _unreal_asset_path(cue.dialogue_audio_uri)
+        if asset_path is None:
+            warnings.append(
+                UnrealExportWarning(
+                    code="unsupported_audio_uri",
+                    source_id=cue.source_beat_id,
+                    message=(
+                        f"Dialogue audio URI '{cue.dialogue_audio_uri}' is not an Unreal "
+                        "/Game path; the dialogue remains marker metadata."
+                    ),
+                )
+            )
+            continue
+
+        if cue.dialogue_start_frame is None or cue.dialogue_language is None:
+            raise RuntimeError("Preview and CIR dialogue metadata diverged.")
+        if cue.dialogue_start_frame >= cue.end_frame:
+            warnings.append(
+                UnrealExportWarning(
+                    code="dialogue_audio_out_of_range",
+                    source_id=cue.source_beat_id,
+                    message=(
+                        f"Dialogue audio '{asset_path}' starts at frame "
+                        f"{cue.dialogue_start_frame}, outside its performance range ending at "
+                        f"frame {cue.end_frame}; the dialogue remains marker metadata."
+                    ),
+                )
+            )
+            continue
+
+        sections.append(
+            UnrealAudioSection(
+                source_beat_id=cue.source_beat_id,
+                actor_binding_id=cue.actor_binding_id,
+                asset_path=asset_path,
+                start_frame=cue.dialogue_start_frame,
+                end_frame=cue.end_frame,
+                dialogue_text=cue.dialogue,
+                language=cue.dialogue_language,
             )
         )
     return sections

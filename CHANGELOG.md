@@ -5,7 +5,42 @@ versions until the first unified Studio release.
 
 ## Unreleased
 
-- Next milestone: Unreal Adapter v0.5 dialogue audio binding.
+- Next milestone: Dialogue Engine v0.1 for recorded-audio ingestion, pluggable TTS, voice metadata,
+  provenance, and duration-aware timing.
+
+## Unreal Adapter 0.5.0 - 2026-07-17
+
+### Added
+
+- Typed `audio_sections` in the Unreal Sequencer plan and JSON Schema.
+- Compilation of compatible CIR `DialoguePlan.audio_uri` values into speaker-associated sections
+  beginning at the exact dialogue start frame and ending at the enclosing performance boundary.
+- One named, non-looping `MovieSceneAudioTrack` per speaker in the generated Unreal importer.
+- Explicit warnings for unsupported Unreal audio paths and dialogue starts outside the performance
+  range.
+- API, schema, compiler, and generated-importer tests for dialogue audio binding.
+
+### Validated
+
+- Ruff check, formatting, mypy, and CIR, Preview, and Unreal artifact drift checks passed.
+- 91 automated tests passed with 97.41% branch-aware coverage.
+- GitHub Actions CI run 87 passed on Python 3.11, 3.12, and 3.13.
+- Unreal Engine 5.8 persisted Mina's `120-336` and Arjun's `216-336` dialogue sections after
+  restart, with both sounds audible during Sequencer playback.
+- Movie Render Queue produced 432 non-empty PNG frames (`0000-0431`) and two synchronized WAV
+  outputs; Mina began near 5 seconds and Arjun near 9 seconds without looping.
+- Existing mannequin animation sections and camera cuts remained correct, with no output-log errors.
+
+### Boundaries
+
+- v0.5 resolves explicit Sound Wave and Sound Cue object paths; it does not discover assets, select
+  or generate voices, calculate audio duration, attach spatial audio, or generate facial animation.
+  Those capabilities remain in the Dialogue Engine and later performance milestones.
+
+Publication note: the code milestone is complete, but its component tag and GitHub release remain
+deferred until release permissions are available.
+
+Implementation and acceptance history: [pull request #14](https://github.com/Nithin0553/CutSceneAI-Studio/pull/14).
 
 ## Unreal Adapter 0.4.0 - 2026-07-16
 

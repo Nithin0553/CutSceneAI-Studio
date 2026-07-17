@@ -1,5 +1,5 @@
 {
-  "adapter_version": "0.4.0",
+  "adapter_version": "0.5.0",
   "cir_schema_version": "0.1.0",
   "coordinate_system": {
     "distance_unit": "centimeter",
@@ -213,6 +213,7 @@
       ],
       "animation_sections": [],
       "asset_name": "LS_SceneMeeting",
+      "audio_sections": [],
       "cameras": [
         {
           "angle": "eye_level",
@@ -616,7 +617,12 @@
     },
     {
       "code": "performance_metadata_only",
-      "message": "4 of 4 performance cues have no compatible Unreal animation section; their motion intent and all facial, dialogue-audio, and look-at data remain editable Sequencer markers.",
+      "message": "4 of 4 performance cues have no compatible Unreal animation section; their motion intent plus facial and look-at data remain editable Sequencer markers.",
+      "source_id": "scene-meeting"
+    },
+    {
+      "code": "dialogue_metadata_only",
+      "message": "2 of 2 dialogue cues have no compatible Unreal audio section; their text, language, and timing remain editable Sequencer markers.",
       "source_id": "scene-meeting"
     },
     {
@@ -626,7 +632,7 @@
     },
     {
       "code": "camera_movement_metadata_only",
-      "message": "Camera movement 'dolly' is retained as metadata; v0.4 imports a blocking pose for manual keyframing.",
+      "message": "Camera movement 'dolly' is retained as metadata; v0.5 imports a blocking pose for manual keyframing.",
       "source_id": "shot-establishing"
     },
     {
