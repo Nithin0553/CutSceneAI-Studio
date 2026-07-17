@@ -3,7 +3,7 @@
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
 The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
-pipeline, and an Unreal Adapter v0.5 candidate that produces editable Sequencer imports with proxy
+pipeline, and an Unreal Adapter v0.5 that produces editable Sequencer imports with proxy
 fallback, optional Skeletal Mesh character binding, explicit Anim Sequence sections, and
 speaker-associated dialogue audio sections.
 
@@ -35,7 +35,7 @@ speaker-associated dialogue audio sections.
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.5 in acceptance; Unity planned |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.5 complete; Unity planned |
 
 ## Local setup
 
@@ -133,18 +133,18 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 2. **Director planning:** prompt-to-CIR generation with deterministic structured output and evals
 3. **Preview pipeline:** blocking, camera, performance, dialogue, and environment previews
 4. **Unreal adapter through v0.5:** CIR-to-Sequencer export, asset binding, animation sections,
-   and dialogue audio sections; v0.4 completed Unreal 5.8 acceptance and v0.5 is next
+   and dialogue audio sections, with Unreal 5.8 acceptance complete
 5. **Unreal production pipeline:** dialogue audio, generated voice, environment resolution,
    camera trajectories, body motion, and facial performance
 6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
 7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 8. **Release:** CineBench++ evaluation, packaging, hardening, documentation, and public launch
 
-Unreal Adapter v0.4 completed acceptance in Unreal Engine 5.8.0 on 2026-07-16. The v0.5 candidate
-adds typed dialogue audio sections for explicit Unreal `/Game/...` sound assets; live restart and
-Movie Render Queue acceptance remain required before the milestone is complete. See the
-[v0.4 release notes](docs/releases/unreal-adapter-v0.4.0.md) for the automated and live-engine
-evidence.
+Unreal Adapter v0.5 completed acceptance in Unreal Engine 5.8.0 on 2026-07-17. It adds typed
+dialogue audio sections for explicit Unreal `/Game/...` sound assets. The speaker tracks persisted
+after restart, and Movie Render Queue produced 432 non-empty PNG frames plus synchronized WAV audio
+without regressing animation or camera cuts. The next milestone is Dialogue Engine v0.1. Component
+tag and GitHub release publication remain deferred until permissions are available.
 
 ## Director Agent v0.1
 
@@ -179,7 +179,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Meth
 Start-Process .\office-dialogue.storyboard.svg
 ```
 
-## Unreal Adapter v0.5 candidate
+## Unreal Adapter v0.5
 
 Export an Unreal Sequencer plan and importer from the same golden CIR fixture:
 
