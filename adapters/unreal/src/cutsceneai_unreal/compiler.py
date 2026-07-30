@@ -4,6 +4,14 @@ import re
 from collections.abc import Iterable
 from math import hypot
 
+from cutsceneai_assets import (
+    AssetIndex,
+    AssetResolution,
+    AssetResolutionPlan,
+    ResolutionSourceKind,
+    ResolutionStatus,
+    validate_resolution_plan,
+)
 from cutsceneai_cir import (
     CameraAngle,
     CameraFraming,
@@ -11,6 +19,7 @@ from cutsceneai_cir import (
     EnvironmentObject,
     PerformancePlan,
     Project,
+    Scene,
     Transform,
     validate_project_model,
 )
@@ -30,14 +39,13 @@ from .models import (
     UnrealExportPlan,
     UnrealExportWarning,
     UnrealMeshType,
-    UnrealPlaceholderVisual,
     UnrealPerformanceCue,
+    UnrealPlaceholderVisual,
     UnrealSceneSequence,
     UnrealSetPiece,
     UnrealTransform,
     UnrealVector,
 )
-
 
 DEFAULT_PACKAGE_PATH = "/Game/CutSceneAI/Sequences"
 SKELETAL_MESH_ACTOR_CLASS_PATH = "/Script/Engine.SkeletalMeshActor"
@@ -85,15 +93,29 @@ _OVER_THE_SHOULDER_OFFSET_CM = 30.0
 
 
 def compile_project(
-    project: Project, *, package_path: str = DEFAULT_PACKAGE_PATH
+    project: Project,
+    *,
+    package_path: str = DEFAULT_PACKAGE_PATH,
+    asset_index: AssetIndex | None = None,
+    asset_resolution: AssetResolutionPlan | None = None,
 ) -> UnrealExportPlan:
     """Compile validated CIR into a deterministic Unreal Sequencer import plan."""
 
     validate_project_model(project)
     _validate_package_path(package_path)
+    environment_resolutions, scene_resolutions = _prepare_asset_resolutions(
+        project=project,
+        asset_index=asset_index,
+        asset_resolution=asset_resolution,
+    )
     preview = compile_preview(project)
     warnings: list[UnrealExportWarning] = []
-    actor_bindings = _compile_actors(project, preview.entities, warnings)
+    actor_bindings = _compile_actors(
+        project,
+        preview.entities,
+        warnings,
+        environment_resolutions=environment_resolutions,
+    )
     binding_by_entity = {
         binding.source_entity_id: binding.binding_id for binding in actor_bindings
     }
@@ -215,7 +237,7 @@ def compile_project(
                         source_id=cut.shot_id,
                         message=(
                             f"Camera movement '{cut.movement.value}' is retained as metadata; "
-                            "v0.6 imports a blocking pose for manual keyframing."
+                            "v0.7 imports a blocking pose for manual keyframing."
                         ),
                     )
                 )
@@ -255,7 +277,10 @@ def compile_project(
                 asset_name=f"LS_{_unreal_name(source_scene.id)}",
                 package_path=package_path,
                 duration_frames=preview_scene.duration_frames,
-                set_pieces=_compile_set_pieces(source_scene.location),
+                set_pieces=_compile_set_pieces(
+                    source_scene,
+                    resolution=scene_resolutions.get(source_scene.id),
+                ),
                 actors=actor_bindings,
                 performance_cues=performance_cues,
                 animation_sections=animation_sections,
@@ -268,21 +293,63 @@ def compile_project(
         project_id=project.id,
         project_name=project.name,
         source_settings=project.settings,
+        asset_resolution=asset_resolution,
         sequences=sequences,
         warnings=warnings,
     )
+
+
+def _prepare_asset_resolutions(
+    *,
+    project: Project,
+    asset_index: AssetIndex | None,
+    asset_resolution: AssetResolutionPlan | None,
+) -> tuple[dict[str, AssetResolution], dict[str, AssetResolution]]:
+    if (asset_index is None) != (asset_resolution is None):
+        raise ValueError(
+            "Asset Index and Asset Resolution plan must be supplied together."
+        )
+    if asset_index is None or asset_resolution is None:
+        return {}, {}
+
+    validate_resolution_plan(project, asset_index, asset_resolution)
+    if (
+        asset_resolution.target_engine != "Unreal Engine"
+        or asset_resolution.target_engine_version != "5.8.0"
+    ):
+        raise ValueError(
+            "Unreal Adapter v0.7 requires an Asset Index targeting Unreal Engine 5.8.0."
+        )
+
+    environment_resolutions = {
+        resolution.source_id: resolution
+        for resolution in asset_resolution.resolutions
+        if resolution.source_kind is ResolutionSourceKind.ENVIRONMENT_OBJECT
+    }
+    scene_resolutions = {
+        resolution.source_id: resolution
+        for resolution in asset_resolution.resolutions
+        if resolution.source_kind is ResolutionSourceKind.SCENE_SET
+    }
+    return environment_resolutions, scene_resolutions
 
 
 def _compile_actors(
     project: Project,
     entities: list[PreviewEntity],
     warnings: list[UnrealExportWarning],
+    *,
+    environment_resolutions: dict[str, AssetResolution],
 ) -> list[UnrealActorBinding]:
     character_by_id = {item.id: item for item in project.characters}
     environment_by_id = {item.id: item for item in project.environment}
     bindings: list[UnrealActorBinding] = []
     for entity in entities:
         placeholder_visual: UnrealPlaceholderVisual | None
+        resolution_status: ResolutionStatus | None = None
+        resolved_asset_id: str | None = None
+        asset_match_score: int | None = None
+        asset_matched_terms: list[str] = []
         if entity.kind.value == "character":
             source_character = character_by_id[entity.id]
             asset_path = _unreal_asset_path(source_character.asset_uri)
@@ -333,8 +400,33 @@ def _compile_actors(
                 )
         else:
             source_environment = environment_by_id[entity.id]
-            asset_path = _unreal_asset_path(source_environment.asset_uri)
+            resolution = environment_resolutions.get(entity.id)
+            if resolution is None:
+                candidate_uri = source_environment.asset_uri
+                resolution_status = (
+                    ResolutionStatus.EXPLICIT
+                    if candidate_uri is not None
+                    else ResolutionStatus.FALLBACK
+                )
+            else:
+                candidate_uri = resolution.asset_uri
+                resolution_status = resolution.status
+                resolved_asset_id = resolution.asset_id
+                asset_match_score = resolution.score
+                asset_matched_terms = list(resolution.matched_terms)
+
+            asset_path = _unreal_asset_path(candidate_uri)
+            if resolution_status is ResolutionStatus.MATCHED and asset_path is None:
+                raise ValueError(
+                    f"Resolved environment asset '{candidate_uri}' for '{entity.id}' is not "
+                    "an Unreal /Game object path."
+                )
             placeholder = asset_path is None
+            if placeholder and resolution_status is not ResolutionStatus.EXPLICIT:
+                resolution_status = ResolutionStatus.FALLBACK
+                resolved_asset_id = None
+                asset_match_score = None
+                asset_matched_terms = []
             kind = UnrealActorKind.ENVIRONMENT
             mesh_type = UnrealMeshType.STATIC_MESH
             actor_class_path = STATIC_MESH_ACTOR_CLASS_PATH
@@ -345,13 +437,13 @@ def _compile_actors(
                 if placeholder
                 else None
             )
-            if source_environment.asset_uri is not None and asset_path is None:
+            if candidate_uri is not None and asset_path is None:
                 warnings.append(
                     UnrealExportWarning(
                         code="unsupported_asset_uri",
                         source_id=entity.id,
                         message=(
-                            f"Asset URI '{source_environment.asset_uri}' is not an Unreal "
+                            f"Asset URI '{candidate_uri}' is not an Unreal "
                             "/Game path; "
                             "a placeholder will be imported."
                         ),
@@ -380,6 +472,10 @@ def _compile_actors(
                 asset_path=asset_path,
                 placeholder=placeholder,
                 placeholder_visual=placeholder_visual,
+                resolution_status=resolution_status,
+                resolved_asset_id=resolved_asset_id,
+                asset_match_score=asset_match_score,
+                asset_matched_terms=asset_matched_terms,
                 transform=convert_transform(entity.initial_transform),
             )
         )
@@ -436,31 +532,65 @@ def _placeholder_visual(
     )
 
 
-def _compile_set_pieces(location: str) -> list[UnrealSetPiece]:
+def _compile_set_pieces(
+    scene: Scene, *, resolution: AssetResolution | None
+) -> list[UnrealSetPiece]:
+    if resolution is not None and resolution.status is ResolutionStatus.MATCHED:
+        asset_path = _unreal_asset_path(resolution.asset_uri)
+        if asset_path is None:
+            raise ValueError(
+                f"Resolved environment set '{resolution.asset_uri}' for scene "
+                f"'{scene.id}' is not an Unreal /Game object path."
+            )
+        return [
+            UnrealSetPiece(
+                binding_id=f"set:{scene.id}",
+                source_scene_id=scene.id,
+                display_name=f"SET_{_unreal_name(scene.id)}",
+                mesh_asset_path=asset_path,
+                placeholder=False,
+                resolution_status=ResolutionStatus.MATCHED,
+                resolved_asset_id=resolution.asset_id,
+                asset_match_score=resolution.score,
+                asset_matched_terms=list(resolution.matched_terms),
+                transform=convert_transform(
+                    resolution.asset_default_transform or Transform()
+                ),
+            )
+        ]
+    if resolution is not None and resolution.status is not ResolutionStatus.FALLBACK:
+        raise ValueError(
+            f"Scene set resolution '{scene.id}' must be matched or fallback."
+        )
+
     pieces = [
         _set_piece(
+            source_scene_id=scene.id,
             binding_id="set:floor",
             display_name="SET_Floor",
             location=UnrealVector(x=-100.0, y=0.0, z=-3.0),
             scale=UnrealVector(x=14.0, y=9.0, z=0.1),
         )
     ]
-    if any(term in location.lower() for term in _INTERIOR_TERMS):
+    if any(term in scene.location.lower() for term in _INTERIOR_TERMS):
         pieces.extend(
             [
                 _set_piece(
+                    source_scene_id=scene.id,
                     binding_id="set:back-wall",
                     display_name="SET_BackWall",
                     location=UnrealVector(x=600.0, y=0.0, z=150.0),
                     scale=UnrealVector(x=0.1, y=9.0, z=3.0),
                 ),
                 _set_piece(
+                    source_scene_id=scene.id,
                     binding_id="set:left-wall",
                     display_name="SET_LeftWall",
                     location=UnrealVector(x=-100.0, y=-450.0, z=150.0),
                     scale=UnrealVector(x=14.0, y=0.1, z=3.0),
                 ),
                 _set_piece(
+                    source_scene_id=scene.id,
                     binding_id="set:right-wall",
                     display_name="SET_RightWall",
                     location=UnrealVector(x=-100.0, y=450.0, z=150.0),
@@ -472,12 +602,20 @@ def _compile_set_pieces(location: str) -> list[UnrealSetPiece]:
 
 
 def _set_piece(
-    *, binding_id: str, display_name: str, location: UnrealVector, scale: UnrealVector
+    *,
+    source_scene_id: str,
+    binding_id: str,
+    display_name: str,
+    location: UnrealVector,
+    scale: UnrealVector,
 ) -> UnrealSetPiece:
     return UnrealSetPiece(
         binding_id=binding_id,
+        source_scene_id=source_scene_id,
         display_name=display_name,
         mesh_asset_path=PLACEHOLDER_CUBE_PATH,
+        placeholder=True,
+        resolution_status=ResolutionStatus.FALLBACK,
         transform=UnrealTransform(location_cm=location, scale=scale),
     )
 

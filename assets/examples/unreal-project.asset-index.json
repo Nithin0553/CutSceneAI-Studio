@@ -1,0 +1,85 @@
+{
+  "schema_version": "0.1.0",
+  "id": "cutsceneai-fixture-assets",
+  "name": "CutSceneAI Unreal Fixture Assets",
+  "target_engine": "Unreal Engine",
+  "target_engine_version": "5.8.0",
+  "assets": [
+    {
+      "id": "office-conference-room",
+      "name": "Office Conference Room Set",
+      "kind": "environment_set",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_OfficeConferenceRoom.SM_OfficeConferenceRoom",
+      "description": "A complete corporate conference-room interior.",
+      "aliases": ["Corporate conference room"],
+      "keywords": ["office", "conference", "interior"],
+      "location_terms": ["corporate conference room", "office"],
+      "priority": 80
+    },
+    {
+      "id": "office-contract",
+      "name": "Unsigned Contract",
+      "kind": "environment_prop",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_UnsignedContract.SM_UnsignedContract",
+      "description": "A document with a visible unsigned signature line.",
+      "aliases": ["contract", "legal document"],
+      "keywords": ["paper", "signature", "unsigned"],
+      "location_terms": ["office", "conference room"],
+      "priority": 90
+    },
+    {
+      "id": "office-conference-table",
+      "name": "Conference Table",
+      "kind": "environment_prop",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_ConferenceTable.SM_ConferenceTable",
+      "description": "A large table for an office meeting.",
+      "aliases": ["meeting table"],
+      "keywords": ["desk", "office", "table"],
+      "location_terms": ["office", "conference room"],
+      "priority": 70
+    },
+    {
+      "id": "pine-forest-clearing",
+      "name": "Pine Forest Clearing Set",
+      "kind": "environment_set",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_PineForestClearing.SM_PineForestClearing",
+      "description": "A complete outdoor pine-forest clearing.",
+      "aliases": ["Pine forest clearing"],
+      "keywords": ["forest", "outdoor", "pine"],
+      "location_terms": ["pine forest clearing", "forest", "outdoor"],
+      "priority": 85
+    },
+    {
+      "id": "granite-boulder",
+      "name": "Granite Boulder",
+      "kind": "environment_prop",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_GraniteBoulder.SM_GraniteBoulder",
+      "description": "A large granite rock for outdoor terrain.",
+      "aliases": ["boulder", "rock"],
+      "keywords": ["granite", "stone"],
+      "location_terms": ["forest", "outdoor"],
+      "priority": 60
+    },
+    {
+      "id": "wooden-trail-marker",
+      "name": "Wooden Trail Marker",
+      "kind": "environment_prop",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_WoodenTrailMarker.SM_WoodenTrailMarker",
+      "description": "A weathered wooden direction marker.",
+      "aliases": ["trail marker", "signpost"],
+      "keywords": ["trail", "wood", "sign"],
+      "location_terms": ["forest", "outdoor"],
+      "priority": 75
+    },
+    {
+      "id": "city-street",
+      "name": "City Street Set",
+      "kind": "environment_set",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_CityStreet.SM_CityStreet",
+      "aliases": ["urban road"],
+      "keywords": ["city", "street", "urban"],
+      "location_terms": ["city", "street"],
+      "priority": 50
+    }
+  ]
+}

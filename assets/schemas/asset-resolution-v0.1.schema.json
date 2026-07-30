@@ -1,0 +1,317 @@
+{
+  "$defs": {
+    "AssetKind": {
+      "enum": [
+        "environment_prop",
+        "environment_set"
+      ],
+      "title": "AssetKind",
+      "type": "string"
+    },
+    "AssetResolution": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_default_transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "description": "Stable lowercase identifier used by Asset Resolution references.",
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Id"
+        },
+        "asset_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Name"
+        },
+        "asset_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Uri"
+        },
+        "expected_asset_kind": {
+          "$ref": "#/$defs/AssetKind"
+        },
+        "matched_terms": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Matched Terms",
+          "type": "array"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Priority"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "source_id": {
+          "description": "Stable lowercase identifier used by Asset Resolution references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/ResolutionSourceKind"
+        },
+        "source_name": {
+          "minLength": 1,
+          "title": "Source Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ResolutionStatus"
+        }
+      },
+      "required": [
+        "source_kind",
+        "source_id",
+        "source_name",
+        "expected_asset_kind",
+        "status",
+        "reason"
+      ],
+      "title": "AssetResolution",
+      "type": "object"
+    },
+    "AssetResolutionWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "source_id": {
+          "description": "Stable lowercase identifier used by Asset Resolution references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/ResolutionSourceKind"
+        }
+      },
+      "required": [
+        "code",
+        "source_kind",
+        "source_id",
+        "message"
+      ],
+      "title": "AssetResolutionWarning",
+      "type": "object"
+    },
+    "Quaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quaternion",
+      "type": "object"
+    },
+    "ResolutionSourceKind": {
+      "enum": [
+        "environment_object",
+        "scene_set"
+      ],
+      "title": "ResolutionSourceKind",
+      "type": "string"
+    },
+    "ResolutionStatus": {
+      "enum": [
+        "explicit",
+        "matched",
+        "fallback"
+      ],
+      "title": "ResolutionStatus",
+      "type": "string"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/Vector3"
+        },
+        "rotation": {
+          "$ref": "#/$defs/Quaternion"
+        },
+        "scale": {
+          "$ref": "#/$defs/Vector3"
+        }
+      },
+      "title": "Transform",
+      "type": "object"
+    },
+    "Vector3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vector3",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/assets/v0.1/asset-resolution.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asset_index_id": {
+      "description": "Stable lowercase identifier used by Asset Resolution references.",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Asset Index Id",
+      "type": "string"
+    },
+    "asset_index_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Asset Index Sha256",
+      "type": "string"
+    },
+    "project_id": {
+      "description": "Stable lowercase identifier used by Asset Resolution references.",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "resolution_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Resolution Version",
+      "type": "string"
+    },
+    "resolutions": {
+      "items": {
+        "$ref": "#/$defs/AssetResolution"
+      },
+      "title": "Resolutions",
+      "type": "array"
+    },
+    "target_engine": {
+      "minLength": 1,
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "minLength": 1,
+      "title": "Target Engine Version",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/AssetResolutionWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "asset_index_id",
+    "asset_index_sha256",
+    "target_engine",
+    "target_engine_version",
+    "resolutions"
+  ],
+  "title": "AssetResolutionPlan",
+  "type": "object"
+}

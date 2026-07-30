@@ -7,6 +7,23 @@ versions until the first unified Studio release.
 
 ### Added
 
+- Asset Resolver v0.1 with strict Asset Index and Asset Resolution models, JSON Schemas, canonical
+  SHA-256 index identity, duplicate detection, and exact project/index/plan consistency checks.
+- Deterministic environment-prop and scene-set matching using normalized semantic terms, curated
+  priority, stable lexical tie-breaking, explicit CIR URI precedence, and visible fallback records.
+- Office-dialogue and outdoor-action resolution fixtures covering matched props, matched sets,
+  environment-detail shots, establishing shots, and unresolved fallbacks.
+- `POST /api/v1/assets/resolve` with structured structural, CIR-domain, and Asset Index errors.
+- A read-only Unreal 5.8 Static Mesh indexer at
+  `GET /api/v1/adapters/unreal/asset-indexer.py`; generated entries require creator curation and the
+  script never modifies Content Browser assets.
+- Unreal Adapter v0.7 resolution evidence on props and set pieces, resolved Static Mesh imports,
+  engine-visible set fallbacks, and preflight of every referenced project asset before mutation.
+- `POST /api/v1/adapters/unreal/environment-bundle` for deterministic ZIPs containing the CIR,
+  exact Asset Index, verified Asset Resolution plan, Unreal plan, and self-contained importer.
+- `POST /api/v1/adapters/unreal/dialogue-environment-bundle` for a cumulative, size-bounded
+  multipart workflow that preserves Dialogue manifest timing, WAV provenance and disclosure,
+  character and animation bindings, cameras, resolved props, and the resolved set in one package.
 - Dialogue Engine v0.1 package with provider-neutral cue planning, recorded PCM WAV ingestion, and
   pluggable asynchronous speech generation.
 - Stable cue IDs and `cutsceneai://dialogue/...` URIs derived from validated CIR scene, beat,
@@ -34,8 +51,10 @@ versions until the first unified Studio release.
 ### Boundaries
 
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
-  beat and shot pacing are never silently extended. Project-wide asset discovery, environment
-  resolution, facial animation, spatial audio, and voice cloning remain later milestones.
+  beat and shot pacing are never silently extended. Asset Resolver v0.1 does not use an LLM,
+  download assets, generate geometry, or infer skeleton compatibility. Facial animation, spatial
+  audio, voice cloning, motion generation, and keyframed camera trajectories remain later
+  milestones.
 
 ### Validated
 
@@ -44,9 +63,16 @@ versions until the first unified Studio release.
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 47 source files, all four schema/artifact drift checks, and
-  168 automated tests passed locally with 95.50% branch-aware coverage.
-- Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
+- Unreal Engine 5.8 import and playback acceptance passed for v0.6: both Sound Waves and the Level
+  Sequence were created, Mina played at frames `120-178`, Arjun at `216-302`, animations and camera
+  changes were present, no audible pop occurred, and there were no importer or playback errors.
+- Asset Resolver and Unreal v0.7 automated tests cover deterministic office and outdoor matches,
+  fallbacks, tamper rejection, Windows/Linux collection, generated indexer execution, package
+  reproducibility, API failures, and Unreal missing-asset preflight without live provider calls.
+- The complete local gate passes 223 tests with 95.89% branch-aware coverage, 57 typed source
+  files, clean Ruff lint and formatting, and current CIR, Preview, Dialogue, Asset Resolver, and
+  Unreal generated contracts.
+- Unreal Engine 5.8 acceptance for the v0.7 project indexer and resolved environment package remains
   required before merge.
 
 ## Unreal Adapter 0.5.0 - 2026-07-17

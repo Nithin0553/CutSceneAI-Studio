@@ -1,0 +1,120 @@
+{
+  "asset_index_id": "cutsceneai-fixture-assets",
+  "asset_index_sha256": "9f93babac9c7d472c90314ac7f81e82360f698b874f6bcb7b13176eb14a1249d",
+  "project_id": "office-dialogue",
+  "resolution_version": "0.1.0",
+  "resolutions": [
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "office-contract",
+      "asset_name": "Unsigned Contract",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_UnsignedContract.SM_UnsignedContract",
+      "expected_asset_kind": "environment_prop",
+      "matched_terms": [
+        "conference",
+        "contract",
+        "room",
+        "unsigned"
+      ],
+      "priority": 90,
+      "reason": "Selected 'office-contract' by deterministic semantic score 154 and priority 90.",
+      "score": 154,
+      "source_id": "contract",
+      "source_kind": "environment_object",
+      "source_name": "Unsigned Contract",
+      "status": "matched"
+    },
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "office-conference-table",
+      "asset_name": "Conference Table",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_ConferenceTable.SM_ConferenceTable",
+      "expected_asset_kind": "environment_prop",
+      "matched_terms": [
+        "conference",
+        "room",
+        "table"
+      ],
+      "priority": 70,
+      "reason": "Selected 'office-conference-table' by deterministic semantic score 146 and priority 70.",
+      "score": 146,
+      "source_id": "conference-table",
+      "source_kind": "environment_object",
+      "source_name": "Conference Table",
+      "status": "matched"
+    },
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "office-conference-room",
+      "asset_name": "Office Conference Room Set",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_OfficeConferenceRoom.SM_OfficeConferenceRoom",
+      "expected_asset_kind": "environment_set",
+      "matched_terms": [
+        "conference",
+        "corporate",
+        "room"
+      ],
+      "priority": 80,
+      "reason": "Selected 'office-conference-room' by deterministic semantic score 160 and priority 80.",
+      "score": 160,
+      "source_id": "scene-meeting",
+      "source_kind": "scene_set",
+      "source_name": "Corporate conference room",
+      "status": "matched"
+    }
+  ],
+  "target_engine": "Unreal Engine",
+  "target_engine_version": "5.8.0",
+  "warnings": []
+}

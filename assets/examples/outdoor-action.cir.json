@@ -1,0 +1,141 @@
+{
+  "schema_version": "0.1.0",
+  "id": "outdoor-action",
+  "name": "Outdoor Action",
+  "description": "A scout discovers a warning marker in a forest clearing.",
+  "settings": {
+    "fps": 24,
+    "distance_unit": "meter",
+    "time_unit": "second",
+    "handedness": "right",
+    "up_axis": "y",
+    "forward_axis": "-z"
+  },
+  "generation": {
+    "generator": "manual-fixture",
+    "prompt_version": "asset-resolution-v0.1"
+  },
+  "characters": [
+    {
+      "id": "scout",
+      "name": "Scout",
+      "role": "Explorer",
+      "description": "Alert and cautious.",
+      "rig_profile": "humanoid",
+      "initial_transform": {
+        "position": {"x": 0.0, "y": 0.0, "z": 1.0}
+      }
+    }
+  ],
+  "environment": [
+    {
+      "id": "boulder",
+      "name": "Granite Boulder",
+      "description": "A large rock beside the trail.",
+      "importance": 0.55,
+      "initial_transform": {
+        "position": {"x": -2.0, "y": 0.0, "z": 2.5}
+      }
+    },
+    {
+      "id": "trail-marker",
+      "name": "Trail Marker",
+      "description": "A weathered wooden marker warning travelers away.",
+      "importance": 0.95,
+      "initial_transform": {
+        "position": {"x": 1.5, "y": 0.0, "z": -0.5}
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-clearing",
+      "title": "The Warning",
+      "location": "Pine forest clearing",
+      "duration_seconds": 8.0,
+      "beats": [
+        {
+          "id": "beat-approach",
+          "start_seconds": 0.0,
+          "duration_seconds": 4.0,
+          "description": "The scout enters the clearing between the boulder and trail marker.",
+          "narrative_intent": "Establish the outdoor geography.",
+          "performances": [
+            {
+              "character_id": "scout",
+              "motion": {
+                "prompt": "Walk cautiously into the clearing and scan the tree line.",
+                "style": "alert"
+              },
+              "facial": {
+                "emotion": "focused",
+                "intensity": 0.55,
+                "lip_sync": false
+              },
+              "look_at_id": "trail-marker"
+            }
+          ]
+        },
+        {
+          "id": "beat-warning",
+          "start_seconds": 4.0,
+          "duration_seconds": 4.0,
+          "description": "The scout notices the warning carved into the trail marker.",
+          "narrative_intent": "Reveal the environmental warning.",
+          "environment_focus_ids": ["trail-marker"],
+          "performances": [
+            {
+              "character_id": "scout",
+              "motion": {
+                "prompt": "Stop beside the marker and lean forward to inspect it.",
+                "style": "cautious"
+              },
+              "facial": {
+                "emotion": "concerned",
+                "intensity": 0.7,
+                "lip_sync": false
+              },
+              "look_at_id": "trail-marker"
+            }
+          ]
+        }
+      ],
+      "shots": [
+        {
+          "id": "shot-clearing",
+          "beat_ids": ["beat-approach"],
+          "start_seconds": 0.0,
+          "duration_seconds": 4.0,
+          "purpose": "establishing",
+          "description": "Wide view of the scout, boulder, trail marker, and forest clearing.",
+          "subject_ids": ["scout", "boulder", "trail-marker"],
+          "camera": {
+            "framing": "wide",
+            "angle": "eye_level",
+            "movement": "static",
+            "lens_mm": 28.0,
+            "target_ids": ["scout", "trail-marker"],
+            "composition": "Keep the trail marker readable in the clearing."
+          }
+        },
+        {
+          "id": "shot-marker-detail",
+          "beat_ids": ["beat-warning"],
+          "start_seconds": 4.0,
+          "duration_seconds": 4.0,
+          "purpose": "environment_detail",
+          "description": "Insert shot of the warning carved into the trail marker.",
+          "subject_ids": ["trail-marker"],
+          "camera": {
+            "framing": "insert",
+            "angle": "eye_level",
+            "movement": "static",
+            "lens_mm": 70.0,
+            "target_ids": ["trail-marker"],
+            "composition": "Center the carved warning while retaining forest context."
+          }
+        }
+      ]
+    }
+  ]
+}

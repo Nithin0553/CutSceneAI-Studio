@@ -1,26 +1,24 @@
-# Unreal Adapter v0.6
+# Unreal Adapter v0.7
 
 The CutSceneAI Unreal Adapter compiles validated CIR into a deterministic Unreal Sequencer plan
 and a self-contained Unreal Editor Python importer. The plan is the stable, testable contract; the
 generated script turns it into editable Level Sequence assets inside Unreal Engine 5.8.0. Version
-0.6 keeps deterministic scene, character, animation, camera, and explicit-audio assembly, then adds
-verified import of portable Dialogue v0.1 WAV bundles with exact manifest timing.
+0.7 retains the accepted portable Dialogue workflow and adds traceable project-asset indexing,
+deterministic environment resolution, resolved props and sets, and preflight of every referenced
+engine asset before mutation.
 
 ## Status
 
-Version 0.5.0 completed its Unreal Engine 5.8 acceptance gate on 2026-07-17. Mina's
-`120-336` and Arjun's `216-336` dialogue sections, sound assignments, animation sections, and
-camera cuts persisted after restart. Movie Render Queue produced 432 non-empty PNG frames
-(`0000-0431`) and two synchronized WAV outputs; both lines played once at the expected timeline
-positions, with no black frames or output-log errors. The automated gate passed 91 tests at 97.41%
-branch-aware coverage, and CI run 87 passed on Python 3.11, 3.12, and 3.13. Component tag and GitHub
-release publication remain deferred until permissions are available. Version 0.6.0 has completed
-its automated contract, security, compiler, package, API, and generated-script gates; its Unreal
-5.8 restart and Movie Render Queue acceptance is the next required step.
+Version 0.6.0 completed Unreal Engine 5.8 import and playback acceptance before merge. Both
+checksum-verified Sound Waves and `LS_SceneMeeting` were created; Mina played at frames `120-178`,
+Arjun at `216-302`, animations and camera changes remained present, and no importer or playback
+errors occurred. Version 0.7.0 has completed its local contract, resolver, compiler, package, API,
+indexer, and generated-script gates. Its real Unreal 5.8 environment acceptance remains required
+before merge. Component tag and GitHub release publication remain deferred.
 
 ## Output
 
-For each CIR scene, v0.6 creates a Level Sequence plan containing:
+For each CIR scene, v0.7 creates a Level Sequence plan containing:
 
 - Character and environment spawnable bindings with meter-to-centimeter coordinate conversion
 - Visible 180 cm character proxies and semantic document, table, and generic-object dimensions
@@ -31,7 +29,10 @@ For each CIR scene, v0.6 creates a Level Sequence plan containing:
   compatible Unreal `/Game/...` Sound Wave or Sound Cue path
 - Optional checksum-verified WAV imports mapped from portable `cutsceneai://dialogue/...` URIs to
   deterministic `/Game/CutSceneAI/Audio/SW_*` Sound Wave targets
-- An editable floor stage plus a three-wall shell for indoor scene locations
+- An optional verified Asset Resolution plan with the exact Asset Index SHA-256
+- Resolved environment props and a scene set with selected asset IDs, scores, matched terms, and
+  source identities preserved in the plan
+- An editable floor stage plus a three-wall shell when no environment set resolves
 - A Cine Camera Actor per CIR shot and an exact frame-aligned Camera Cuts track
 - Focal lengths, shot purpose, composition, targets, and source IDs
 - Performance and dialogue markers retaining motion prompts, facial, lip-sync, and look-at intent
@@ -68,6 +69,12 @@ generated Unreal script then rechecks each extracted WAV checksum, preflights ev
 Level Sequence target, refuses replacement, imports through `AssetImportTask`, and verifies the
 result as a `SoundBase`. Audio section end frames come from the Dialogue manifest rather than the
 enclosing performance range.
+Version 0.7.0 adds the engine-neutral Asset Index and Asset Resolution contracts. A generated
+read-only Unreal script inventories project Static Meshes; a creator then curates semantic aliases,
+location terms, priorities, and set roles. The deterministic resolver never calls a model or
+network service. The generated importer verifies that every selected `/Game/...` asset still exists
+before it creates a Level Sequence, and it preserves engine-visible proxy fallbacks for unresolved
+objects and sets.
 
 ## Generate the committed artifacts
 
@@ -80,9 +87,10 @@ python adapters\unreal\scripts\export_artifacts.py --check
 
 The generated products are:
 
-- `schemas/unreal-sequencer-plan-v0.6.schema.json`
+- `schemas/unreal-sequencer-plan-v0.7.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
+- `examples/index_project_static_meshes.py`
 
 ## Export through the API
 
@@ -105,6 +113,42 @@ Invoke-WebRequest `
   -OutFile cutsceneai-unreal-import.py
 ```
 
+## Resolve project environment assets
+
+Download and execute the read-only indexer in Unreal:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/asset-indexer.py `
+  -OutFile .\cutsceneai-unreal-asset-index.py
+```
+
+It inventories `/Game` Static Meshes and writes
+`Saved/CutSceneAI/unreal-project.asset-index.json`. It does not save, rename, delete, or modify any
+Content Browser asset. Every entry deliberately defaults to `environment_prop`; a creator must
+review aliases, keywords, location terms, priorities, and which meshes are complete
+`environment_set` assets.
+
+Post the CIR plus curated index to `/api/v1/assets/resolve` to inspect the evidence, or to
+`/api/v1/adapters/unreal/environment-bundle` to receive a deterministic ZIP containing:
+
+- `asset.index.json`
+- `asset.resolution.json`
+- `project.cir.json`
+- `unreal.plan.json`
+- `cutsceneai-unreal-import.py`
+
+The importer refuses to mutate the project if a selected asset is missing or the target Level
+Sequence already exists. See the
+[v0.7 acceptance guide](../../docs/acceptance/unreal-adapter-v0.7.md) for the complete Windows and
+Unreal 5.8 procedure.
+
+To preserve the complete v0.6 dialogue result, send the verified Dialogue ZIP and reviewed index to
+`POST /api/v1/adapters/unreal/dialogue-environment-bundle` as multipart fields
+`dialogue_bundle_file` and `asset_index_file`. The cumulative ZIP contains both WAV files and both
+asset contracts; its single Unreal plan retains manifest-derived audio end frames, character and
+animation bindings, cameras, resolved props, and the resolved set.
+
 ## Import in Unreal Engine 5.8.0
 
 1. Install the bundled Microsoft Visual C++ Redistributable from
@@ -120,7 +164,7 @@ Invoke-WebRequest `
 The importer never deletes or replaces assets. If the Level Sequence already exists, it stops with
 an actionable error so replacement remains an intentional editor action.
 
-## Import a portable Dialogue bundle with v0.6
+## Import a portable Dialogue bundle
 
 With the backend running, send the already accepted Dialogue v0.1 ZIP as raw `application/zip`:
 
@@ -130,10 +174,10 @@ Invoke-WebRequest `
   -Method Post `
   -ContentType "application/zip" `
   -InFile .\office-dialogue.tts.zip `
-  -OutFile .\office-dialogue.unreal-v0.6.zip
+  -OutFile .\office-dialogue.unreal-v0.7.zip
 
-$output = Join-Path $PWD "office-dialogue.unreal-v0.6"
-Expand-Archive .\office-dialogue.unreal-v0.6.zip -DestinationPath $output -Force
+$output = Join-Path $PWD "office-dialogue.unreal-v0.7"
+Expand-Archive .\office-dialogue.unreal-v0.7.zip -DestinationPath $output -Force
 $plan = Get-Content "$output\unreal.plan.json" -Raw | ConvertFrom-Json
 
 $plan.adapter_version
@@ -143,13 +187,13 @@ $plan.sequences[0].audio_sections |
   Select-Object source_cue_id, start_frame, end_frame, timing_source, asset_path
 ```
 
-Expected for the accepted live office bundle: adapter `0.6.0`, two imports, Mina at frames
+Expected for the accepted live office bundle: adapter `0.7.0`, two imports, Mina at frames
 `120-178`, Arjun at `216-302`, and `timing_source=dialogue_manifest`. Keep the extracted folder
 intact and execute `$output\cutsceneai-unreal-import.py` through **File > Execute Python Script**;
 the script needs the adjacent `audio` folder. It stops before import if a WAV changed, a source file
 is missing, two targets collide, or any target asset already exists.
 
-The complete restart and MRQ checklist is in
+The accepted v0.6 import procedure remains archived in
 [`docs/acceptance/unreal-adapter-v0.6.md`](../../docs/acceptance/unreal-adapter-v0.6.md).
 
 ## Bind mannequin animations for the v0.4 acceptance test
@@ -289,8 +333,8 @@ $plan.sequences[0].audio_sections |
     Select-Object actor_binding_id, start_frame, end_frame, asset_path
 ```
 
-The adapter version must be `0.5.0`. Mina must cover frames `120-336`; Arjun must cover
-`216-336`.
+The current adapter version is `0.7.0`. Mina must cover frames `120-336`; Arjun must cover
+`216-336`; this preserves the accepted v0.5 behavior.
 
 6. Generate the importer:
 
@@ -316,13 +360,14 @@ Invoke-WebRequest `
     [MRQ export-format documentation](https://dev.epicgames.com/documentation/unreal-engine/cinematic-rendering-export-formats-in-unreal-engine)
     confirms WAV Audio can be emitted alongside image sequences.
 
-## v0.6 boundary
+## v0.7 boundary
 
-Version 0.6 securely imports WAV files already present in a verified Dialogue v0.1 bundle and maps
-their portable URIs to deterministic Unreal Sound Waves. It does not overwrite or update existing
-assets, search the Unreal project for alternatives, infer skeleton compatibility, retarget
-animation, attach spatial audio, generate lip-sync or facial animation, key camera movement curves,
-or launch unattended final rendering. Broader project asset discovery and environment resolution
-belong to Unreal v0.7.
+Version 0.7 inventories project Static Meshes, resolves CIR props and scene locations against a
+creator-curated index, and imports selected sets and props with explicit match evidence. It does
+not mutate assets during indexing, download marketplace content, infer skeletal compatibility,
+retarget animation, generate geometry, attach spatial audio, generate lip-sync or facial
+animation, key camera movement curves, or launch unattended final rendering. An LLM cannot write
+directly into the Unreal project through this workflow.
 
-Implementation and Unreal acceptance history: [pull request #14](https://github.com/Nithin0553/CutSceneAI-Studio/pull/14).
+Portable Dialogue implementation and Unreal acceptance history:
+[pull request #16](https://github.com/Nithin0553/CutSceneAI-Studio/pull/16).

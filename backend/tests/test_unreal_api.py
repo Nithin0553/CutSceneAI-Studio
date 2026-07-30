@@ -6,6 +6,7 @@ from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
+import app.api.unreal as unreal_api
 from app.main import app
 from cutsceneai_cir import validate_project
 from cutsceneai_dialogue import (
@@ -18,11 +19,18 @@ from cutsceneai_dialogue import (
 
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
+ASSET_INDEX_EXAMPLE = (
+    Path(__file__).resolve().parents[2] / "assets" / "examples" / "unreal-project.asset-index.json"
+)
 client = TestClient(app)
 
 
 def payload() -> dict:
     return json.loads(EXAMPLE.read_text(encoding="utf-8"))
+
+
+def asset_index_payload() -> dict:
+    return json.loads(ASSET_INDEX_EXAMPLE.read_text(encoding="utf-8"))
 
 
 def dialogue_bundle_payload() -> bytes:
@@ -46,7 +54,7 @@ def test_export_unreal_plan_returns_golden_sequence_contract() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["adapter_version"] == "0.6.0"
+    assert body["adapter_version"] == "0.7.0"
     assert body["target_engine_version"] == "5.8.0"
     assert body["sequences"][0]["asset_name"] == "LS_SceneMeeting"
     assert len(body["sequences"][0]["actors"]) == 4
@@ -67,6 +75,187 @@ def test_export_unreal_importer_returns_safe_python_script() -> None:
     )
     compile(response.text, "api_unreal_import.py", "exec")
     assert "unreal.MovieSceneCameraCutTrack" in response.text
+
+
+def test_export_unreal_asset_indexer_returns_read_only_python_script() -> None:
+    response = client.get("/api/v1/adapters/unreal/asset-indexer.py")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/x-python")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="cutsceneai-unreal-asset-index.py"'
+    )
+    compile(response.text, "api_unreal_asset_index.py", "exec")
+    assert "AssetRegistryHelpers.get_asset_registry" in response.text
+    assert "save_asset" not in response.text
+    assert "delete_asset" not in response.text
+
+
+def test_export_unreal_environment_bundle_is_traceable_and_self_contained() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/environment-bundle",
+        json={"project": payload(), "asset_index": asset_index_payload()},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="office-dialogue.unreal-v0.7.zip"'
+    )
+    assert response.headers["x-cutsceneai-unreal-adapter-version"] == "0.7.0"
+    assert response.headers["x-cutsceneai-asset-resolutions"] == "3"
+    assert response.headers["x-cutsceneai-asset-warnings"] == "0"
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert archive.namelist() == [
+            "cutsceneai-unreal-import.py",
+            "unreal.plan.json",
+            "project.cir.json",
+            "asset.index.json",
+            "asset.resolution.json",
+        ]
+        plan = json.loads(archive.read("unreal.plan.json"))
+        resolution = json.loads(archive.read("asset.resolution.json"))
+        assert plan["asset_resolution"] == resolution
+        assert plan["sequences"][0]["set_pieces"][0]["placeholder"] is False
+        environment_actors = [
+            actor for actor in plan["sequences"][0]["actors"] if actor["kind"] == "environment"
+        ]
+        assert all(actor["resolution_status"] == "matched" for actor in environment_actors)
+
+
+def test_export_unreal_environment_bundle_rejects_wrong_engine_target() -> None:
+    index = asset_index_payload()
+    index["target_engine"] = "Unity"
+    index["target_engine_version"] = "6"
+
+    response = client.post(
+        "/api/v1/adapters/unreal/environment-bundle",
+        json={"project": payload(), "asset_index": index},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["errors"][0]["code"] == ("unreal.environment_import_failed")
+    assert "Unreal Engine 5.8.0" in response.json()["errors"][0]["message"]
+
+
+def test_export_dialogue_environment_bundle_composes_cumulative_scene() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-environment-bundle",
+        files={
+            "dialogue_bundle_file": (
+                "office-dialogue.tts.zip",
+                dialogue_bundle_payload(),
+                "application/zip",
+            ),
+            "asset_index_file": (
+                "unreal-project.asset-index.json",
+                json.dumps(asset_index_payload()).encode("utf-8"),
+                "application/json",
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="office-dialogue.dialogue-environment.unreal-v0.7.zip"'
+    )
+    assert response.headers["x-cutsceneai-unreal-audio-imports"] == "2"
+    assert response.headers["x-cutsceneai-asset-resolutions"] == "3"
+    assert response.headers["x-cutsceneai-asset-warnings"] == "0"
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert archive.namelist() == [
+            "cutsceneai-unreal-import.py",
+            "unreal.plan.json",
+            "project.cir.json",
+            "dialogue.manifest.json",
+            "asset.index.json",
+            "asset.resolution.json",
+            "audio/dialogue-scene-meeting-beat-confrontation-arjun-2.wav",
+            "audio/dialogue-scene-meeting-beat-confrontation-mina-1.wav",
+        ]
+        plan = json.loads(archive.read("unreal.plan.json"))
+        resolution = json.loads(archive.read("asset.resolution.json"))
+
+    assert plan["asset_resolution"] == resolution
+    assert [
+        (section["start_frame"], section["end_frame"])
+        for section in plan["sequences"][0]["audio_sections"]
+    ] == [(120, 144), (216, 240)]
+    assert all(
+        actor["resolution_status"] == "matched"
+        for actor in plan["sequences"][0]["actors"]
+        if actor["kind"] == "environment"
+    )
+    assert plan["sequences"][0]["set_pieces"][0]["placeholder"] is False
+
+
+def test_export_dialogue_environment_bundle_rejects_invalid_asset_json() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-environment-bundle",
+        files={
+            "dialogue_bundle_file": (
+                "office-dialogue.tts.zip",
+                dialogue_bundle_payload(),
+                "application/zip",
+            ),
+            "asset_index_file": (
+                "unreal-project.asset-index.json",
+                b"not json",
+                "application/json",
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["errors"][0]["code"] == "invalid_asset_index"
+    assert response.json()["errors"][0]["path"] == "asset_index"
+
+
+def test_export_dialogue_environment_bundle_rejects_invalid_dialogue_zip() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-environment-bundle",
+        files={
+            "dialogue_bundle_file": (
+                "office-dialogue.tts.zip",
+                b"not a zip",
+                "application/zip",
+            ),
+            "asset_index_file": (
+                "unreal-project.asset-index.json",
+                json.dumps(asset_index_payload()).encode("utf-8"),
+                "application/json",
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["errors"][0]["code"] == "invalid_dialogue_bundle"
+    assert response.json()["errors"][0]["path"] == "dialogue_bundle"
+
+
+def test_export_dialogue_environment_bundle_limits_each_upload(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(unreal_api, "MAX_ASSET_INDEX_BYTES", 4)
+
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-environment-bundle",
+        files={
+            "dialogue_bundle_file": (
+                "office-dialogue.tts.zip",
+                dialogue_bundle_payload(),
+                "application/zip",
+            ),
+            "asset_index_file": (
+                "unreal-project.asset-index.json",
+                b"12345",
+                "application/json",
+            ),
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["errors"][0]["code"] == ("unreal.dialogue_environment_bundle_too_large")
 
 
 def test_export_unreal_plan_preserves_character_skeletal_mesh_binding() -> None:
@@ -175,9 +364,9 @@ def test_export_unreal_dialogue_bundle_returns_self_contained_import_package() -
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/zip")
     assert response.headers["content-disposition"] == (
-        'attachment; filename="office-dialogue.unreal-v0.6.zip"'
+        'attachment; filename="office-dialogue.unreal-v0.7.zip"'
     )
-    assert response.headers["x-cutsceneai-unreal-adapter-version"] == "0.6.0"
+    assert response.headers["x-cutsceneai-unreal-adapter-version"] == "0.7.0"
     assert response.headers["x-cutsceneai-unreal-audio-imports"] == "2"
     with ZipFile(BytesIO(response.content)) as archive:
         assert "cutsceneai-unreal-import.py" in archive.namelist()
