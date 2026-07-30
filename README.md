@@ -3,8 +3,9 @@
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
 The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
-pipeline, an Unreal Adapter v0.5 that produces editable Sequencer imports, and Dialogue Engine
-v0.1 for recorded WAV ingestion and pluggable generated speech with exact timing and provenance.
+pipeline, an Unreal Adapter v0.6 that produces editable Sequencer imports and imports verified
+portable dialogue bundles, and Dialogue Engine v0.1 for recorded WAV ingestion and pluggable
+generated speech with exact timing and provenance.
 
 ## What works now
 
@@ -18,6 +19,8 @@ v0.1 for recorded WAV ingestion and pluggable generated speech with exact timing
 - `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
 - `POST /api/v1/adapters/unreal/export` for typed Unreal Sequencer plans
 - `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
+- `POST /api/v1/adapters/unreal/dialogue-bundle` for verified, self-contained Unreal WAV import
+  packages
 - `POST /api/v1/dialogue/plan` for deterministic cue IDs, filenames, and frame positions
 - `POST /api/v1/dialogue/synthesize` for portable generated-speech WAV bundles
 - Recorded PCM WAV bundling through the `cutsceneai-dialogue` CLI
@@ -27,6 +30,8 @@ v0.1 for recorded WAV ingestion and pluggable generated speech with exact timing
 - Compatible CIR motion asset references resolved to editable, frame-aligned Anim Sequence sections
 - Compatible CIR dialogue audio references resolved to editable, frame-aligned, non-looping audio
   sections grouped by speaker
+- Portable Dialogue ZIPs verified for archive safety, CIR/manifest consistency, WAV hashes, and
+  timing before deterministic Sound Wave import targets are generated
 - Committed CIR, Preview, Dialogue, and Unreal JSON Schema artifacts with CI drift detection
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -38,8 +43,8 @@ v0.1 for recorded WAV ingestion and pluggable generated speech with exact timing
 | Backend | HTTP boundary for validation, generation, preview, and engine export | v0.1 complete |
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
-| Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 in acceptance |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.5 complete; Unity planned |
+| Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
+| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.6 in engine acceptance; Unity planned |
 
 ## Local setup
 
@@ -139,9 +144,9 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 1. **Foundation v0.1:** CIR contract, golden fixture, validation, schema, API, and CI
 2. **Director planning:** prompt-to-CIR generation with deterministic structured output and evals
 3. **Preview pipeline:** blocking, camera, performance, dialogue, and environment previews
-4. **Unreal adapter through v0.5:** CIR-to-Sequencer export, asset binding, animation sections,
-   and dialogue audio sections, with Unreal 5.8 acceptance complete
-5. **Unreal production pipeline:** generated voice, environment resolution,
+4. **Unreal adapter through v0.6:** CIR-to-Sequencer export, asset binding, animation and dialogue
+   sections, plus verified portable-WAV import; v0.6 Unreal 5.8 acceptance is next
+5. **Unreal production pipeline:** environment resolution,
    camera trajectories, body motion, and facial performance
 6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
 7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
@@ -150,7 +155,10 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
 Unreal Adapter v0.5 completed acceptance in Unreal Engine 5.8.0 on 2026-07-17. It adds typed
 dialogue audio sections for explicit Unreal `/Game/...` sound assets. The speaker tracks persisted
 after restart, and Movie Render Queue produced 432 non-empty PNG frames plus synchronized WAV audio
-without regressing animation or camera cuts. Dialogue Engine v0.1 is now in automated acceptance.
+without regressing animation or camera cuts. Dialogue Engine v0.1 subsequently passed live speech
+acceptance with two audible clips, portable URIs, exact measured ranges, provider provenance, and
+the required AI-voice disclosure. Unreal Adapter v0.6 now connects that verified bundle to Unreal;
+its real-engine restart and MRQ gate remains pending.
 Component tag and GitHub release publication remain deferred until permissions are available.
 
 ## Director Agent v0.1
@@ -186,7 +194,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Meth
 Start-Process .\office-dialogue.storyboard.svg
 ```
 
-## Unreal Adapter v0.5
+## Unreal Adapter v0.6
 
 Export an Unreal Sequencer plan and importer from the same golden CIR fixture:
 
@@ -206,6 +214,27 @@ the importer adds an editable Animation track with an exact CIR frame range. Whe
 an Unreal `/Game/...` Sound Wave or Sound Cue object path in `audio_uri`, the importer adds one
 non-looping root Audio track per speaker and places the section at the CIR dialogue start frame. It
 refuses to overwrite an existing Level Sequence.
+
+Convert an accepted Dialogue v0.1 ZIP directly into an Unreal import package:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/dialogue-bundle `
+  -Method Post `
+  -ContentType "application/zip" `
+  -InFile .\office-dialogue.tts.zip `
+  -OutFile .\office-dialogue.unreal-v0.6.zip
+
+Expand-Archive `
+  .\office-dialogue.unreal-v0.6.zip `
+  -DestinationPath .\office-dialogue.unreal-v0.6 `
+  -Force
+```
+
+Execute the extracted `cutsceneai-unreal-import.py` from disk. Before importing anything, the
+script verifies the bundled WAV checksums and refuses every existing Sound Wave or Level Sequence
+target. See [`docs/acceptance/unreal-adapter-v0.6.md`](docs/acceptance/unreal-adapter-v0.6.md) for
+the Unreal 5.8 restart and MRQ gate.
 
 ## Dialogue Engine v0.1
 

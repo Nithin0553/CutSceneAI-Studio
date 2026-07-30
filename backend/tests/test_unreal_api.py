@@ -1,9 +1,20 @@
 import json
+from io import BytesIO
 from pathlib import Path
+import wave
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from cutsceneai_cir import validate_project
+from cutsceneai_dialogue import (
+    MAX_DIALOGUE_BUNDLE_BYTES,
+    RecordedAudioInput,
+    build_recorded_bundle,
+    plan_project,
+    render_dialogue_bundle,
+)
 
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
@@ -14,12 +25,28 @@ def payload() -> dict:
     return json.loads(EXAMPLE.read_text(encoding="utf-8"))
 
 
+def dialogue_bundle_payload() -> bytes:
+    output = BytesIO()
+    with wave.open(output, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(8_000)
+        wav_file.writeframes(b"\0" * 16_000)
+    wav = output.getvalue()
+    project = validate_project(payload())
+    recordings = {
+        cue.cue_id: RecordedAudioInput(data=wav, filename=f"{cue.character_id}.wav")
+        for cue in plan_project(project).cues
+    }
+    return render_dialogue_bundle(build_recorded_bundle(project, recordings))
+
+
 def test_export_unreal_plan_returns_golden_sequence_contract() -> None:
     response = client.post("/api/v1/adapters/unreal/export", json=payload())
 
     assert response.status_code == 200
     body = response.json()
-    assert body["adapter_version"] == "0.5.0"
+    assert body["adapter_version"] == "0.6.0"
     assert body["target_engine_version"] == "5.8.0"
     assert body["sequences"][0]["asset_name"] == "LS_SceneMeeting"
     assert len(body["sequences"][0]["actors"]) == 4
@@ -93,11 +120,13 @@ def test_export_unreal_plan_compiles_dialogue_audio_to_speaker_section() -> None
     sections = response.json()["sequences"][0]["audio_sections"]
     assert sections == [
         {
+            "source_cue_id": None,
             "source_beat_id": "beat-confrontation",
             "actor_binding_id": "actor:mina",
             "asset_path": "/Game/CutSceneAI/Audio/SW_Mina_Line01.SW_Mina_Line01",
             "start_frame": 120,
             "end_frame": 336,
+            "timing_source": "performance_range",
             "dialogue_text": "You said this would be signed yesterday.",
             "language": "en",
         }
@@ -134,3 +163,57 @@ def test_unreal_importer_returns_validation_errors() -> None:
 
     assert response.status_code == 422
     assert response.json()["valid"] is False
+
+
+def test_export_unreal_dialogue_bundle_returns_self_contained_import_package() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-bundle",
+        content=dialogue_bundle_payload(),
+        headers={"Content-Type": "application/zip"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="office-dialogue.unreal-v0.6.zip"'
+    )
+    assert response.headers["x-cutsceneai-unreal-adapter-version"] == "0.6.0"
+    assert response.headers["x-cutsceneai-unreal-audio-imports"] == "2"
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert "cutsceneai-unreal-import.py" in archive.namelist()
+        plan = json.loads(archive.read("unreal.plan.json"))
+        assert len(plan["audio_imports"]) == 2
+        assert [section["end_frame"] for section in plan["sequences"][0]["audio_sections"]] == [
+            144,
+            240,
+        ]
+
+
+def test_export_unreal_dialogue_bundle_returns_structured_validation_error() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-bundle",
+        content=b"not a zip",
+        headers={"Content-Type": "application/zip"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "invalid_dialogue_bundle",
+        "message": "Dialogue bundle is not a readable ZIP archive.",
+        "retryable": False,
+        "request_id": None,
+    }
+
+
+def test_export_unreal_dialogue_bundle_rejects_declared_oversized_upload() -> None:
+    response = client.post(
+        "/api/v1/adapters/unreal/dialogue-bundle",
+        content=b"",
+        headers={
+            "Content-Type": "application/zip",
+            "Content-Length": str(MAX_DIALOGUE_BUNDLE_BYTES + 1),
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["code"] == "dialogue_bundle_too_large"

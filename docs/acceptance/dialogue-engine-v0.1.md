@@ -2,6 +2,11 @@
 
 Target: Windows PowerShell, Python 3.12, and the office-dialogue CIR fixture.
 
+Status: complete on 2026-07-17 and merged in pull request #15. The live OpenAI speech gate produced
+two audible WAV files with no manifest warnings: Mina used `marin` at frames `120-178`, Arjun used
+`cedar` at `216-302`, both portable URIs were present, provenance and request metadata were retained,
+and the AI-voice disclosure was included. No server errors or secret output were observed.
+
 Run every command from the repository root. The checks below make live OpenAI speech calls only in
 the explicitly marked synthesis step; all automated tests use fake providers.
 
@@ -128,5 +133,7 @@ Timing warnings:
 Output-log errors:
 ```
 
-The v0.1 gate ends at a portable bundle. Importing the WAV files into Unreal and mapping the
-portable URIs to `/Game/...` assets belongs to the next adapter integration step.
+The v0.1 gate ends at a portable bundle. Unreal Adapter v0.6 now verifies that bundle again, maps
+its portable URIs to deterministic `/Game/...` Sound Waves, imports the WAV files without
+replacement, and uses the manifest's exact end frames. Continue with
+[`unreal-adapter-v0.6.md`](unreal-adapter-v0.6.md).

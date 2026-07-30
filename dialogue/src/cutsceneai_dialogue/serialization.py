@@ -8,7 +8,7 @@ from .service import DialogueBundle
 
 
 _ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
-_AI_DISCLOSURE = (
+AI_VOICE_DISCLOSURE_TEXT = (
     "This bundle contains AI-generated speech. Clearly disclose to end users that the voice "
     "they hear is AI-generated and not a human voice.\n"
 )
@@ -52,7 +52,11 @@ def render_dialogue_bundle(bundle: DialogueBundle) -> bytes:
             render_dialogue_manifest(bundle.manifest).encode("utf-8"),
         )
         if bundle.manifest.ai_voice_disclosure_required:
-            _write_entry(archive, "AI_VOICE_DISCLOSURE.txt", _AI_DISCLOSURE.encode("utf-8"))
+            _write_entry(
+                archive,
+                "AI_VOICE_DISCLOSURE.txt",
+                AI_VOICE_DISCLOSURE_TEXT.encode("utf-8"),
+            )
         for path, data in sorted(bundle.audio_files.items()):
             _write_entry(archive, path, data)
     return output.getvalue()

@@ -99,8 +99,15 @@ python dialogue\scripts\export_artifacts.py
 python dialogue\scripts\export_artifacts.py --check
 ```
 
+## Import into Unreal Engine 5.8
+
+Unreal Adapter v0.6 consumes the bundle directly through
+`POST /api/v1/adapters/unreal/dialogue-bundle`. It verifies the archive, contracts, cue mapping,
+WAV hashes, disclosure, and timing again before producing a self-contained Unreal import ZIP. See
+[`docs/acceptance/unreal-adapter-v0.6.md`](../docs/acceptance/unreal-adapter-v0.6.md).
+
 ## v0.1 boundaries
 
-This package does not import WAV files into an engine, map portable URIs to Unreal `/Game/...`
-assets, clone voices, generate facial animation, or change scene pacing automatically. Those are
-explicit later adapter, facial-performance, and editorial milestones.
+This package itself does not mutate engine projects, clone voices, generate facial animation, or
+change scene pacing automatically. Unreal import and portable-URI mapping live in the separate v0.6
+adapter so the Dialogue contract remains engine-neutral.

@@ -20,20 +20,34 @@ versions until the first unified Studio release.
 - `cutsceneai-dialogue` CLI commands for planning cues and bundling recorded audio.
 - Canonicalization of streamed provider WAV headers with placeholder RIFF/data lengths, preserving
   strict rejection of genuinely truncated or frame-misaligned PCM payloads.
+- Strict loading of Dialogue v0.1 ZIPs as untrusted input, including archive path and size limits,
+  exact entry sets, CIR/manifest/cue consistency, WAV structure, SHA-256, measured duration,
+  disclosure, and frame-timing verification.
+- Unreal Adapter v0.6 `audio_imports` with deterministic Sound Wave names, portable-URI mapping,
+  and manifest-derived audio section end frames.
+- `POST /api/v1/adapters/unreal/dialogue-bundle` for deterministic Unreal import ZIPs containing
+  the generated importer, typed plan, source contracts, disclosure, and WAV files.
+- Generated Unreal 5.8 import preflight that verifies extracted WAV checksums, reports every asset
+  conflict before mutation, refuses replacement, imports with `AssetImportTask`, and verifies the
+  resulting `SoundBase` assets.
 
 ### Boundaries
 
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
-  beat and shot pacing are never silently extended. Unreal asset import, portable-URI resolution,
-  facial animation, and voice cloning remain later milestones.
+  beat and shot pacing are never silently extended. Project-wide asset discovery, environment
+  resolution, facial animation, spatial audio, and voice cloning remain later milestones.
 
 ### Validated
 
-- Ruff check and formatting, mypy across 45 source files, and CIR, Preview, Dialogue, and Unreal
-  artifact-drift checks passed locally.
-- 147 automated tests passed with 97.78% branch-aware coverage; OpenAI speech tests use a fake
-  streaming client and make no billable provider calls.
-- Live provider and audible-WAV acceptance remains required before the milestone is merged.
+- Live OpenAI speech acceptance produced two audible WAV files with no warnings: Mina used `marin`
+  at frames `120-178`, Arjun used `cedar` at `216-302`, portable CIR URIs and request provenance
+  were present, and the required AI-voice disclosure was included.
+- Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
+  use local WAV fixtures and make no billable provider calls.
+- Ruff check and formatting, mypy across 47 source files, all four schema/artifact drift checks, and
+  168 automated tests passed locally with 95.50% branch-aware coverage.
+- Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
+  required before merge.
 
 ## Unreal Adapter 0.5.0 - 2026-07-17
 
