@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import sys
+import wave
 from io import BytesIO
 from pathlib import Path
-import sys
 from types import ModuleType
-import wave
+from typing import ClassVar
 from zipfile import ZipFile
 
 import pytest
+from cutsceneai_assets import AssetIndex
 from cutsceneai_cir import Project
 from cutsceneai_dialogue import (
     DialogueEngine,
     DialogueInputError,
+    DialogueOutputError,
     RecordedAudioInput,
     SpeechBackendResult,
     VoiceProfile,
@@ -20,6 +24,7 @@ from cutsceneai_dialogue import (
     plan_project,
 )
 from cutsceneai_unreal import (
+    UnrealDialogueImportPackage,
     compile_dialogue_bundle,
     render_unreal_dialogue_import_package,
 )
@@ -35,7 +40,12 @@ def _wav(*, duration_seconds: float = 1.0, sample_rate: int = 8_000) -> bytes:
     return output.getvalue()
 
 
-def _package(project: Project, *, duration_seconds: float = 1.0):
+def _package(
+    project: Project,
+    *,
+    duration_seconds: float = 1.0,
+    asset_index: AssetIndex | None = None,
+):
     recordings = {
         cue.cue_id: RecordedAudioInput(
             data=_wav(duration_seconds=duration_seconds),
@@ -44,7 +54,7 @@ def _package(project: Project, *, duration_seconds: float = 1.0):
         for cue in plan_project(project).cues
     }
     bundle = build_recorded_bundle(project, recordings)
-    return compile_dialogue_bundle(bundle)
+    return compile_dialogue_bundle(bundle, asset_index=asset_index)
 
 
 def test_compile_dialogue_bundle_maps_portable_wavs_and_exact_timing(
@@ -53,7 +63,7 @@ def test_compile_dialogue_bundle_maps_portable_wavs_and_exact_timing(
     package = _package(cir_project)
     plan = package.plan
 
-    assert plan.adapter_version == "0.6.0"
+    assert plan.adapter_version == "0.7.0"
     assert [item.asset_name for item in plan.audio_imports] == [
         "SW_DialogueSceneMeetingBeatConfrontationMina1",
         "SW_DialogueSceneMeetingBeatConfrontationArjun2",
@@ -120,6 +130,87 @@ def test_unreal_dialogue_package_is_deterministic_and_self_contained(
         assert "Bundled WAV checksum does not match" in script
 
 
+def test_dialogue_environment_package_composes_exact_audio_and_asset_resolution(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    package = _package(cir_project, asset_index=asset_index)
+
+    with ZipFile(BytesIO(render_unreal_dialogue_import_package(package))) as archive:
+        assert archive.namelist() == [
+            "cutsceneai-unreal-import.py",
+            "unreal.plan.json",
+            "project.cir.json",
+            "dialogue.manifest.json",
+            "asset.index.json",
+            "asset.resolution.json",
+            "audio/dialogue-scene-meeting-beat-confrontation-arjun-2.wav",
+            "audio/dialogue-scene-meeting-beat-confrontation-mina-1.wav",
+        ]
+        plan = json.loads(archive.read("unreal.plan.json"))
+        resolution = json.loads(archive.read("asset.resolution.json"))
+
+    assert plan["asset_resolution"] == resolution
+    assert [
+        (section["start_frame"], section["end_frame"])
+        for section in plan["sequences"][0]["audio_sections"]
+    ] == [(120, 144), (216, 240)]
+    assert all(
+        actor["resolution_status"] == "matched"
+        for actor in plan["sequences"][0]["actors"]
+        if actor["kind"] == "environment"
+    )
+    assert plan["sequences"][0]["set_pieces"][0]["placeholder"] is False
+
+
+def test_dialogue_environment_package_requires_index_for_resolution(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    package = _package(cir_project, asset_index=asset_index)
+    resolution = package.asset_resolution
+    assert resolution is not None
+
+    with pytest.raises(DialogueInputError, match="requires its source"):
+        compile_dialogue_bundle(
+            package.dialogue_bundle,
+            asset_resolution=resolution,
+        )
+
+
+def test_dialogue_environment_renderer_requires_index_and_resolution_together(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    package = _package(cir_project, asset_index=asset_index)
+    tampered = UnrealDialogueImportPackage(
+        dialogue_bundle=package.dialogue_bundle,
+        plan=package.plan,
+        asset_index=package.asset_index,
+    )
+
+    with pytest.raises(DialogueOutputError, match="requires both"):
+        render_unreal_dialogue_import_package(tampered)
+
+
+def test_dialogue_environment_renderer_rejects_other_plan_tampering(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    package = _package(cir_project, asset_index=asset_index)
+    plan = package.plan.model_copy(deep=True)
+    plan.project_name = "Tampered"
+    tampered = UnrealDialogueImportPackage(
+        dialogue_bundle=package.dialogue_bundle,
+        plan=plan,
+        asset_index=package.asset_index,
+        asset_resolution=package.asset_resolution,
+    )
+
+    with pytest.raises(DialogueOutputError, match="does not match"):
+        render_unreal_dialogue_import_package(tampered)
+
+
 class _FakeSpeechBackend:
     async def synthesize(self, request: object) -> SpeechBackendResult:
         return SpeechBackendResult(
@@ -179,11 +270,11 @@ def test_generated_importer_preflights_and_imports_verified_wavs(
             return AssetTools()
 
     class EditorAssetLibrary:
-        conflicts: set[str] = set()
+        conflicts: ClassVar[set[str]] = set()
 
         @classmethod
         def does_asset_exist(cls, path: str) -> bool:
-            return path in cls.conflicts
+            return path.startswith("/Engine/BasicShapes/") or path in cls.conflicts
 
         @staticmethod
         def load_asset(path: str) -> SoundWave:
@@ -203,7 +294,7 @@ def test_generated_importer_preflights_and_imports_verified_wavs(
         "__file__": str(script_path),
         "__name__": "cutsceneai_generated_importer",
     }
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     namespace["_preflight_import"]()
     imported = namespace["_import_audio_assets"]()
 
@@ -241,7 +332,7 @@ def test_generated_importer_detects_wav_tampering(
         "__file__": str(script_path),
         "__name__": "cutsceneai_generated_importer",
     }
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
 
     source = tmp_path / namespace["PLAN"]["audio_imports"][0]["source_relative_path"]
     source.write_bytes(source.read_bytes() + b"tampered")

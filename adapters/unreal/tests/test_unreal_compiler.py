@@ -1,7 +1,11 @@
 from copy import deepcopy
 
 import pytest
-
+from cutsceneai_assets import (
+    AssetIndex,
+    ResolutionStatus,
+    resolve_project,
+)
 from cutsceneai_cir import CIRValidationError, Project, Quaternion, Transform, Vector3
 from cutsceneai_unreal import (
     SKELETAL_MESH_ACTOR_CLASS_PATH,
@@ -18,7 +22,7 @@ def test_compile_office_dialogue_creates_editable_sequence_contract(
     plan = compile_project(cir_project)
     sequence = plan.sequences[0]
 
-    assert plan.adapter_version == "0.6.0"
+    assert plan.adapter_version == "0.7.0"
     assert plan.target_engine_version == "5.8.0"
     assert sequence.asset_name == "LS_SceneMeeting"
     assert sequence.package_path == "/Game/CutSceneAI/Sequences"
@@ -102,6 +106,11 @@ def test_compile_builds_visible_asset_independent_proxy_assembly(
         "SET_LeftWall",
         "SET_RightWall",
     ]
+    assert all(piece.placeholder for piece in sequence.set_pieces)
+    assert all(
+        piece.resolution_status is ResolutionStatus.FALLBACK
+        for piece in sequence.set_pieces
+    )
 
 
 def test_compile_non_interior_scene_uses_portable_floor_stage(
@@ -429,6 +438,7 @@ def test_unreal_environment_asset_paths_disable_placeholders(
     assert contract.asset_path == "/Game/Props/SM_Contract.SM_Contract"
     assert contract.placeholder is False
     assert contract.placeholder_visual is None
+    assert contract.resolution_status is ResolutionStatus.EXPLICIT
 
 
 def test_unreal_character_asset_path_creates_skeletal_mesh_binding(
@@ -479,7 +489,14 @@ def test_non_unreal_asset_uri_is_reported(cir_project: Project) -> None:
     cir_project.environment[0].asset_uri = "https://example.com/contract.fbx"
 
     plan = compile_project(cir_project)
+    contract = next(
+        actor
+        for actor in plan.sequences[0].actors
+        if actor.source_entity_id == "contract"
+    )
 
+    assert contract.placeholder is True
+    assert contract.resolution_status is ResolutionStatus.EXPLICIT
     assert any(
         warning.code == "unsupported_asset_uri" and warning.source_id == "contract"
         for warning in plan.warnings
@@ -496,3 +513,81 @@ def test_invalid_rotation_and_package_path_fail_early(cir_project: Project) -> N
     cir_project.characters[0].initial_transform.rotation = Quaternion()
     with pytest.raises(ValueError, match="package path"):
         compile_project(cir_project, package_path="/Game/../Unsafe")
+
+
+def test_compile_consumes_traceable_prop_and_set_resolutions(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    resolution = resolve_project(cir_project, asset_index)
+
+    plan = compile_project(
+        cir_project,
+        asset_index=asset_index,
+        asset_resolution=resolution,
+    )
+    sequence = plan.sequences[0]
+    actors = {actor.source_entity_id: actor for actor in sequence.actors}
+
+    assert plan.asset_resolution == resolution
+    assert actors["contract"].asset_path == (
+        "/Game/CutSceneAI/FixtureAssets/SM_UnsignedContract.SM_UnsignedContract"
+    )
+    assert actors["contract"].resolution_status is ResolutionStatus.MATCHED
+    assert actors["contract"].resolved_asset_id == "office-contract"
+    assert "contract" in actors["contract"].asset_matched_terms
+    assert actors["conference-table"].resolved_asset_id == ("office-conference-table")
+    assert len(sequence.set_pieces) == 1
+    assert sequence.set_pieces[0].mesh_asset_path == (
+        "/Game/CutSceneAI/FixtureAssets/SM_OfficeConferenceRoom.SM_OfficeConferenceRoom"
+    )
+    assert sequence.set_pieces[0].placeholder is False
+    assert sequence.set_pieces[0].resolved_asset_id == "office-conference-room"
+    assert sequence.cameras[0].purpose.value == "establishing"
+    assert sequence.cameras[1].purpose.value == "environment_detail"
+
+
+def test_compile_requires_index_and_resolution_together(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    resolution = resolve_project(cir_project, asset_index)
+
+    with pytest.raises(ValueError, match="must be supplied together"):
+        compile_project(cir_project, asset_index=asset_index)
+    with pytest.raises(ValueError, match="must be supplied together"):
+        compile_project(cir_project, asset_resolution=resolution)
+
+
+def test_compile_rejects_non_unreal_resolution_target(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    asset_index.target_engine = "Unity"
+    asset_index.target_engine_version = "6"
+    resolution = resolve_project(cir_project, asset_index)
+
+    with pytest.raises(ValueError, match="targeting Unreal Engine 5.8.0"):
+        compile_project(
+            cir_project,
+            asset_index=asset_index,
+            asset_resolution=resolution,
+        )
+
+
+def test_compile_rejects_matched_non_unreal_asset_uri(
+    cir_project: Project,
+    asset_index: AssetIndex,
+) -> None:
+    contract = next(
+        asset for asset in asset_index.assets if asset.id == "office-contract"
+    )
+    contract.asset_uri = "https://example.com/contract.glb"
+    resolution = resolve_project(cir_project, asset_index)
+
+    with pytest.raises(ValueError, match="not an Unreal /Game object path"):
+        compile_project(
+            cir_project,
+            asset_index=asset_index,
+            asset_resolution=resolution,
+        )

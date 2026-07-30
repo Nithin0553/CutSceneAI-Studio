@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 .venv/
+.venv*/
 venv/
 .env
 .env.*
@@ -29,3 +30,6 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Local implementation coordination
+*_PLAN.md

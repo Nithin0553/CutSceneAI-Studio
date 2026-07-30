@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "AssetKind": {
+      "enum": [
+        "environment_prop",
+        "environment_set"
+      ],
+      "title": "AssetKind",
+      "type": "string"
+    },
+    "AssetRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "asset_uri": {
+          "minLength": 1,
+          "title": "Asset Uri",
+          "type": "string"
+        },
+        "default_transform": {
+          "$ref": "#/$defs/Transform"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "id": {
+          "description": "Stable lowercase identifier used by Asset Resolution references.",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "keywords": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/AssetKind"
+        },
+        "location_terms": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Location Terms",
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "priority": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Priority",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "asset_uri"
+      ],
+      "title": "AssetRecord",
+      "type": "object"
+    },
+    "Quaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quaternion",
+      "type": "object"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/Vector3"
+        },
+        "rotation": {
+          "$ref": "#/$defs/Quaternion"
+        },
+        "scale": {
+          "$ref": "#/$defs/Vector3"
+        }
+      },
+      "title": "Transform",
+      "type": "object"
+    },
+    "Vector3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vector3",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/assets/v0.1/asset-index.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/AssetRecord"
+      },
+      "title": "Assets",
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable lowercase identifier used by Asset Resolution references.",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "target_engine": {
+      "minLength": 1,
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "minLength": 1,
+      "title": "Target Engine Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "target_engine",
+    "target_engine_version"
+  ],
+  "title": "AssetIndex",
+  "type": "object"
+}

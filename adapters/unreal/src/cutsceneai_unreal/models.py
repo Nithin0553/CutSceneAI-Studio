@@ -3,8 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from cutsceneai_assets import AssetResolutionPlan, ResolutionStatus
 from cutsceneai_cir import (
     CameraAngle,
     CameraFraming,
@@ -12,6 +11,7 @@ from cutsceneai_cir import (
     ProjectSettings,
     ShotPurpose,
 )
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UnrealModel(BaseModel):
@@ -58,8 +58,14 @@ class UnrealPlaceholderVisual(UnrealModel):
 
 class UnrealSetPiece(UnrealModel):
     binding_id: str
+    source_scene_id: str
     display_name: str
     mesh_asset_path: str
+    placeholder: bool
+    resolution_status: ResolutionStatus
+    resolved_asset_id: str | None = None
+    asset_match_score: int | None = Field(default=None, ge=1)
+    asset_matched_terms: list[str] = Field(default_factory=list)
     transform: UnrealTransform
 
 
@@ -83,6 +89,10 @@ class UnrealActorBinding(UnrealModel):
     asset_path: str | None = None
     placeholder: bool
     placeholder_visual: UnrealPlaceholderVisual | None = None
+    resolution_status: ResolutionStatus | None = None
+    resolved_asset_id: str | None = None
+    asset_match_score: int | None = Field(default=None, ge=1)
+    asset_matched_terms: list[str] = Field(default_factory=list)
     transform: UnrealTransform
 
 
@@ -180,7 +190,7 @@ class UnrealExportWarning(UnrealModel):
 
 
 class UnrealExportPlan(UnrealModel):
-    adapter_version: Literal["0.6.0"] = "0.6.0"
+    adapter_version: Literal["0.7.0"] = "0.7.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     preview_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
@@ -191,6 +201,7 @@ class UnrealExportPlan(UnrealModel):
     coordinate_system: UnrealCoordinateSystem = Field(
         default_factory=UnrealCoordinateSystem
     )
+    asset_resolution: AssetResolutionPlan | None = None
     audio_imports: list[UnrealAudioImport] = Field(default_factory=list)
     sequences: list[UnrealSceneSequence]
     warnings: list[UnrealExportWarning]

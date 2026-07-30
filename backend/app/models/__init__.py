@@ -1,5 +1,6 @@
 """API response model exports."""
 
+from .assets import AssetResolutionFailure, AssetResolutionProblem
 from .cir import (
     CIRValidationFailure,
     CIRValidationProblem,
@@ -9,6 +10,8 @@ from .cir import (
 from .dialogue import DialogueFailure, DialogueSynthesizeRequest
 
 __all__ = [
+    "AssetResolutionFailure",
+    "AssetResolutionProblem",
     "CIRValidationFailure",
     "CIRValidationProblem",
     "CIRValidationSuccess",

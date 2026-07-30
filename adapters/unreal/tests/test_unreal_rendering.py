@@ -2,13 +2,14 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from cutsceneai_assets import AssetIndex
 from cutsceneai_cir import Project
 from cutsceneai_unreal import (
     UnrealExportPlan,
+    compile_environment_package,
     compile_project,
     render_unreal_import_script,
 )
-
 
 UNREAL_ROOT = Path(__file__).resolve().parents[1]
 IMPORTER = UNREAL_ROOT / "examples" / "import_office_dialogue.py"
@@ -40,6 +41,49 @@ def test_importer_is_self_contained_syntax_valid_and_non_destructive(
     assert "save_loaded_asset" in script
     assert "delete_asset" not in script
     assert "Refusing to replace existing asset" in script
+    assert "Import plan references missing Unreal assets" in script
+
+
+def test_importer_preflights_resolved_project_assets_before_mutation(
+    cir_project: Project,
+    asset_index: AssetIndex,
+    monkeypatch,
+) -> None:
+    plan = compile_environment_package(cir_project, asset_index).plan
+    script = render_unreal_import_script(plan)
+    missing_path = (
+        "/Game/CutSceneAI/FixtureAssets/SM_OfficeConferenceRoom.SM_OfficeConferenceRoom"
+    )
+    existence_checks: list[str] = []
+
+    class EditorAssetLibrary:
+        @staticmethod
+        def does_asset_exist(path: str) -> bool:
+            existence_checks.append(path)
+            return path != missing_path and not path.endswith("/LS_SceneMeeting")
+
+    unreal = ModuleType("unreal")
+    unreal.EditorAssetLibrary = EditorAssetLibrary
+    monkeypatch.setitem(sys.modules, "unreal", unreal)
+
+    namespace = {
+        "__name__": "cutsceneai_generated_importer",
+        "__file__": __file__,
+    }
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
+
+    try:
+        namespace["_preflight_import"]()
+    except RuntimeError as exc:
+        assert str(exc) == (
+            "Import plan references missing Unreal assets. Refresh the project "
+            "index or repair explicit CIR paths before retrying:\n"
+            f"- {missing_path}"
+        )
+    else:
+        raise AssertionError("Expected the resolved project-asset preflight to fail.")
+
+    assert missing_path in existence_checks
 
 
 def test_importer_builds_visible_proxy_actor_and_room_set_piece(
@@ -173,7 +217,7 @@ def test_importer_builds_visible_proxy_actor_and_room_set_piece(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     sequence = Sequence()
 
     actor = unreal_plan.sequences[0].actors[0].model_dump(mode="json")
@@ -328,7 +372,7 @@ def test_importer_configures_template_and_live_skeletal_character(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     actor = next(
         item for item in plan.sequences[0].actors if item.source_entity_id == "mina"
     ).model_dump(mode="json")
@@ -425,7 +469,7 @@ def test_importer_adds_editable_skeletal_animation_sections(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     binding = Binding()
     animations = [
         section.model_dump(mode="json")
@@ -513,7 +557,7 @@ def test_importer_reuses_one_animation_track_per_actor(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     binding = Binding()
     animations = [
         section.model_dump(mode="json")
@@ -599,7 +643,7 @@ def test_importer_adds_non_looping_dialogue_audio_tracks_per_speaker(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     sequence = Sequence()
     actors = [actor.model_dump(mode="json") for actor in plan.sequences[0].actors]
     audio_sections = [
@@ -680,7 +724,7 @@ def test_importer_reuses_one_dialogue_audio_track_per_speaker(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     sequence = Sequence()
     actors = [actor.model_dump(mode="json") for actor in plan.sequences[0].actors]
     audio = plan.sequences[0].audio_sections[0].model_dump(mode="json")
@@ -820,7 +864,7 @@ def test_importer_configures_template_and_live_58_camera_when_template_component
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_importer"}
-    exec(script, namespace)
+    exec(script, namespace)  # noqa: S102 - execute the generated importer under fakes.
     camera = unreal_plan.sequences[0].cameras[0].model_dump(mode="json")
 
     result = namespace["_add_camera"](Sequence(), subsystem, camera)

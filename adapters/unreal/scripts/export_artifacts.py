@@ -5,22 +5,25 @@ from pathlib import Path
 from cutsceneai_cir import validate_project
 from cutsceneai_unreal import (
     compile_project,
+    render_unreal_asset_index_script,
     render_unreal_import_script,
     render_unreal_plan,
     render_unreal_plan_json_schema,
 )
 
-
 ROOT = Path(__file__).resolve().parents[3]
 CIR_EXAMPLE = ROOT / "cir" / "examples" / "office-dialogue.cir.json"
 SCHEMA_OUTPUT = (
-    ROOT / "adapters" / "unreal" / "schemas" / "unreal-sequencer-plan-v0.6.schema.json"
+    ROOT / "adapters" / "unreal" / "schemas" / "unreal-sequencer-plan-v0.7.schema.json"
 )
 EXAMPLE_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "office-dialogue.unreal.json"
 )
 IMPORTER_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "import_office_dialogue.py"
+)
+INDEXER_OUTPUT = (
+    ROOT / "adapters" / "unreal" / "examples" / "index_project_static_meshes.py"
 )
 
 
@@ -31,12 +34,13 @@ def expected_artifacts() -> dict[Path, str]:
         SCHEMA_OUTPUT: render_unreal_plan_json_schema(),
         EXAMPLE_OUTPUT: render_unreal_plan(plan),
         IMPORTER_OUTPUT: render_unreal_import_script(plan),
+        INDEXER_OUTPUT: render_unreal_asset_index_script(),
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export deterministic Unreal Adapter v0.6 artifacts."
+        description="Export deterministic Unreal Adapter v0.7 artifacts."
     )
     parser.add_argument(
         "--check", action="store_true", help="Fail if committed artifacts drift."

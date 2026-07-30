@@ -1,0 +1,123 @@
+{
+  "asset_index_id": "cutsceneai-fixture-assets",
+  "asset_index_sha256": "9f93babac9c7d472c90314ac7f81e82360f698b874f6bcb7b13176eb14a1249d",
+  "project_id": "outdoor-action",
+  "resolution_version": "0.1.0",
+  "resolutions": [
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "granite-boulder",
+      "asset_name": "Granite Boulder",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_GraniteBoulder.SM_GraniteBoulder",
+      "expected_asset_kind": "environment_prop",
+      "matched_terms": [
+        "boulder",
+        "forest",
+        "granite",
+        "large",
+        "rock"
+      ],
+      "priority": 60,
+      "reason": "Selected 'granite-boulder' by deterministic semantic score 159 and priority 60.",
+      "score": 159,
+      "source_id": "boulder",
+      "source_kind": "environment_object",
+      "source_name": "Granite Boulder",
+      "status": "matched"
+    },
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "wooden-trail-marker",
+      "asset_name": "Wooden Trail Marker",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_WoodenTrailMarker.SM_WoodenTrailMarker",
+      "expected_asset_kind": "environment_prop",
+      "matched_terms": [
+        "forest",
+        "marker",
+        "trail",
+        "weathered",
+        "wooden"
+      ],
+      "priority": 75,
+      "reason": "Selected 'wooden-trail-marker' by deterministic semantic score 167 and priority 75.",
+      "score": 167,
+      "source_id": "trail-marker",
+      "source_kind": "environment_object",
+      "source_name": "Trail Marker",
+      "status": "matched"
+    },
+    {
+      "asset_default_transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "asset_id": "pine-forest-clearing",
+      "asset_name": "Pine Forest Clearing Set",
+      "asset_uri": "/Game/CutSceneAI/FixtureAssets/SM_PineForestClearing.SM_PineForestClearing",
+      "expected_asset_kind": "environment_set",
+      "matched_terms": [
+        "clearing",
+        "forest",
+        "pine"
+      ],
+      "priority": 85,
+      "reason": "Selected 'pine-forest-clearing' by deterministic semantic score 160 and priority 85.",
+      "score": 160,
+      "source_id": "scene-clearing",
+      "source_kind": "scene_set",
+      "source_name": "Pine forest clearing",
+      "status": "matched"
+    }
+  ],
+  "target_engine": "Unreal Engine",
+  "target_engine_version": "5.8.0",
+  "warnings": []
+}

@@ -1,11 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from io import BytesIO
 import json
 import re
+from dataclasses import dataclass
+from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
+from cutsceneai_assets import (
+    AssetIndex,
+    AssetResolutionPlan,
+    render_asset_index,
+    render_asset_resolution_plan,
+    resolve_project,
+    validate_resolution_plan,
+)
 from cutsceneai_dialogue import (
     AI_VOICE_DISCLOSURE_TEXT,
     DialogueBundle,
@@ -28,7 +36,6 @@ from .models import (
 from .rendering import render_unreal_import_script
 from .serialization import render_unreal_plan
 
-
 DEFAULT_AUDIO_PACKAGE_PATH = "/Game/CutSceneAI/Audio"
 _ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 _PACKAGE_PATH_PATTERN = re.compile(r"/Game(?:/[A-Za-z][A-Za-z0-9_]*)+")
@@ -38,6 +45,8 @@ _PACKAGE_PATH_PATTERN = re.compile(r"/Game(?:/[A-Za-z][A-Za-z0-9_]*)+")
 class UnrealDialogueImportPackage:
     dialogue_bundle: DialogueBundle
     plan: UnrealExportPlan
+    asset_index: AssetIndex | None = None
+    asset_resolution: AssetResolutionPlan | None = None
 
 
 def _validate_package_path(package_path: str) -> None:
@@ -84,11 +93,26 @@ def compile_dialogue_bundle(
     *,
     sequence_package_path: str = DEFAULT_PACKAGE_PATH,
     audio_package_path: str = DEFAULT_AUDIO_PACKAGE_PATH,
+    asset_index: AssetIndex | None = None,
+    asset_resolution: AssetResolutionPlan | None = None,
 ) -> UnrealDialogueImportPackage:
     """Compile a verified portable dialogue bundle into an Unreal 5.8 import package."""
 
     verified = _canonical_bundle(bundle)
     _validate_package_path(audio_package_path)
+    if asset_resolution is not None and asset_index is None:
+        raise DialogueInputError(
+            "Asset Resolution plan requires its source Asset Index."
+        )
+    if asset_index is not None:
+        if asset_resolution is None:
+            asset_resolution = resolve_project(verified.project, asset_index)
+        else:
+            validate_resolution_plan(
+                verified.project,
+                asset_index,
+                asset_resolution,
+            )
     project = verified.project.model_copy(deep=True)
     planned_cues = {cue.cue_id: cue for cue in plan_project(project).cues}
     audio_imports = [
@@ -112,7 +136,12 @@ def compile_dialogue_bundle(
             )
         performance.dialogue.audio_uri = import_by_cue_id[cue.cue_id].asset_path
 
-    plan = compile_project(project, package_path=sequence_package_path)
+    plan = compile_project(
+        project,
+        package_path=sequence_package_path,
+        asset_index=asset_index,
+        asset_resolution=asset_resolution,
+    )
     sequence_by_scene_id = {
         sequence.source_scene_id: sequence for sequence in plan.sequences
     }
@@ -160,7 +189,7 @@ def compile_dialogue_bundle(
                     code="dialogue_audio_exceeds_beat",
                     source_id=clip.cue_id,
                     message=(
-                        f"Dialogue clip '{clip.cue_id}' extends beyond its CIR beat; v0.6 "
+                        f"Dialogue clip '{clip.cue_id}' extends beyond its CIR beat; v0.7 "
                         "preserves the complete WAV duration in Sequencer."
                     ),
                 )
@@ -171,7 +200,12 @@ def compile_dialogue_bundle(
         item.model_dump(mode="json") for item in audio_imports
     ]
     validated_plan = UnrealExportPlan.model_validate(plan_data)
-    return UnrealDialogueImportPackage(dialogue_bundle=verified, plan=validated_plan)
+    return UnrealDialogueImportPackage(
+        dialogue_bundle=verified,
+        plan=validated_plan,
+        asset_index=asset_index,
+        asset_resolution=asset_resolution,
+    )
 
 
 def _write_entry(archive: ZipFile, path: str, data: bytes) -> None:
@@ -188,6 +222,22 @@ def render_unreal_dialogue_import_package(
 
     bundle = package.dialogue_bundle
     imports = package.plan.audio_imports
+    if (package.asset_index is None) != (package.asset_resolution is None):
+        raise DialogueOutputError(
+            "Unreal dialogue environment package requires both its Asset Index "
+            "and Asset Resolution plan."
+        )
+    if package.asset_index is not None and package.asset_resolution is not None:
+        validate_resolution_plan(
+            bundle.project,
+            package.asset_index,
+            package.asset_resolution,
+        )
+        if package.plan.asset_resolution != package.asset_resolution:
+            raise DialogueOutputError(
+                "Unreal dialogue plan does not contain the package Asset "
+                "Resolution plan."
+            )
     expected_paths = {item.source_relative_path for item in imports}
     if expected_paths != set(bundle.audio_files):
         raise DialogueOutputError(
@@ -212,6 +262,27 @@ def render_unreal_dialogue_import_package(
                 "dialogue clip."
             )
 
+    sequence_package_paths = {
+        sequence.package_path for sequence in package.plan.sequences
+    }
+    audio_package_paths = {item.destination_path for item in imports}
+    if len(sequence_package_paths) != 1 or len(audio_package_paths) != 1:
+        raise DialogueOutputError(
+            "Unreal dialogue package must use one sequence path and one audio path."
+        )
+    expected_package = compile_dialogue_bundle(
+        bundle,
+        sequence_package_path=next(iter(sequence_package_paths)),
+        audio_package_path=next(iter(audio_package_paths)),
+        asset_index=package.asset_index,
+        asset_resolution=package.asset_resolution,
+    )
+    if package.plan != expected_package.plan:
+        raise DialogueOutputError(
+            "Unreal dialogue plan does not match the package Dialogue bundle, "
+            "Asset Index, and resolution."
+        )
+
     project_json = (
         json.dumps(bundle.project.model_dump(mode="json"), indent=2, sort_keys=True)
         + "\n"
@@ -234,6 +305,17 @@ def render_unreal_dialogue_import_package(
             "dialogue.manifest.json",
             render_dialogue_manifest(bundle.manifest).encode("utf-8"),
         )
+        if package.asset_index is not None and package.asset_resolution is not None:
+            _write_entry(
+                archive,
+                "asset.index.json",
+                render_asset_index(package.asset_index).encode("utf-8"),
+            )
+            _write_entry(
+                archive,
+                "asset.resolution.json",
+                render_asset_resolution_plan(package.asset_resolution).encode("utf-8"),
+            )
         if bundle.manifest.ai_voice_disclosure_required:
             _write_entry(
                 archive,
