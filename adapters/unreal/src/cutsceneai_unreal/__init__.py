@@ -38,6 +38,7 @@ from .models import (
     UnrealVector,
 )
 from .rendering import render_unreal_import_script
+from .readback import render_unreal_readback_script
 from .schema import (
     JSON_SCHEMA_DIALECT,
     UNREAL_PLAN_SCHEMA_ID,
@@ -81,6 +82,7 @@ __all__ = [
     "convert_transform",
     "look_at_quaternion",
     "render_unreal_import_script",
+    "render_unreal_readback_script",
     "render_unreal_dialogue_import_package",
     "render_unreal_plan",
     "render_unreal_plan_json_schema",

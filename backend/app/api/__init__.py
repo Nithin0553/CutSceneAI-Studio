@@ -5,6 +5,7 @@ from .dialogue import router as dialogue_router
 from .director import router as director_router
 from .preview import router as preview_router
 from .unreal import router as unreal_router
+from .unity import router as unity_router
 
 __all__ = [
     "cir_router",
@@ -12,4 +13,5 @@ __all__ = [
     "director_router",
     "preview_router",
     "unreal_router",
+    "unity_router",
 ]

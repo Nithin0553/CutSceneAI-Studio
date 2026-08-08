@@ -1,0 +1,478 @@
+{
+  "adapter_version": "0.1.0",
+  "cir_schema_version": "0.1.0",
+  "coordinate_system": {
+    "distance_unit": "meter",
+    "forward_axis": "z",
+    "handedness": "left",
+    "position_mapping": "X=X; Y=Y; Z=-Z",
+    "up_axis": "y"
+  },
+  "fps": 24,
+  "project_id": "office-dialogue",
+  "project_name": "Office Dialogue",
+  "semantics": {
+    "cir_fingerprint_sha256": "39ff99659eb9ef2ccd9dc7422ef50a0305fb81d992858e4ee8e5838abe0f9dfc",
+    "cir_schema_version": "0.1.0",
+    "fps": 24,
+    "project_id": "office-dialogue",
+    "scenes": [
+      {
+        "camera_cuts": [
+          {
+            "angle": "eye_level",
+            "cut_id": "camera:scene-meeting:shot-establishing",
+            "end_frame": 96,
+            "framing": "wide",
+            "lens_mm": 28.0,
+            "movement": "dolly",
+            "purpose": "establishing",
+            "source_beat_ids": [
+              "beat-arrival"
+            ],
+            "source_shot_id": "shot-establishing",
+            "start_frame": 0,
+            "subject_binding_ids": [
+              "actor:mina",
+              "actor:arjun",
+              "actor:conference-table"
+            ],
+            "target_binding_ids": [
+              "actor:mina",
+              "actor:arjun"
+            ]
+          },
+          {
+            "angle": "high",
+            "cut_id": "camera:scene-meeting:shot-contract-detail",
+            "end_frame": 144,
+            "framing": "insert",
+            "lens_mm": 70.0,
+            "movement": "static",
+            "purpose": "environment_detail",
+            "source_beat_ids": [
+              "beat-confrontation"
+            ],
+            "source_shot_id": "shot-contract-detail",
+            "start_frame": 96,
+            "subject_binding_ids": [
+              "actor:contract"
+            ],
+            "target_binding_ids": [
+              "actor:contract"
+            ]
+          },
+          {
+            "angle": "eye_level",
+            "cut_id": "camera:scene-meeting:shot-dialogue",
+            "end_frame": 336,
+            "framing": "over_the_shoulder",
+            "lens_mm": 50.0,
+            "movement": "static",
+            "purpose": "dialogue",
+            "source_beat_ids": [
+              "beat-confrontation"
+            ],
+            "source_shot_id": "shot-dialogue",
+            "start_frame": 144,
+            "subject_binding_ids": [
+              "actor:mina",
+              "actor:arjun"
+            ],
+            "target_binding_ids": [
+              "actor:mina",
+              "actor:arjun"
+            ]
+          },
+          {
+            "angle": "eye_level",
+            "cut_id": "camera:scene-meeting:shot-reaction",
+            "end_frame": 432,
+            "framing": "close_up",
+            "lens_mm": 85.0,
+            "movement": "static",
+            "purpose": "reaction",
+            "source_beat_ids": [
+              "beat-reaction"
+            ],
+            "source_shot_id": "shot-reaction",
+            "start_frame": 336,
+            "subject_binding_ids": [
+              "actor:arjun"
+            ],
+            "target_binding_ids": [
+              "actor:arjun"
+            ]
+          }
+        ],
+        "dialogue_cues": [
+          {
+            "actor_binding_id": "actor:mina",
+            "cue_id": "dialogue:scene-meeting:beat-confrontation:mina:01",
+            "language": "en",
+            "source_beat_id": "beat-confrontation",
+            "start_frame": 120,
+            "text_sha256": "9bde07b9889fa5b5582c62f215e4dd782a17b554af4ec8aadb781dafe4b0b8c1",
+            "window_end_frame": 336
+          },
+          {
+            "actor_binding_id": "actor:arjun",
+            "cue_id": "dialogue:scene-meeting:beat-confrontation:arjun:02",
+            "language": "en",
+            "source_beat_id": "beat-confrontation",
+            "start_frame": 216,
+            "text_sha256": "e53cb4393bd3cd379af29a4d7dcd42d0cdd94e36c8a29c0ffb58832b83f274c8",
+            "window_end_frame": 336
+          }
+        ],
+        "duration_frames": 432,
+        "entities": [
+          {
+            "binding_id": "actor:mina",
+            "kind": "character",
+            "source_entity_id": "mina"
+          },
+          {
+            "binding_id": "actor:arjun",
+            "kind": "character",
+            "source_entity_id": "arjun"
+          },
+          {
+            "binding_id": "actor:contract",
+            "kind": "environment",
+            "source_entity_id": "contract"
+          },
+          {
+            "binding_id": "actor:conference-table",
+            "kind": "environment",
+            "source_entity_id": "conference-table"
+          }
+        ],
+        "performance_cues": [
+          {
+            "actor_binding_id": "actor:mina",
+            "cue_id": "performance:scene-meeting:beat-arrival:mina:01",
+            "end_frame": 96,
+            "look_at_binding_id": "actor:contract",
+            "motion_intent_sha256": "0403232601b547be46335e7d2d125aedf7878c0ef2f5855c211eb6733dde4692",
+            "source_beat_id": "beat-arrival",
+            "start_frame": 0
+          },
+          {
+            "actor_binding_id": "actor:mina",
+            "cue_id": "performance:scene-meeting:beat-confrontation:mina:01",
+            "end_frame": 336,
+            "look_at_binding_id": "actor:arjun",
+            "motion_intent_sha256": "840a97877138cf8d4110d2a33da33fbfc09add2b2ec1c396c539c7d3321d124d",
+            "source_beat_id": "beat-confrontation",
+            "start_frame": 96
+          },
+          {
+            "actor_binding_id": "actor:arjun",
+            "cue_id": "performance:scene-meeting:beat-confrontation:arjun:02",
+            "end_frame": 336,
+            "look_at_binding_id": "actor:mina",
+            "motion_intent_sha256": "55d092b9487d9290f06eed9a6a03c15b14611b25925abfb79ca11b72b6d4636e",
+            "source_beat_id": "beat-confrontation",
+            "start_frame": 96
+          },
+          {
+            "actor_binding_id": "actor:arjun",
+            "cue_id": "performance:scene-meeting:beat-reaction:arjun:01",
+            "end_frame": 432,
+            "look_at_binding_id": "actor:mina",
+            "motion_intent_sha256": "0c407d3726147f465bf9d65e2a05db1c742da16d7874a589a232fb2784a7fff8",
+            "source_beat_id": "beat-reaction",
+            "start_frame": 336
+          }
+        ],
+        "source_scene_id": "scene-meeting"
+      }
+    ],
+    "semantics_version": "0.1.0"
+  },
+  "sequences": [
+    {
+      "actors": [
+        {
+          "binding_id": "actor:mina",
+          "display_name": "CSA_ACT_Mina",
+          "kind": "character",
+          "placeholder": true,
+          "placeholder_primitive": "capsule",
+          "prefab_path": null,
+          "source_entity_id": "mina",
+          "transform": {
+            "position_m": {
+              "x": -1.5,
+              "y": 0.0,
+              "z": -1.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": -0.0,
+              "y": -0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "binding_id": "actor:arjun",
+          "display_name": "CSA_ACT_Arjun",
+          "kind": "character",
+          "placeholder": true,
+          "placeholder_primitive": "capsule",
+          "prefab_path": null,
+          "source_entity_id": "arjun",
+          "transform": {
+            "position_m": {
+              "x": 1.0,
+              "y": 0.0,
+              "z": -0.5
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": -0.0,
+              "y": -0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "binding_id": "actor:contract",
+          "display_name": "CSA_ACT_Contract",
+          "kind": "environment",
+          "placeholder": true,
+          "placeholder_primitive": "cube",
+          "prefab_path": null,
+          "source_entity_id": "contract",
+          "transform": {
+            "position_m": {
+              "x": 0.0,
+              "y": 0.8,
+              "z": -0.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": -0.0,
+              "y": -0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "binding_id": "actor:conference-table",
+          "display_name": "CSA_ACT_ConferenceTable",
+          "kind": "environment",
+          "placeholder": true,
+          "placeholder_primitive": "cube",
+          "prefab_path": null,
+          "source_entity_id": "conference-table",
+          "transform": {
+            "position_m": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": -0.0
+            },
+            "rotation": {
+              "w": 1.0,
+              "x": -0.0,
+              "y": -0.0,
+              "z": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        }
+      ],
+      "animation_sections": [
+        {
+          "actor_binding_id": "actor:mina",
+          "asset_path": null,
+          "cue_id": "performance:scene-meeting:beat-arrival:mina:01",
+          "end_frame": 96,
+          "placeholder": true,
+          "start_frame": 0
+        },
+        {
+          "actor_binding_id": "actor:mina",
+          "asset_path": null,
+          "cue_id": "performance:scene-meeting:beat-confrontation:mina:01",
+          "end_frame": 336,
+          "placeholder": true,
+          "start_frame": 96
+        },
+        {
+          "actor_binding_id": "actor:arjun",
+          "asset_path": null,
+          "cue_id": "performance:scene-meeting:beat-confrontation:arjun:02",
+          "end_frame": 336,
+          "placeholder": true,
+          "start_frame": 96
+        },
+        {
+          "actor_binding_id": "actor:arjun",
+          "asset_path": null,
+          "cue_id": "performance:scene-meeting:beat-reaction:arjun:01",
+          "end_frame": 432,
+          "placeholder": true,
+          "start_frame": 336
+        }
+      ],
+      "asset_name": "TL_SceneMeeting",
+      "audio_sections": [],
+      "cameras": [
+        {
+          "cut_id": "camera:scene-meeting:shot-establishing",
+          "display_name": "CSA_CAM_ShotEstablishing",
+          "end_frame": 96,
+          "lens_mm": 28.0,
+          "look_at_m": {
+            "x": -0.25,
+            "y": 0.0,
+            "z": -0.75
+          },
+          "position_m": {
+            "x": -0.25,
+            "y": 0.0,
+            "z": -6.75
+          },
+          "source_shot_id": "shot-establishing",
+          "start_frame": 0
+        },
+        {
+          "cut_id": "camera:scene-meeting:shot-contract-detail",
+          "display_name": "CSA_CAM_ShotContractDetail",
+          "end_frame": 144,
+          "lens_mm": 70.0,
+          "look_at_m": {
+            "x": 0.0,
+            "y": 0.8,
+            "z": 0.0
+          },
+          "position_m": {
+            "x": 0.0,
+            "y": 2.4000000000000004,
+            "z": -1.2
+          },
+          "source_shot_id": "shot-contract-detail",
+          "start_frame": 96
+        },
+        {
+          "cut_id": "camera:scene-meeting:shot-dialogue",
+          "display_name": "CSA_CAM_ShotDialogue",
+          "end_frame": 336,
+          "lens_mm": 50.0,
+          "look_at_m": {
+            "x": -0.25,
+            "y": 0.0,
+            "z": -0.75
+          },
+          "position_m": {
+            "x": 0.8500000000000001,
+            "y": 0.0,
+            "z": -3.25
+          },
+          "source_shot_id": "shot-dialogue",
+          "start_frame": 144
+        },
+        {
+          "cut_id": "camera:scene-meeting:shot-reaction",
+          "display_name": "CSA_CAM_ShotReaction",
+          "end_frame": 432,
+          "lens_mm": 85.0,
+          "look_at_m": {
+            "x": 1.0,
+            "y": 0.0,
+            "z": -0.5
+          },
+          "position_m": {
+            "x": 1.0,
+            "y": 0.0,
+            "z": -2.3
+          },
+          "source_shot_id": "shot-reaction",
+          "start_frame": 336
+        }
+      ],
+      "duration_frames": 432,
+      "scene_asset_path": "Assets/CutSceneAI/Scenes/SC_SceneMeeting.unity",
+      "source_scene_id": "scene-meeting",
+      "timeline_asset_path": "Assets/CutSceneAI/Timelines/TL_SceneMeeting.playable",
+      "title": "The Meeting"
+    }
+  ],
+  "target_engine": "Unity",
+  "target_engine_version": "6000.0",
+  "timeline_package_version": "1.8.12",
+  "warnings": [
+    {
+      "code": "placeholder_entity",
+      "message": "Entity 'mina' uses an editable Unity primitive because no prefab mapping was supplied.",
+      "source_id": "mina"
+    },
+    {
+      "code": "placeholder_entity",
+      "message": "Entity 'arjun' uses an editable Unity primitive because no prefab mapping was supplied.",
+      "source_id": "arjun"
+    },
+    {
+      "code": "placeholder_entity",
+      "message": "Entity 'contract' uses an editable Unity primitive because no prefab mapping was supplied.",
+      "source_id": "contract"
+    },
+    {
+      "code": "placeholder_entity",
+      "message": "Entity 'conference-table' uses an editable Unity primitive because no prefab mapping was supplied.",
+      "source_id": "conference-table"
+    },
+    {
+      "code": "placeholder_animation",
+      "message": "Performance 'performance:scene-meeting:beat-arrival:mina:01' uses an editable empty Animation Clip because no Unity AnimationClip mapping was supplied.",
+      "source_id": "performance:scene-meeting:beat-arrival:mina:01"
+    },
+    {
+      "code": "placeholder_animation",
+      "message": "Performance 'performance:scene-meeting:beat-confrontation:mina:01' uses an editable empty Animation Clip because no Unity AnimationClip mapping was supplied.",
+      "source_id": "performance:scene-meeting:beat-confrontation:mina:01"
+    },
+    {
+      "code": "placeholder_animation",
+      "message": "Performance 'performance:scene-meeting:beat-confrontation:arjun:02' uses an editable empty Animation Clip because no Unity AnimationClip mapping was supplied.",
+      "source_id": "performance:scene-meeting:beat-confrontation:arjun:02"
+    },
+    {
+      "code": "placeholder_animation",
+      "message": "Performance 'performance:scene-meeting:beat-reaction:arjun:01' uses an editable empty Animation Clip because no Unity AnimationClip mapping was supplied.",
+      "source_id": "performance:scene-meeting:beat-reaction:arjun:01"
+    },
+    {
+      "code": "dialogue_metadata_only",
+      "message": "Dialogue 'dialogue:scene-meeting:beat-confrontation:mina:01' remains semantic metadata because no Unity AudioClip mapping was supplied.",
+      "source_id": "dialogue:scene-meeting:beat-confrontation:mina:01"
+    },
+    {
+      "code": "dialogue_metadata_only",
+      "message": "Dialogue 'dialogue:scene-meeting:beat-confrontation:arjun:02' remains semantic metadata because no Unity AudioClip mapping was supplied.",
+      "source_id": "dialogue:scene-meeting:beat-confrontation:arjun:02"
+    }
+  ]
+}

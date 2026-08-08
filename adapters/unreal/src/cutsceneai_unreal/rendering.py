@@ -1,5 +1,7 @@
 import json
 
+from cutsceneai_parity import TimelineSemantics
+
 from .models import UnrealExportPlan
 
 
@@ -17,6 +19,7 @@ import unreal
 
 
 PLAN = json.loads(__PLAN_JSON__)
+SEMANTICS = json.loads(__SEMANTICS_JSON__)
 CAMERA_CLASS_PATH = "/Script/CinematicCamera.CineCameraActor"
 STATIC_MESH_ACTOR_CLASS_PATH = "/Script/Engine.StaticMeshActor"
 
@@ -370,7 +373,29 @@ def _add_marker(sequence, frame, label, comment):
     )
 
 
-def _add_performance_markers(sequence, cues):
+def _semantic_scene(source_scene_id):
+    if SEMANTICS is None:
+        return None
+    return next(
+        (
+            item
+            for item in SEMANTICS["scenes"]
+            if item["source_scene_id"] == source_scene_id
+        ),
+        None,
+    )
+
+
+def _semantic_comment(kind, value, authoring=None):
+    metadata = dict(value)
+    metadata["semantic_kind"] = kind
+    payload = {"cutsceneai": metadata}
+    if authoring is not None:
+        payload["authoring"] = authoring
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _add_legacy_performance_markers(sequence, cues):
     for index, cue in enumerate(cues, start=1):
         actor_id = cue["actor_binding_id"].split(":", 1)[-1]
         label = f"PERF {index:02d} {actor_id} {cue['source_beat_id']}"
@@ -393,6 +418,77 @@ def _add_performance_markers(sequence, cues):
                 f"DIALOGUE {index:02d} {actor_id}",
                 cue["dialogue"],
             )
+
+
+def _add_semantic_markers(sequence, scene, semantics):
+    if semantics is None:
+        _add_legacy_performance_markers(sequence, scene["performance_cues"])
+        return
+
+    timeline_metadata = {
+        "semantics_version": SEMANTICS["semantics_version"],
+        "cir_schema_version": SEMANTICS["cir_schema_version"],
+        "cir_fingerprint_sha256": SEMANTICS["cir_fingerprint_sha256"],
+        "project_id": SEMANTICS["project_id"],
+        "fps": SEMANTICS["fps"],
+        "source_scene_id": semantics["source_scene_id"],
+        "duration_frames": semantics["duration_frames"],
+    }
+    _add_marker(
+        sequence,
+        0,
+        f"CSA|TIMELINE|{semantics['source_scene_id']}",
+        _semantic_comment("timeline", timeline_metadata),
+    )
+
+    actor_name_by_binding = {
+        actor["binding_id"]: actor["display_name"] for actor in scene["actors"]
+    }
+    for entity in semantics["entities"]:
+        value = dict(entity)
+        value["display_name"] = actor_name_by_binding.get(entity["binding_id"])
+        _add_marker(
+            sequence,
+            0,
+            f"CSA|ENTITY|{entity['binding_id']}",
+            _semantic_comment("entity", value),
+        )
+
+    performance_cues = semantics["performance_cues"]
+    if len(performance_cues) != len(scene["performance_cues"]):
+        raise RuntimeError("CIR semantics and Unreal performance plan diverged.")
+    for cue, authoring in zip(performance_cues, scene["performance_cues"]):
+        _add_marker(
+            sequence,
+            cue["start_frame"],
+            f"CSA|PERFORMANCE|{cue['cue_id']}",
+            _semantic_comment("performance", cue, authoring),
+        )
+
+    dialogue_authoring = [
+        cue for cue in scene["performance_cues"] if cue["dialogue"] is not None
+    ]
+    if len(semantics["dialogue_cues"]) != len(dialogue_authoring):
+        raise RuntimeError("CIR semantics and Unreal dialogue plan diverged.")
+    for cue, authoring in zip(semantics["dialogue_cues"], dialogue_authoring):
+        _add_marker(
+            sequence,
+            cue["start_frame"],
+            f"CSA|DIALOGUE|{cue['cue_id']}",
+            _semantic_comment("dialogue", cue, authoring),
+        )
+
+    if len(semantics["camera_cuts"]) != len(scene["cameras"]):
+        raise RuntimeError("CIR semantics and Unreal camera plan diverged.")
+    for cut, authoring in zip(semantics["camera_cuts"], scene["cameras"]):
+        value = dict(cut)
+        value["display_name"] = authoring["display_name"]
+        _add_marker(
+            sequence,
+            cut["start_frame"],
+            f"CSA|CAMERA|{cut['cut_id']}",
+            _semantic_comment("camera", value, authoring),
+        )
 
 
 def _add_animation_sections(bindings, animations):
@@ -503,7 +599,8 @@ def _create_sequence(scene):
             sequence.get_binding_id(bindings[camera["binding_id"]])
         )
 
-    _add_performance_markers(sequence, scene["performance_cues"])
+    semantics = _semantic_scene(scene["source_scene_id"])
+    _add_semantic_markers(sequence, scene, semantics)
     sequence.sort_marked_frames()
     unreal.EditorAssetLibrary.save_loaded_asset(sequence, False)
     unreal.log(f"CutSceneAI created {asset_path}")
@@ -526,10 +623,19 @@ if __name__ == "__main__":
 '''
 
 
-def render_unreal_import_script(plan: UnrealExportPlan) -> str:
+def render_unreal_import_script(
+    plan: UnrealExportPlan, semantics: TimelineSemantics | None = None
+) -> str:
     """Render a self-contained, syntax-valid Unreal Editor Python importer."""
 
     plan_json = json.dumps(
         plan.model_dump(mode="json"), separators=(",", ":"), sort_keys=True
     )
-    return _SCRIPT_TEMPLATE.replace("__PLAN_JSON__", repr(plan_json))
+    semantics_json = json.dumps(
+        None if semantics is None else semantics.model_dump(mode="json"),
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return _SCRIPT_TEMPLATE.replace("__PLAN_JSON__", repr(plan_json)).replace(
+        "__SEMANTICS_JSON__", repr(semantics_json)
+    )

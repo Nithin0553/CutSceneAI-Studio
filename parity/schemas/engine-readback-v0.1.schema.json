@@ -1,0 +1,498 @@
+{
+  "$defs": {
+    "CameraAngle": {
+      "enum": [
+        "eye_level",
+        "low",
+        "high",
+        "dutch",
+        "overhead"
+      ],
+      "title": "CameraAngle",
+      "type": "string"
+    },
+    "CameraFraming": {
+      "enum": [
+        "extreme_wide",
+        "wide",
+        "medium_wide",
+        "medium",
+        "medium_close_up",
+        "close_up",
+        "extreme_close_up",
+        "over_the_shoulder",
+        "point_of_view",
+        "insert"
+      ],
+      "title": "CameraFraming",
+      "type": "string"
+    },
+    "CameraMovement": {
+      "enum": [
+        "static",
+        "pan",
+        "tilt",
+        "dolly",
+        "truck",
+        "crane",
+        "handheld",
+        "orbit"
+      ],
+      "title": "CameraMovement",
+      "type": "string"
+    },
+    "EngineName": {
+      "enum": [
+        "unreal",
+        "unity"
+      ],
+      "title": "EngineName",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "character",
+        "environment"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "ReadbackEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "animation_sections": {
+          "items": {
+            "$ref": "#/$defs/RealizedSection"
+          },
+          "title": "Animation Sections",
+          "type": "array"
+        },
+        "audio_sections": {
+          "items": {
+            "$ref": "#/$defs/RealizedSection"
+          },
+          "title": "Audio Sections",
+          "type": "array"
+        }
+      },
+      "title": "ReadbackEvidence",
+      "type": "object"
+    },
+    "RealizedSection": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Binding Id"
+        },
+        "asset_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Ref"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "placeholder": {
+          "default": false,
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "semantic_id": {
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start_frame",
+        "end_frame",
+        "semantic_id"
+      ],
+      "title": "RealizedSection",
+      "type": "object"
+    },
+    "SemanticCameraCut": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/CameraAngle"
+        },
+        "cut_id": {
+          "title": "Cut Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "framing": {
+          "$ref": "#/$defs/CameraFraming"
+        },
+        "lens_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "movement": {
+          "$ref": "#/$defs/CameraMovement"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ShotPurpose"
+        },
+        "source_beat_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Beat Ids",
+          "type": "array"
+        },
+        "source_shot_id": {
+          "title": "Source Shot Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "subject_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Subject Binding Ids",
+          "type": "array"
+        },
+        "target_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Binding Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_frame",
+        "end_frame",
+        "cut_id",
+        "source_shot_id",
+        "source_beat_ids",
+        "purpose",
+        "framing",
+        "angle",
+        "movement",
+        "lens_mm",
+        "subject_binding_ids",
+        "target_binding_ids"
+      ],
+      "title": "SemanticCameraCut",
+      "type": "object"
+    },
+    "SemanticDialogueCue": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "source_beat_id": {
+          "title": "Source Beat Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Text Sha256",
+          "type": "string"
+        },
+        "window_end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "Window End Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cue_id",
+        "source_beat_id",
+        "actor_binding_id",
+        "start_frame",
+        "window_end_frame",
+        "text_sha256",
+        "language"
+      ],
+      "title": "SemanticDialogueCue",
+      "type": "object"
+    },
+    "SemanticEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding_id",
+        "source_entity_id",
+        "kind"
+      ],
+      "title": "SemanticEntity",
+      "type": "object"
+    },
+    "SemanticPerformanceCue": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "look_at_binding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look At Binding Id"
+        },
+        "motion_intent_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Motion Intent Sha256",
+          "type": "string"
+        },
+        "source_beat_id": {
+          "title": "Source Beat Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start_frame",
+        "end_frame",
+        "cue_id",
+        "source_beat_id",
+        "actor_binding_id",
+        "motion_intent_sha256"
+      ],
+      "title": "SemanticPerformanceCue",
+      "type": "object"
+    },
+    "SemanticScene": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_cuts": {
+          "items": {
+            "$ref": "#/$defs/SemanticCameraCut"
+          },
+          "title": "Camera Cuts",
+          "type": "array"
+        },
+        "dialogue_cues": {
+          "items": {
+            "$ref": "#/$defs/SemanticDialogueCue"
+          },
+          "title": "Dialogue Cues",
+          "type": "array"
+        },
+        "duration_frames": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Frames",
+          "type": "integer"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/SemanticEntity"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "performance_cues": {
+          "items": {
+            "$ref": "#/$defs/SemanticPerformanceCue"
+          },
+          "title": "Performance Cues",
+          "type": "array"
+        },
+        "source_scene_id": {
+          "title": "Source Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_scene_id",
+        "duration_frames",
+        "entities",
+        "performance_cues",
+        "dialogue_cues",
+        "camera_cuts"
+      ],
+      "title": "SemanticScene",
+      "type": "object"
+    },
+    "ShotPurpose": {
+      "enum": [
+        "establishing",
+        "environment_detail",
+        "dialogue",
+        "reaction",
+        "action",
+        "transition"
+      ],
+      "title": "ShotPurpose",
+      "type": "string"
+    },
+    "TimelineSemantics": {
+      "additionalProperties": false,
+      "properties": {
+        "cir_fingerprint_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cir Fingerprint Sha256",
+          "type": "string"
+        },
+        "cir_schema_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Cir Schema Version",
+          "type": "string"
+        },
+        "fps": {
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "scenes": {
+          "items": {
+            "$ref": "#/$defs/SemanticScene"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "semantics_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Semantics Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cir_fingerprint_sha256",
+        "project_id",
+        "fps",
+        "scenes"
+      ],
+      "title": "TimelineSemantics",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/parity/v0.1/readback.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_version": {
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineName"
+    },
+    "engine_version": {
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "evidence": {
+      "$ref": "#/$defs/ReadbackEvidence"
+    },
+    "readback_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Readback Version",
+      "type": "string"
+    },
+    "semantics": {
+      "$ref": "#/$defs/TimelineSemantics"
+    },
+    "timeline_asset": {
+      "title": "Timeline Asset",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "engine",
+    "engine_version",
+    "adapter_version",
+    "timeline_asset",
+    "semantics"
+  ],
+  "title": "EngineTimelineReadback",
+  "type": "object"
+}

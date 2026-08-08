@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "UnityAnimationAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_path": {
+          "pattern": "^Assets/.+",
+          "title": "Asset Path",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cue_id",
+        "asset_path"
+      ],
+      "title": "UnityAnimationAsset",
+      "type": "object"
+    },
+    "UnityAudioAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_path": {
+          "pattern": "^Assets/.+",
+          "title": "Asset Path",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cue_id",
+        "asset_path",
+        "end_frame"
+      ],
+      "title": "UnityAudioAsset",
+      "type": "object"
+    },
+    "UnityEntityAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "prefab_path": {
+          "pattern": "^Assets/.+\\.prefab$",
+          "title": "Prefab Path",
+          "type": "string"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_entity_id",
+        "prefab_path"
+      ],
+      "title": "UnityEntityAsset",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/unity/v0.1/asset-map.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "animations": {
+      "items": {
+        "$ref": "#/$defs/UnityAnimationAsset"
+      },
+      "title": "Animations",
+      "type": "array"
+    },
+    "audio": {
+      "items": {
+        "$ref": "#/$defs/UnityAudioAsset"
+      },
+      "title": "Audio",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/UnityEntityAsset"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "map_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Map Version",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "UnityAssetMap",
+  "type": "object"
+}

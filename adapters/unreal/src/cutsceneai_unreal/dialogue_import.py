@@ -17,6 +17,7 @@ from cutsceneai_dialogue import (
     render_dialogue_bundle,
     render_dialogue_manifest,
 )
+from cutsceneai_parity import compile_semantics
 
 from .compiler import DEFAULT_PACKAGE_PATH, compile_project
 from .models import (
@@ -25,6 +26,7 @@ from .models import (
     UnrealExportPlan,
     UnrealExportWarning,
 )
+from .readback import render_unreal_readback_script
 from .rendering import render_unreal_import_script
 from .serialization import render_unreal_plan
 
@@ -216,12 +218,18 @@ def render_unreal_dialogue_import_package(
         json.dumps(bundle.project.model_dump(mode="json"), indent=2, sort_keys=True)
         + "\n"
     )
+    semantics = compile_semantics(bundle.project)
     output = BytesIO()
     with ZipFile(output, "w") as archive:
         _write_entry(
             archive,
             "cutsceneai-unreal-import.py",
-            render_unreal_import_script(package.plan).encode("utf-8"),
+            render_unreal_import_script(package.plan, semantics).encode("utf-8"),
+        )
+        _write_entry(
+            archive,
+            "cutsceneai-unreal-readback.py",
+            render_unreal_readback_script(package.plan, semantics).encode("utf-8"),
         )
         _write_entry(
             archive,

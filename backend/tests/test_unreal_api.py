@@ -67,6 +67,20 @@ def test_export_unreal_importer_returns_safe_python_script() -> None:
     )
     compile(response.text, "api_unreal_import.py", "exec")
     assert "unreal.MovieSceneCameraCutTrack" in response.text
+    assert "CSA|TIMELINE|" in response.text
+
+
+def test_export_unreal_readback_returns_saved_asset_inspector() -> None:
+    response = client.post("/api/v1/adapters/unreal/readback.py", json=payload())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/x-python")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="cutsceneai-unreal-readback.py"'
+    )
+    compile(response.text, "api_unreal_readback.py", "exec")
+    assert "get_marked_frames_from_sequence" in response.text
+    assert "MovieSceneCameraCutTrack" in response.text
 
 
 def test_export_unreal_plan_preserves_character_skeletal_mesh_binding() -> None:

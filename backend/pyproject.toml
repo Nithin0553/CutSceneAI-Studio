@@ -10,8 +10,10 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "cutsceneai-cir>=0.1.0,<0.2.0",
     "cutsceneai-dialogue>=0.1.0,<0.2.0",
+    "cutsceneai-parity>=0.1.0,<0.2.0",
     "cutsceneai-preview>=0.1.0,<0.2.0",
     "cutsceneai-unreal>=0.6.0,<0.7.0",
+    "cutsceneai-unity>=0.1.0,<0.2.0",
     "fastapi>=0.139.0,<1.0.0",
     "uvicorn[standard]>=0.29.0,<1.0.0",
     "pydantic==2.13.4",

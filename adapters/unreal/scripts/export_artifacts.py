@@ -3,11 +3,13 @@ import json
 from pathlib import Path
 
 from cutsceneai_cir import validate_project
+from cutsceneai_parity import compile_semantics
 from cutsceneai_unreal import (
     compile_project,
     render_unreal_import_script,
     render_unreal_plan,
     render_unreal_plan_json_schema,
+    render_unreal_readback_script,
 )
 
 
@@ -22,15 +24,21 @@ EXAMPLE_OUTPUT = (
 IMPORTER_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "import_office_dialogue.py"
 )
+READBACK_OUTPUT = (
+    ROOT / "adapters" / "unreal" / "examples" / "readback_office_dialogue.py"
+)
 
 
 def expected_artifacts() -> dict[Path, str]:
     payload = json.loads(CIR_EXAMPLE.read_text(encoding="utf-8"))
-    plan = compile_project(validate_project(payload))
+    project = validate_project(payload)
+    plan = compile_project(project)
+    semantics = compile_semantics(project)
     return {
         SCHEMA_OUTPUT: render_unreal_plan_json_schema(),
         EXAMPLE_OUTPUT: render_unreal_plan(plan),
-        IMPORTER_OUTPUT: render_unreal_import_script(plan),
+        IMPORTER_OUTPUT: render_unreal_import_script(plan, semantics),
+        READBACK_OUTPUT: render_unreal_readback_script(plan, semantics),
     }
 
 

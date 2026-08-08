@@ -1,0 +1,44 @@
+{
+  "animations": [
+    {
+      "asset_path": "Assets/CutSceneAI/Animations/MinaIdle.anim",
+      "cue_id": "performance:scene-meeting:beat-arrival:mina:01"
+    },
+    {
+      "asset_path": "Assets/CutSceneAI/Animations/MinaIdle.anim",
+      "cue_id": "performance:scene-meeting:beat-confrontation:mina:01"
+    },
+    {
+      "asset_path": "Assets/CutSceneAI/Animations/ArjunIdle.anim",
+      "cue_id": "performance:scene-meeting:beat-confrontation:arjun:02"
+    },
+    {
+      "asset_path": "Assets/CutSceneAI/Animations/ArjunIdle.anim",
+      "cue_id": "performance:scene-meeting:beat-reaction:arjun:01"
+    }
+  ],
+  "audio": [
+    {
+      "asset_path": "Assets/CutSceneAI/Audio/MinaConfrontation.wav",
+      "cue_id": "dialogue:scene-meeting:beat-confrontation:mina:01",
+      "end_frame": 178
+    },
+    {
+      "asset_path": "Assets/CutSceneAI/Audio/ArjunResponse.wav",
+      "cue_id": "dialogue:scene-meeting:beat-confrontation:arjun:02",
+      "end_frame": 302
+    }
+  ],
+  "entities": [
+    {
+      "prefab_path": "Assets/CutSceneAI/Characters/Mina.prefab",
+      "source_entity_id": "mina"
+    },
+    {
+      "prefab_path": "Assets/CutSceneAI/Characters/Arjun.prefab",
+      "source_entity_id": "arjun"
+    }
+  ],
+  "map_version": "0.1.0",
+  "project_id": "office-dialogue"
+}

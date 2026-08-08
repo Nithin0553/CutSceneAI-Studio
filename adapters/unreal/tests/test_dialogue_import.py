@@ -107,6 +107,7 @@ def test_unreal_dialogue_package_is_deterministic_and_self_contained(
     with ZipFile(BytesIO(first)) as archive:
         assert archive.namelist() == [
             "cutsceneai-unreal-import.py",
+            "cutsceneai-unreal-readback.py",
             "unreal.plan.json",
             "project.cir.json",
             "dialogue.manifest.json",
@@ -118,6 +119,9 @@ def test_unreal_dialogue_package_is_deterministic_and_self_contained(
         assert "unreal.AssetImportTask" in script
         assert 'task.set_editor_property("replace_existing", False)' in script
         assert "Bundled WAV checksum does not match" in script
+        readback = archive.read("cutsceneai-unreal-readback.py").decode("utf-8")
+        compile(readback, "cutsceneai-unreal-readback.py", "exec")
+        assert "get_marked_frames_from_sequence" in readback
 
 
 class _FakeSpeechBackend:

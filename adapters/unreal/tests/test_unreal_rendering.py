@@ -3,6 +3,7 @@ from pathlib import Path
 from types import ModuleType
 
 from cutsceneai_cir import Project
+from cutsceneai_parity import compile_semantics
 from cutsceneai_unreal import (
     UnrealExportPlan,
     compile_project,
@@ -850,7 +851,9 @@ def test_importer_escapes_arbitrary_project_text(cir_project: Project) -> None:
     assert "__PLAN_JSON__" not in script
 
 
-def test_committed_importer_matches_renderer(unreal_plan: UnrealExportPlan) -> None:
+def test_committed_importer_matches_renderer(
+    cir_project: Project, unreal_plan: UnrealExportPlan
+) -> None:
     assert IMPORTER.read_text(encoding="utf-8") == render_unreal_import_script(
-        unreal_plan
+        unreal_plan, compile_semantics(cir_project)
     )

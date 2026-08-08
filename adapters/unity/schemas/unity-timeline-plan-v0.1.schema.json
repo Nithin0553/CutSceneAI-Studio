@@ -1,0 +1,850 @@
+{
+  "$defs": {
+    "CameraAngle": {
+      "enum": [
+        "eye_level",
+        "low",
+        "high",
+        "dutch",
+        "overhead"
+      ],
+      "title": "CameraAngle",
+      "type": "string"
+    },
+    "CameraFraming": {
+      "enum": [
+        "extreme_wide",
+        "wide",
+        "medium_wide",
+        "medium",
+        "medium_close_up",
+        "close_up",
+        "extreme_close_up",
+        "over_the_shoulder",
+        "point_of_view",
+        "insert"
+      ],
+      "title": "CameraFraming",
+      "type": "string"
+    },
+    "CameraMovement": {
+      "enum": [
+        "static",
+        "pan",
+        "tilt",
+        "dolly",
+        "truck",
+        "crane",
+        "handheld",
+        "orbit"
+      ],
+      "title": "CameraMovement",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "character",
+        "environment"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "SemanticCameraCut": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/CameraAngle"
+        },
+        "cut_id": {
+          "title": "Cut Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "framing": {
+          "$ref": "#/$defs/CameraFraming"
+        },
+        "lens_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "movement": {
+          "$ref": "#/$defs/CameraMovement"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ShotPurpose"
+        },
+        "source_beat_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Beat Ids",
+          "type": "array"
+        },
+        "source_shot_id": {
+          "title": "Source Shot Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "subject_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Subject Binding Ids",
+          "type": "array"
+        },
+        "target_binding_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Binding Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_frame",
+        "end_frame",
+        "cut_id",
+        "source_shot_id",
+        "source_beat_ids",
+        "purpose",
+        "framing",
+        "angle",
+        "movement",
+        "lens_mm",
+        "subject_binding_ids",
+        "target_binding_ids"
+      ],
+      "title": "SemanticCameraCut",
+      "type": "object"
+    },
+    "SemanticDialogueCue": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "source_beat_id": {
+          "title": "Source Beat Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Text Sha256",
+          "type": "string"
+        },
+        "window_end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "Window End Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cue_id",
+        "source_beat_id",
+        "actor_binding_id",
+        "start_frame",
+        "window_end_frame",
+        "text_sha256",
+        "language"
+      ],
+      "title": "SemanticDialogueCue",
+      "type": "object"
+    },
+    "SemanticEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding_id",
+        "source_entity_id",
+        "kind"
+      ],
+      "title": "SemanticEntity",
+      "type": "object"
+    },
+    "SemanticPerformanceCue": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "look_at_binding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look At Binding Id"
+        },
+        "motion_intent_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Motion Intent Sha256",
+          "type": "string"
+        },
+        "source_beat_id": {
+          "title": "Source Beat Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start_frame",
+        "end_frame",
+        "cue_id",
+        "source_beat_id",
+        "actor_binding_id",
+        "motion_intent_sha256"
+      ],
+      "title": "SemanticPerformanceCue",
+      "type": "object"
+    },
+    "SemanticScene": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_cuts": {
+          "items": {
+            "$ref": "#/$defs/SemanticCameraCut"
+          },
+          "title": "Camera Cuts",
+          "type": "array"
+        },
+        "dialogue_cues": {
+          "items": {
+            "$ref": "#/$defs/SemanticDialogueCue"
+          },
+          "title": "Dialogue Cues",
+          "type": "array"
+        },
+        "duration_frames": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Frames",
+          "type": "integer"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/SemanticEntity"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "performance_cues": {
+          "items": {
+            "$ref": "#/$defs/SemanticPerformanceCue"
+          },
+          "title": "Performance Cues",
+          "type": "array"
+        },
+        "source_scene_id": {
+          "title": "Source Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_scene_id",
+        "duration_frames",
+        "entities",
+        "performance_cues",
+        "dialogue_cues",
+        "camera_cuts"
+      ],
+      "title": "SemanticScene",
+      "type": "object"
+    },
+    "ShotPurpose": {
+      "enum": [
+        "establishing",
+        "environment_detail",
+        "dialogue",
+        "reaction",
+        "action",
+        "transition"
+      ],
+      "title": "ShotPurpose",
+      "type": "string"
+    },
+    "TimelineSemantics": {
+      "additionalProperties": false,
+      "properties": {
+        "cir_fingerprint_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cir Fingerprint Sha256",
+          "type": "string"
+        },
+        "cir_schema_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Cir Schema Version",
+          "type": "string"
+        },
+        "fps": {
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "scenes": {
+          "items": {
+            "$ref": "#/$defs/SemanticScene"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "semantics_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Semantics Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cir_fingerprint_sha256",
+        "project_id",
+        "fps",
+        "scenes"
+      ],
+      "title": "TimelineSemantics",
+      "type": "object"
+    },
+    "UnityActorBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind"
+        },
+        "placeholder": {
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "placeholder_primitive": {
+          "$ref": "#/$defs/UnityPrimitive"
+        },
+        "prefab_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prefab Path"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/$defs/UnityTransform"
+        }
+      },
+      "required": [
+        "binding_id",
+        "source_entity_id",
+        "display_name",
+        "kind",
+        "placeholder",
+        "placeholder_primitive",
+        "transform"
+      ],
+      "title": "UnityActorBinding",
+      "type": "object"
+    },
+    "UnityAnimationSection": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "asset_path": {
+          "anyOf": [
+            {
+              "pattern": "^Assets/.+",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Path"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "placeholder": {
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cue_id",
+        "actor_binding_id",
+        "start_frame",
+        "end_frame",
+        "placeholder"
+      ],
+      "title": "UnityAnimationSection",
+      "type": "object"
+    },
+    "UnityAudioSection": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "asset_path": {
+          "pattern": "^Assets/.+",
+          "title": "Asset Path",
+          "type": "string"
+        },
+        "cue_id": {
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cue_id",
+        "actor_binding_id",
+        "start_frame",
+        "end_frame",
+        "asset_path"
+      ],
+      "title": "UnityAudioSection",
+      "type": "object"
+    },
+    "UnityCameraCut": {
+      "additionalProperties": false,
+      "properties": {
+        "cut_id": {
+          "title": "Cut Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "lens_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "look_at_m": {
+          "$ref": "#/$defs/UnityVector"
+        },
+        "position_m": {
+          "$ref": "#/$defs/UnityVector"
+        },
+        "source_shot_id": {
+          "title": "Source Shot Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cut_id",
+        "source_shot_id",
+        "display_name",
+        "start_frame",
+        "end_frame",
+        "lens_mm",
+        "position_m",
+        "look_at_m"
+      ],
+      "title": "UnityCameraCut",
+      "type": "object"
+    },
+    "UnityCoordinateSystem": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "meter",
+          "default": "meter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "const": "z",
+          "default": "z",
+          "title": "Forward Axis",
+          "type": "string"
+        },
+        "handedness": {
+          "const": "left",
+          "default": "left",
+          "title": "Handedness",
+          "type": "string"
+        },
+        "position_mapping": {
+          "const": "X=X; Y=Y; Z=-Z",
+          "default": "X=X; Y=Y; Z=-Z",
+          "title": "Position Mapping",
+          "type": "string"
+        },
+        "up_axis": {
+          "const": "y",
+          "default": "y",
+          "title": "Up Axis",
+          "type": "string"
+        }
+      },
+      "title": "UnityCoordinateSystem",
+      "type": "object"
+    },
+    "UnityExportWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "UnityExportWarning",
+      "type": "object"
+    },
+    "UnityPrimitive": {
+      "enum": [
+        "capsule",
+        "cube"
+      ],
+      "title": "UnityPrimitive",
+      "type": "string"
+    },
+    "UnityQuaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnityQuaternion",
+      "type": "object"
+    },
+    "UnitySceneTimeline": {
+      "additionalProperties": false,
+      "properties": {
+        "actors": {
+          "items": {
+            "$ref": "#/$defs/UnityActorBinding"
+          },
+          "title": "Actors",
+          "type": "array"
+        },
+        "animation_sections": {
+          "items": {
+            "$ref": "#/$defs/UnityAnimationSection"
+          },
+          "title": "Animation Sections",
+          "type": "array"
+        },
+        "asset_name": {
+          "title": "Asset Name",
+          "type": "string"
+        },
+        "audio_sections": {
+          "items": {
+            "$ref": "#/$defs/UnityAudioSection"
+          },
+          "title": "Audio Sections",
+          "type": "array"
+        },
+        "cameras": {
+          "items": {
+            "$ref": "#/$defs/UnityCameraCut"
+          },
+          "title": "Cameras",
+          "type": "array"
+        },
+        "duration_frames": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Frames",
+          "type": "integer"
+        },
+        "scene_asset_path": {
+          "pattern": "^Assets/.+\\.unity$",
+          "title": "Scene Asset Path",
+          "type": "string"
+        },
+        "source_scene_id": {
+          "title": "Source Scene Id",
+          "type": "string"
+        },
+        "timeline_asset_path": {
+          "pattern": "^Assets/.+\\.playable$",
+          "title": "Timeline Asset Path",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_scene_id",
+        "title",
+        "asset_name",
+        "timeline_asset_path",
+        "scene_asset_path",
+        "duration_frames",
+        "actors",
+        "animation_sections",
+        "audio_sections",
+        "cameras"
+      ],
+      "title": "UnitySceneTimeline",
+      "type": "object"
+    },
+    "UnityTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "position_m": {
+          "$ref": "#/$defs/UnityVector"
+        },
+        "rotation": {
+          "$ref": "#/$defs/UnityQuaternion"
+        },
+        "scale": {
+          "$ref": "#/$defs/UnityVector"
+        }
+      },
+      "title": "UnityTransform",
+      "type": "object"
+    },
+    "UnityVector": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnityVector",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/unity/v0.1/timeline-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "coordinate_system": {
+      "$ref": "#/$defs/UnityCoordinateSystem"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "project_name": {
+      "title": "Project Name",
+      "type": "string"
+    },
+    "semantics": {
+      "$ref": "#/$defs/TimelineSemantics"
+    },
+    "sequences": {
+      "items": {
+        "$ref": "#/$defs/UnitySceneTimeline"
+      },
+      "title": "Sequences",
+      "type": "array"
+    },
+    "target_engine": {
+      "const": "Unity",
+      "default": "Unity",
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "const": "6000.0",
+      "default": "6000.0",
+      "title": "Target Engine Version",
+      "type": "string"
+    },
+    "timeline_package_version": {
+      "const": "1.8.12",
+      "default": "1.8.12",
+      "title": "Timeline Package Version",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/UnityExportWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "project_name",
+    "fps",
+    "semantics",
+    "sequences",
+    "warnings"
+  ],
+  "title": "UnityExportPlan",
+  "type": "object"
+}

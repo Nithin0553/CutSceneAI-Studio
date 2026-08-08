@@ -35,6 +35,8 @@ For each CIR scene, v0.6 creates a Level Sequence plan containing:
 - A Cine Camera Actor per CIR shot and an exact frame-aligned Camera Cuts track
 - Focal lengths, shot purpose, composition, targets, and source IDs
 - Performance and dialogue markers retaining motion prompts, facial, lip-sync, and look-at intent
+- Stable entity, performance, dialogue, camera, and timeline semantic markers carrying the
+  canonical unchanged-CIR fingerprint for engine readback
 - Explicit warnings for placeholders, inferred cameras, unsupported animation paths, and remaining
   metadata-only features
 
@@ -83,6 +85,7 @@ The generated products are:
 - `schemas/unreal-sequencer-plan-v0.6.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
+- `examples/readback_office_dialogue.py`
 
 ## Export through the API
 
@@ -103,6 +106,13 @@ Invoke-WebRequest `
   -ContentType "application/json" `
   -Body $body `
   -OutFile cutsceneai-unreal-import.py
+
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/v1/adapters/unreal/readback.py `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body `
+  -OutFile cutsceneai-unreal-readback.py
 ```
 
 ## Import in Unreal Engine 5.8.0
@@ -119,6 +129,15 @@ Invoke-WebRequest `
 
 The importer never deletes or replaces assets. If the Level Sequence already exists, it stops with
 an actionable error so replacement remains an intentional editor action.
+
+After saving and restarting Unreal, execute `cutsceneai-unreal-readback.py`. It reloads the saved
+Level Sequence, reads native bindings, marked frames, animation, audio and camera-cut sections plus
+the saved Cine Camera focal lengths, and writes
+`Saved/CutSceneAI/Readbacks/<project-id>.unreal.readback.json`. See the
+[cross-engine acceptance gate](../../docs/acceptance/cross-engine-parity-v0.1.md) for comparison
+with Unity. Native skeletal-animation sections added to generated actor bindings after import are
+mapped back to canonical performance cues by actor and timeline order, including when the initial
+plan was metadata-only.
 
 ## Import a portable Dialogue bundle with v0.6
 

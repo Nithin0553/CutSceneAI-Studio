@@ -7,6 +7,20 @@ versions until the first unified Studio release.
 
 ### Added
 
+- Unity Timeline Adapter v0.1 for Unity 6000.0 and Timeline 1.8.12, with native animation,
+  audio, camera activation, actor binding, semantic marker, and visible fallback compilation.
+- A separate typed Unity asset map so project-specific prefab, animation, and audio paths can be
+  resolved without editing portable CIR 0.1.
+- Canonical CIR semantic fingerprints and a typed engine readback contract for entities,
+  performance, dialogue, cameras, and native realization evidence.
+- Restart-safe Unity and Unreal readback exporters that reopen saved native timeline assets and
+  inspect actual frame rate, duration, bindings, markers, clips, camera cuts, and focal lengths.
+- `cutsceneai-parity verify` with CIR-to-engine and Unreal-to-Unity comparisons, one-frame
+  tolerance, required-engine enforcement, and optional strict animation/audio coverage.
+- `scripts/compile_cross_engine.py` to generate both engine import/readback bundles from one
+  unchanged CIR while recording its source byte hash and canonical hash.
+- `POST /api/v1/adapters/unity/export`, `POST /api/v1/adapters/unity/importer.cs`, and
+  `POST /api/v1/adapters/unreal/readback.py`.
 - Dialogue Engine v0.1 package with provider-neutral cue planning, recorded PCM WAV ingestion, and
   pluggable asynchronous speech generation.
 - Stable cue IDs and `cutsceneai://dialogue/...` URIs derived from validated CIR scene, beat,
@@ -33,12 +47,19 @@ versions until the first unified Studio release.
 
 ### Boundaries
 
+- Automated tests cannot execute Unity or Unreal in Python CI. Cross-engine implementation is
+  complete, but final acceptance requires both readbacks after editor restart and a zero-error
+  parity report. Placeholder animation and missing audio remain explicit realization warnings and
+  fail the strict production gate.
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
   beat and shot pacing are never silently extended. Project-wide asset discovery, environment
   resolution, facial animation, spatial audio, and voice cloning remain later milestones.
 
 ### Validated
 
+- Deterministic generation, schema drift, semantic mismatch detection, and a simulated Unreal
+  saved-Level-Sequence readback cover the cross-engine pipeline locally. Real Unity 6000.0 and
+  Unreal 5.8.0 readback evidence remains pending.
 - Live OpenAI speech acceptance produced two audible WAV files with no warnings: Mina used `marin`
   at frames `120-178`, Arjun used `cedar` at `216-302`, portable CIR URIs and request provenance
   were present, and the required AI-voice disclosure was included.

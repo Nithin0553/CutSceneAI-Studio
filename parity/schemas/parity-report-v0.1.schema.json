@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "EngineName": {
+      "enum": [
+        "unreal",
+        "unity"
+      ],
+      "title": "EngineName",
+      "type": "string"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "ParityIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "delta_frames": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta Frames"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "semantic_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Semantic Id"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        }
+      },
+      "required": [
+        "severity",
+        "scope",
+        "code",
+        "message"
+      ],
+      "title": "ParityIssue",
+      "type": "object"
+    },
+    "ReadbackSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_version": {
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "animation_section_count": {
+          "minimum": 0,
+          "title": "Animation Section Count",
+          "type": "integer"
+        },
+        "audio_section_count": {
+          "minimum": 0,
+          "title": "Audio Section Count",
+          "type": "integer"
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineName"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "timeline_asset": {
+          "title": "Timeline Asset",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine",
+        "engine_version",
+        "adapter_version",
+        "timeline_asset",
+        "animation_section_count",
+        "audio_section_count"
+      ],
+      "title": "ReadbackSummary",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/parity/v0.1/report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cir_fingerprint_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cir Fingerprint Sha256",
+      "type": "string"
+    },
+    "equivalent": {
+      "title": "Equivalent",
+      "type": "boolean"
+    },
+    "error_count": {
+      "minimum": 0,
+      "title": "Error Count",
+      "type": "integer"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ParityIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "readbacks": {
+      "items": {
+        "$ref": "#/$defs/ReadbackSummary"
+      },
+      "title": "Readbacks",
+      "type": "array"
+    },
+    "report_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "tolerance_frames": {
+      "minimum": 0,
+      "title": "Tolerance Frames",
+      "type": "integer"
+    },
+    "warning_count": {
+      "minimum": 0,
+      "title": "Warning Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "project_id",
+    "cir_fingerprint_sha256",
+    "tolerance_frames",
+    "equivalent",
+    "error_count",
+    "warning_count",
+    "readbacks",
+    "issues"
+  ],
+  "title": "ParityReport",
+  "type": "object"
+}

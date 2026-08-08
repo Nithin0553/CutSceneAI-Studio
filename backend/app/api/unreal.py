@@ -14,12 +14,14 @@ from cutsceneai_dialogue import (
     DialogueOutputError,
     load_dialogue_bundle,
 )
+from cutsceneai_parity import compile_semantics
 from cutsceneai_unreal import (
     UnrealExportPlan,
     compile_dialogue_bundle,
     compile_project,
     render_unreal_dialogue_import_package,
     render_unreal_import_script,
+    render_unreal_readback_script,
 )
 
 
@@ -35,12 +37,14 @@ def _validate(payload: Any) -> Project | JSONResponse:
         return domain_failure(exc)
 
 
-def _compile(payload: Any) -> UnrealExportPlan | JSONResponse:
+def _compile_with_project(
+    payload: Any,
+) -> tuple[Project, UnrealExportPlan] | JSONResponse:
     project = _validate(payload)
     if isinstance(project, JSONResponse):
         return project
     try:
-        return compile_project(project)
+        return project, compile_project(project)
     except ValueError as exc:
         return failure_response(
             [
@@ -51,6 +55,13 @@ def _compile(payload: Any) -> UnrealExportPlan | JSONResponse:
                 )
             ]
         )
+
+
+def _compile(payload: Any) -> UnrealExportPlan | JSONResponse:
+    result = _compile_with_project(payload)
+    if isinstance(result, JSONResponse):
+        return result
+    return result[1]
 
 
 @router.post(
@@ -75,13 +86,36 @@ def export_unreal_plan(payload: Any = Body(...)) -> UnrealExportPlan | JSONRespo
 def export_unreal_importer(payload: Any = Body(...)) -> Response | JSONResponse:
     """Render a self-contained Unreal Editor Python importer from CIR."""
 
-    plan = _compile(payload)
-    if isinstance(plan, JSONResponse):
-        return plan
+    result = _compile_with_project(payload)
+    if isinstance(result, JSONResponse):
+        return result
+    project, plan = result
     return Response(
-        content=render_unreal_import_script(plan),
+        content=render_unreal_import_script(plan, compile_semantics(project)),
         media_type="text/x-python",
         headers={"Content-Disposition": 'attachment; filename="cutsceneai-unreal-import.py"'},
+    )
+
+
+@router.post(
+    "/readback.py",
+    response_model=None,
+    responses={
+        200: {"content": {"text/x-python": {}}},
+        422: {"model": CIRValidationFailure},
+    },
+)
+def export_unreal_readback(payload: Any = Body(...)) -> Response | JSONResponse:
+    """Render an Unreal script that reads saved Sequencer assets into parity JSON."""
+
+    result = _compile_with_project(payload)
+    if isinstance(result, JSONResponse):
+        return result
+    project, plan = result
+    return Response(
+        content=render_unreal_readback_script(plan, compile_semantics(project)),
+        media_type="text/x-python",
+        headers={"Content-Disposition": 'attachment; filename="cutsceneai-unreal-readback.py"'},
     )
 
 

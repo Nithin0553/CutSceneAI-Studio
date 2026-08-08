@@ -4,8 +4,9 @@ CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a
 
 The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
 pipeline, an Unreal Adapter v0.6 that produces editable Sequencer imports and imports verified
-portable dialogue bundles, and Dialogue Engine v0.1 for recorded WAV ingestion and pluggable
-generated speech with exact timing and provenance.
+portable dialogue bundles, a Unity Timeline Adapter v0.1, an engine-neutral timeline parity
+verifier, and Dialogue Engine v0.1 for recorded WAV ingestion and pluggable generated speech with
+exact timing and provenance.
 
 ## What works now
 
@@ -19,6 +20,9 @@ generated speech with exact timing and provenance.
 - `POST /api/v1/preview/storyboard.svg` for user-visible storyboard timelines
 - `POST /api/v1/adapters/unreal/export` for typed Unreal Sequencer plans
 - `POST /api/v1/adapters/unreal/importer.py` for self-contained Unreal Editor import scripts
+- `POST /api/v1/adapters/unreal/readback.py` for saved Sequencer semantic readback scripts
+- `POST /api/v1/adapters/unity/export` for typed Unity Timeline plans
+- `POST /api/v1/adapters/unity/importer.cs` for Unity import and restart-safe readback scripts
 - `POST /api/v1/adapters/unreal/dialogue-bundle` for verified, self-contained Unreal WAV import
   packages
 - `POST /api/v1/dialogue/plan` for deterministic cue IDs, filenames, and frame positions
@@ -32,7 +36,10 @@ generated speech with exact timing and provenance.
   sections grouped by speaker
 - Portable Dialogue ZIPs verified for archive safety, CIR/manifest consistency, WAV hashes, and
   timing before deterministic Sound Wave import targets are generated
-- Committed CIR, Preview, Dialogue, and Unreal JSON Schema artifacts with CI drift detection
+- Committed CIR, Preview, Dialogue, Unreal, Unity, and parity JSON Schema artifacts with CI drift
+  detection
+- Canonical CIR fingerprinting and typed Unreal-to-Unity semantic parity reports
+- One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
 ## Architecture
@@ -44,7 +51,8 @@ generated speech with exact timing and provenance.
 | Director and specialist agents | Convert creative intent into CIR plans | Director v0.1 complete |
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
-| Engine adapters | Translate CIR into Unreal, then Unity timelines | Unreal v0.6 in engine acceptance; Unity planned |
+| Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
+| Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 implemented; real-engine gate pending |
 
 ## Local setup
 
@@ -56,7 +64,7 @@ Run these commands from the repository root. Python 3.12 is the recommended loca
 py -3.12 -m venv .venv3.12
 .\.venv3.12\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -e ".\adapters\unreal[dev]" -e ".\backend[dev]"
+python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -e ".\parity[dev]" -e ".\adapters\unreal[dev]" -e ".\adapters\unity[dev]" -e ".\backend[dev]"
 ```
 
 ### macOS or Linux
@@ -65,20 +73,22 @@ python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -
 python3.12 -m venv .venv3.12
 source .venv3.12/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./adapters/unreal[dev]" -e "./backend[dev]"
+python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
 ```
 
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
-python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests backend\app backend\tests
-python -m mypy cir\src preview\src dialogue\src adapters\unreal\src backend\app
+python -m ruff check cir preview dialogue parity adapters backend scripts
+python -m ruff format --check cir preview dialogue parity adapters backend scripts
+python -m mypy cir\src preview\src dialogue\src parity\src adapters\unreal\src adapters\unity\src backend\app scripts
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
 python dialogue\scripts\export_artifacts.py --check
+python parity\scripts\export_artifacts.py --check
 python adapters\unreal\scripts\export_artifacts.py --check
-python -m pytest cir\tests preview\tests dialogue\tests adapters\unreal\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_unreal --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python adapters\unity\scripts\export_artifacts.py --check
+python -m pytest cir\tests preview\tests dialogue\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_parity --cov=cutsceneai_unreal --cov=cutsceneai_unity --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API
@@ -127,8 +137,9 @@ The API is then available at `http://127.0.0.1:8000`.
 - `backend/` — FastAPI application and API tests
 - `preview/` — portable preview contract, compiler, storyboard renderer, and fixtures
 - `dialogue/` — recorded-audio bundling, pluggable speech generation, timing, and provenance
+- `parity/` — engine-neutral semantic readbacks, comparison contracts, CLI, and reports
 - `agents/` — Director and specialist agent implementations
-- `adapters/` — engine integrations, beginning with Unreal
+- `adapters/` — Unreal Sequencer and Unity Timeline integrations
 - `shared/` — reusable fixtures and cross-service components
 - `tests/` — future acceptance and integration suites
 - `infrastructure/` — deployment assets
@@ -148,7 +159,8 @@ The detailed dependency-ordered plan and exit gates are maintained in [`ROADMAP.
    sections, plus verified portable-WAV import; v0.6 Unreal 5.8 acceptance is next
 5. **Unreal production pipeline:** environment resolution,
    camera trajectories, body motion, and facial performance
-6. **Cross-engine validation:** CIR 0.2 plus Unity timeline parity
+6. **Cross-engine validation:** Unity Timeline v0.1 and saved-asset parity are implemented on CIR
+   0.1; real-engine restart acceptance is next, while CIR 0.2 remains a later orchestrator milestone
 7. **Studio editing:** prompt-driven revisions with traceable CIR diffs
 8. **Release:** CineBench++ evaluation, packaging, hardening, documentation, and public launch
 
@@ -193,6 +205,20 @@ Render the user-visible storyboard timeline:
 Invoke-WebRequest -Uri http://127.0.0.1:8000/api/v1/preview/storyboard.svg -Method Post -ContentType "application/json" -Body $body -OutFile office-dialogue.storyboard.svg
 Start-Process .\office-dialogue.storyboard.svg
 ```
+
+## Cross-engine timeline parity v0.1
+
+Generate Unity and Unreal artifacts from one unchanged CIR:
+
+```powershell
+python scripts\compile_cross_engine.py `
+  cir\examples\office-dialogue.cir.json `
+  --output-dir build\cross-engine
+```
+
+After importing, restarting, and exporting readbacks from both editors, verify them with
+`python -m cutsceneai_parity verify --require-both-engines`. The complete commands and pass criteria
+are in [`docs/acceptance/cross-engine-parity-v0.1.md`](docs/acceptance/cross-engine-parity-v0.1.md).
 
 ## Unreal Adapter v0.6
 
