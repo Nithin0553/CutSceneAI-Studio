@@ -48,6 +48,32 @@ endpoints, rounds calculated values to nine decimal places, and records the sour
 count under `resampling`. This conversion is deterministic and does not retrieve or substitute a
 pre-authored motion clip.
 
+## Canonical facial and lip-sync curves
+
+`facial-curves-v0.1.schema.json` defines a fixed `arkit-52` profile. Every frame contains exactly
+52 blendshape weights in the schema-declared order, with each value constrained to the inclusive
+range `[0, 1]`. Validators reject reordered curve names, missing or extra weights, non-contiguous
+frame indices, frame-count mismatches, and non-finite values.
+
+The owning generated-performance track binds the artifact to its actor and performance cue and,
+when dialogue drives lip sync, to the exact dialogue cue. `resample_facial_curves` linearly fits
+provider weights to that track's exact frame window, preserves both endpoints, rounds calculated
+values to nine decimal places, and records the source sampling metadata. Provider-specific output
+such as Audio2Face curves must be normalized to this contract before either engine adapter sees it.
+
+## Canonical camera curves
+
+`camera-curves-v0.1.schema.json` stores one perspective-camera sample per frame: world-space
+position in meters, orientation as a unit `xyzw` quaternion, and focal length in millimeters.
+Artifacts explicitly carry the right-handed, Y-up, negative-Z-forward coordinate convention plus
+sensor width and height, so both engines derive the same field of view instead of assuming
+different filmbacks.
+
+`resample_camera_curves` linearly interpolates position and focal length, applies shortest-path
+quaternion SLERP to orientation, preserves endpoints and custom sensor dimensions, and records the
+source FPS and frame count. The owning track binds the artifact to the exact camera cut and camera
+binding from the unchanged generation plan.
+
 The large model runtime, checkpoints, model datasets, SMPL assets, and real inference outputs are
 intentionally deferred until the external-SSD gate in
 [`docs/acceptance/generated-performance-ssd-gate.md`](../docs/acceptance/generated-performance-ssd-gate.md).

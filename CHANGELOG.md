@@ -15,6 +15,11 @@ versions until the first unified Studio release.
 - A strict `cutsceneai-humanoid-v1` 22-joint body-motion schema with fixed hierarchy,
   finite-value and unit-quaternion validation, deterministic rendering and hashing, and exact-frame
   linear/root plus shortest-path-SLERP rotation resampling.
+- A strict `arkit-52` facial and lip-sync curve schema with fixed curve order, bounded finite
+  weights, deterministic rendering and hashing, and endpoint-preserving exact-frame resampling.
+- A canonical perspective-camera curve schema with right-handed Y-up transforms, explicit sensor
+  dimensions, bounded focal lengths, deterministic rendering and hashing, and exact-frame linear
+  plus shortest-path-SLERP resampling.
 - An explicit external-SSD dependency gate that allows contracts, adapters, packaging, and
   experiment harnesses to continue while preventing dry runs from being presented as real
   generated-performance evidence.
@@ -79,8 +84,8 @@ versions until the first unified Studio release.
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 47 source files, all four schema/artifact drift checks, and
-  168 automated tests passed locally with 95.50% branch-aware coverage.
+- Ruff check and formatting, mypy across 76 source files, all seven schema/artifact drift checks,
+  and 299 automated tests passed locally with 96.77% branch-aware coverage.
 - Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
   required before merge.
 

@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "FacialCurveSample": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_index": {
+          "minimum": 0,
+          "title": "Frame Index",
+          "type": "integer"
+        },
+        "weights": {
+          "items": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "maxItems": 52,
+          "minItems": 52,
+          "title": "Weights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "frame_index",
+        "weights"
+      ],
+      "title": "FacialCurveSample",
+      "type": "object"
+    },
+    "FacialResamplingRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "endpoint-preserving-linear-v1",
+          "default": "endpoint-preserving-linear-v1",
+          "title": "Method",
+          "type": "string"
+        },
+        "source_fps": {
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Source Fps",
+          "type": "integer"
+        },
+        "source_frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Source Frame Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_fps",
+        "source_frame_count"
+      ],
+      "title": "FacialResamplingRecord",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/performance/v0.1/facial-curves.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Artifact Version",
+      "type": "string"
+    },
+    "curve_names": {
+      "const": [
+        "brow_down_left",
+        "brow_down_right",
+        "brow_inner_up",
+        "brow_outer_up_left",
+        "brow_outer_up_right",
+        "cheek_puff",
+        "cheek_squint_left",
+        "cheek_squint_right",
+        "eye_blink_left",
+        "eye_blink_right",
+        "eye_look_down_left",
+        "eye_look_down_right",
+        "eye_look_in_left",
+        "eye_look_in_right",
+        "eye_look_out_left",
+        "eye_look_out_right",
+        "eye_look_up_left",
+        "eye_look_up_right",
+        "eye_squint_left",
+        "eye_squint_right",
+        "eye_wide_left",
+        "eye_wide_right",
+        "jaw_forward",
+        "jaw_left",
+        "jaw_open",
+        "jaw_right",
+        "mouth_close",
+        "mouth_dimple_left",
+        "mouth_dimple_right",
+        "mouth_frown_left",
+        "mouth_frown_right",
+        "mouth_funnel",
+        "mouth_left",
+        "mouth_lower_down_left",
+        "mouth_lower_down_right",
+        "mouth_press_left",
+        "mouth_press_right",
+        "mouth_pucker",
+        "mouth_right",
+        "mouth_roll_lower",
+        "mouth_roll_upper",
+        "mouth_shrug_lower",
+        "mouth_shrug_upper",
+        "mouth_smile_left",
+        "mouth_smile_right",
+        "mouth_stretch_left",
+        "mouth_stretch_right",
+        "mouth_upper_up_left",
+        "mouth_upper_up_right",
+        "nose_sneer_left",
+        "nose_sneer_right",
+        "tongue_out"
+      ],
+      "items": {
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "maxItems": 52,
+      "minItems": 52,
+      "title": "Curve Names",
+      "type": "array"
+    },
+    "curve_profile": {
+      "const": "arkit-52",
+      "default": "arkit-52",
+      "title": "Curve Profile",
+      "type": "string"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "frame_count": {
+      "exclusiveMinimum": 0,
+      "title": "Frame Count",
+      "type": "integer"
+    },
+    "resampling": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FacialResamplingRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/FacialCurveSample"
+      },
+      "minItems": 1,
+      "title": "Samples",
+      "type": "array"
+    }
+  },
+  "required": [
+    "fps",
+    "frame_count",
+    "samples"
+  ],
+  "title": "FacialCurveArtifact",
+  "type": "object"
+}

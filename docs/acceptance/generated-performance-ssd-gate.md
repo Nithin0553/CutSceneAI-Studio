@@ -9,6 +9,23 @@ large-model runtime and the evidence that can only be produced by real inference
 This boundary prevents placeholder samples, pre-authored animation, or dry-run output from being
 reported as generated-performance evidence.
 
+## Non-SSD progress
+
+| Work item | Status |
+| --- | --- |
+| Generated Performance Package contract | Complete |
+| Deterministic CIR-to-generation-plan compiler | Complete |
+| Canonical 22-joint body-motion contract and resampler | Complete |
+| Canonical ARKit-52 facial/lip-sync contract and resampler | Complete |
+| Canonical transform, filmback, and focal-length camera contract and resampler | Complete |
+| Provider interfaces and output normalization | Pending |
+| Package assembly, hash/provenance verification, and path safety | Pending |
+| Unreal 5.8 and Unity 6 generated-artifact mappings | Pending |
+| Reliability, repeatability, portability, and native-realization harnesses | Pending |
+
+The SSD is not yet required. The pending rows remain repository-only work and must be completed
+before the mandatory trigger below is reached.
+
 ## Work that continues without the SSD
 
 - Generated Performance Package and deterministic generation-plan contracts.

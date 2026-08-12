@@ -44,6 +44,10 @@ single hashed body, facial, camera, and audio realization consumed by both engin
   configurations, seeds, and deterministic-inference metadata
 - A strict 22-joint canonical body-motion artifact with unit-quaternion validation and deterministic
   exact-frame root-translation/quaternion resampling
+- A strict ARKit-52 facial/lip-sync artifact with bounded weights, fixed curve order, and
+  deterministic exact-frame resampling
+- A perspective-camera artifact with canonical world transforms, explicit filmback, focal-length
+  curves, and deterministic linear/quaternion resampling
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -58,7 +62,7 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
 | Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6 |
-| Generated performance | Compile inference requests and normalize generated artifacts | Contract and canonical body motion implemented; real inference SSD-blocked |
+| Generated performance | Compile inference requests and normalize generated artifacts | Package, plan, body, ARKit-52 face, and camera contracts implemented; real inference SSD-blocked |
 
 ## Local setup
 
@@ -85,8 +89,8 @@ python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir preview dialogue performance parity adapters backend scripts
-python -m ruff format --check cir preview dialogue performance parity adapters backend scripts
+python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts
+python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts
 python -m mypy cir\src preview\src dialogue\src performance\src parity\src adapters\unreal\src adapters\unity\src backend\app scripts
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
