@@ -9,6 +9,7 @@ Identifier = Annotated[
     str,
     Field(min_length=1, pattern=r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"),
 ]
+NonEmptyString = Annotated[str, Field(min_length=1)]
 SemanticId = Annotated[
     str,
     Field(
@@ -58,12 +59,12 @@ class ArtifactReference(PerformanceModel):
 
 
 class ModelProvenance(PerformanceModel):
-    provider: str
-    model: str
-    model_revision: str
+    provider: NonEmptyString
+    model: NonEmptyString
+    model_revision: NonEmptyString
     prompt_sha256: Sha256Digest
     configuration_sha256: Sha256Digest
-    seed: int
+    seed: int = Field(ge=0, le=2**32 - 1)
     generated_at_inference: Literal[True] = True
     retrieved_pre_authored_clip: Literal[False] = False
     deterministic_algorithms: bool
@@ -78,10 +79,10 @@ class CoordinateSpace(PerformanceModel):
 
 
 class GenerationModelConfig(PerformanceModel):
-    provider: str
-    model: str
-    model_revision: str
-    prompt_version: str
+    provider: NonEmptyString
+    model: NonEmptyString
+    model_revision: NonEmptyString
+    prompt_version: NonEmptyString
     deterministic_algorithms: bool = True
 
 
@@ -99,14 +100,14 @@ class GenerationRequest(PerformanceModel):
     semantic_id: SemanticId
     start_frame: int = Field(ge=0)
     end_frame: int = Field(gt=0)
-    prompt: str
+    prompt: NonEmptyString
     prompt_sha256: Sha256Digest
     configuration_sha256: Sha256Digest
     seed: int = Field(ge=0, le=2**32 - 1)
-    provider: str
-    model: str
-    model_revision: str
-    prompt_version: str
+    provider: NonEmptyString
+    model: NonEmptyString
+    model_revision: NonEmptyString
+    prompt_version: NonEmptyString
 
     @model_validator(mode="after")
     def validate_request_window(self) -> Self:

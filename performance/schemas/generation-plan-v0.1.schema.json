@@ -34,14 +34,17 @@
           "title": "Look At Binding Id"
         },
         "model": {
+          "minLength": 1,
           "title": "Model",
           "type": "string"
         },
         "model_revision": {
+          "minLength": 1,
           "title": "Model Revision",
           "type": "string"
         },
         "prompt": {
+          "minLength": 1,
           "title": "Prompt",
           "type": "string"
         },
@@ -51,10 +54,12 @@
           "type": "string"
         },
         "prompt_version": {
+          "minLength": 1,
           "title": "Prompt Version",
           "type": "string"
         },
         "provider": {
+          "minLength": 1,
           "title": "Provider",
           "type": "string"
         },
@@ -133,14 +138,17 @@
           "type": "number"
         },
         "model": {
+          "minLength": 1,
           "title": "Model",
           "type": "string"
         },
         "model_revision": {
+          "minLength": 1,
           "title": "Model Revision",
           "type": "string"
         },
         "prompt": {
+          "minLength": 1,
           "title": "Prompt",
           "type": "string"
         },
@@ -150,10 +158,12 @@
           "type": "string"
         },
         "prompt_version": {
+          "minLength": 1,
           "title": "Prompt Version",
           "type": "string"
         },
         "provider": {
+          "minLength": 1,
           "title": "Provider",
           "type": "string"
         },
@@ -285,14 +295,17 @@
           "type": "boolean"
         },
         "model": {
+          "minLength": 1,
           "title": "Model",
           "type": "string"
         },
         "model_revision": {
+          "minLength": 1,
           "title": "Model Revision",
           "type": "string"
         },
         "prompt": {
+          "minLength": 1,
           "title": "Prompt",
           "type": "string"
         },
@@ -302,10 +315,12 @@
           "type": "string"
         },
         "prompt_version": {
+          "minLength": 1,
           "title": "Prompt Version",
           "type": "string"
         },
         "provider": {
+          "minLength": 1,
           "title": "Provider",
           "type": "string"
         },

@@ -48,6 +48,10 @@ single hashed body, facial, camera, and audio realization consumed by both engin
   deterministic exact-frame resampling
 - A perspective-camera artifact with canonical world transforms, explicit filmback, focal-length
   curves, and deterministic linear/quaternion resampling
+- Provider-neutral body, facial, and camera backend protocols with strict request/provenance
+  matching and exact-frame output normalization
+- A deterministic Generated Performance ZIP assembler and untrusted loader with exact entry,
+  hash, timing, provenance, compression, size, and path-safety verification
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -62,7 +66,7 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
 | Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6 |
-| Generated performance | Compile inference requests and normalize generated artifacts | Package, plan, body, ARKit-52 face, and camera contracts implemented; real inference SSD-blocked |
+| Generated performance | Compile, normalize, and package generated artifacts | Package, plan, canonical artifacts, provider boundary, and verified portable ZIP implemented; engine mappings next; real inference SSD-blocked |
 
 ## Local setup
 

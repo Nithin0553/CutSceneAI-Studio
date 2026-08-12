@@ -74,6 +74,36 @@ quaternion SLERP to orientation, preserves endpoints and custom sensor dimension
 source FPS and frame count. The owning track binds the artifact to the exact camera cut and camera
 binding from the unchanged generation plan.
 
+## Provider normalization
+
+`BodyGenerationBackend`, `FacialGenerationBackend`, and `CameraGenerationBackend` are narrow async
+protocols for model-specific adapters. A backend returns canonical source samples inside a
+`ProviderArtifact`, together with the exact semantic ID, provider/model revision, prompt and
+configuration hashes, seed, and inference-origin flags it used.
+
+The modality normalizers reject any request-metadata mismatch, output not generated at inference
+time, retrieved pre-authored clip, or incompatible skeleton/curve profile. Accepted samples are
+then fitted to the request's exact frame count and plan FPS. This keeps provider parsing at the
+edge while one validated numerical contract reaches packaging and both engine adapters.
+
+## Deterministic package assembly
+
+`assemble_performance_bundle` requires exactly one body, facial, and camera result for every
+generation request, plus one PCM WAV for every referenced dialogue cue. It creates stable artifact
+paths, hashes the rendered bytes, calculates byte lengths, validates WAV-derived frame timing, and
+builds one package manifest without changing the generation plan or CIR fingerprint.
+
+`render_performance_bundle` emits a byte-for-byte deterministic ZIP containing
+`generation.plan.json`, `performance.package.json`, and exactly the referenced body, face, camera,
+and audio files. `load_performance_bundle` treats that ZIP as untrusted input: it enforces entry and
+expanded-size limits, safe POSIX paths, supported compression, exact entry sets, contract parsing,
+artifact hashes, provenance, identities, profiles, coordinate spaces, frame counts, and audio
+timing before returning a bundle to an engine adapter.
+
+The automated bundle tests use small synthetic numerical and PCM fixtures. They validate the
+contract and failure behavior only; they are not evidence that a body, facial, or camera model has
+run successfully.
+
 The large model runtime, checkpoints, model datasets, SMPL assets, and real inference outputs are
 intentionally deferred until the external-SSD gate in
 [`docs/acceptance/generated-performance-ssd-gate.md`](../docs/acceptance/generated-performance-ssd-gate.md).

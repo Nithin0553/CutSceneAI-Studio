@@ -359,10 +359,12 @@
           "type": "boolean"
         },
         "model": {
+          "minLength": 1,
           "title": "Model",
           "type": "string"
         },
         "model_revision": {
+          "minLength": 1,
           "title": "Model Revision",
           "type": "string"
         },
@@ -372,6 +374,7 @@
           "type": "string"
         },
         "provider": {
+          "minLength": 1,
           "title": "Provider",
           "type": "string"
         },
@@ -382,6 +385,8 @@
           "type": "boolean"
         },
         "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
           "title": "Seed",
           "type": "integer"
         }

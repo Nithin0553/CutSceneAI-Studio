@@ -18,13 +18,13 @@ reported as generated-performance evidence.
 | Canonical 22-joint body-motion contract and resampler | Complete |
 | Canonical ARKit-52 facial/lip-sync contract and resampler | Complete |
 | Canonical transform, filmback, and focal-length camera contract and resampler | Complete |
-| Provider interfaces and output normalization | Pending |
-| Package assembly, hash/provenance verification, and path safety | Pending |
+| Provider interfaces and canonical output normalization | Complete |
+| Package assembly, hash/provenance verification, and archive/path safety | Complete |
 | Unreal 5.8 and Unity 6 generated-artifact mappings | Pending |
 | Reliability, repeatability, portability, and native-realization harnesses | Pending |
 
-The SSD is not yet required. The pending rows remain repository-only work and must be completed
-before the mandatory trigger below is reached.
+The SSD is not yet required. Unreal/Unity generated-artifact mappings and the experiment harnesses
+remain repository-only work and must be completed before the mandatory trigger below is reached.
 
 ## Work that continues without the SSD
 

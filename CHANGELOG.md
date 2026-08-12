@@ -20,6 +20,12 @@ versions until the first unified Studio release.
 - A canonical perspective-camera curve schema with right-handed Y-up transforms, explicit sensor
   dimensions, bounded focal lengths, deterministic rendering and hashing, and exact-frame linear
   plus shortest-path-SLERP resampling.
+- Provider-neutral body, facial, and camera backend protocols with strict request metadata,
+  inference-origin, pre-authored-retrieval, profile, provenance, and exact-frame normalization
+  gates.
+- Deterministic Generated Performance ZIP assembly and untrusted loading with exact plan/manifest
+  relationships, artifact entry sets, SHA-256 and byte-length checks, PCM frame timing, archive
+  limits, safe paths, and compression/encryption rejection.
 - An explicit external-SSD dependency gate that allows contracts, adapters, packaging, and
   experiment harnesses to continue while preventing dry runs from being presented as real
   generated-performance evidence.
@@ -84,8 +90,9 @@ versions until the first unified Studio release.
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 76 source files, all seven schema/artifact drift checks,
-  and 299 automated tests passed locally with 96.77% branch-aware coverage.
+- Ruff check and formatting, mypy across 79 source files, all seven schema/artifact drift checks,
+  and 375 automated tests passed locally with 97.12% branch-aware coverage. The 153 Generated
+  Performance tests retain 100% statement and branch coverage.
 - Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
   required before merge.
 
