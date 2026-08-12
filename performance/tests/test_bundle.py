@@ -4,8 +4,9 @@ from dataclasses import replace
 import hashlib
 from io import BytesIO
 import json
+import zipfile
 from typing import Any
-from zipfile import ZIP_BZIP2, ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_BZIP2, ZIP_DEFLATED, ZipFile, ZipInfo
 
 import pytest
 from cutsceneai_performance import (
@@ -44,7 +45,10 @@ def render_archive(
     output = BytesIO()
     with ZipFile(output, "w") as archive:
         for path, data in files.items():
-            archive.writestr(path, data, compress_type=compression)
+            member = ZipInfo()
+            member.filename = path
+            member.orig_filename = path
+            archive.writestr(member, data, compress_type=compression)
     return output.getvalue()
 
 
@@ -514,7 +518,12 @@ def test_renderer_rejects_oversized_uncompressed_bundle(
     "path",
     ["../escape.json", "/absolute.json", "nested\\windows.json", "./dot.json"],
 )
-def test_loader_rejects_unsafe_archive_paths(path: str) -> None:
+def test_loader_rejects_unsafe_archive_paths(
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if "\\" in path:
+        monkeypatch.setattr(zipfile.os, "sep", "\\")
     data = render_archive({path: b"unsafe"})
 
     with pytest.raises(PerformanceInputError, match="unsafe archive path"):
