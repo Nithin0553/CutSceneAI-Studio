@@ -4,9 +4,12 @@ import json
 from pathlib import Path
 
 from cutsceneai_performance import (
+    GENERATION_PLAN_SCHEMA_ID,
     JSON_SCHEMA_DIALECT,
     PERFORMANCE_PACKAGE_SCHEMA_ID,
+    generation_plan_json_schema,
     performance_package_json_schema,
+    render_generation_plan_json_schema,
     render_performance_package_json_schema,
     write_performance_package_json_schema,
 )
@@ -14,6 +17,9 @@ from jsonschema import Draft202012Validator
 
 SCHEMA_PATH = (
     Path(__file__).parents[1] / "schemas" / "performance-package-v0.1.schema.json"
+)
+PLAN_SCHEMA_PATH = (
+    Path(__file__).parents[1] / "schemas" / "generation-plan-v0.1.schema.json"
 )
 
 
@@ -31,6 +37,16 @@ def test_committed_schema_matches_models() -> None:
 
     assert committed == render_performance_package_json_schema()
     assert json.loads(committed) == performance_package_json_schema()
+
+
+def test_generation_plan_schema_matches_models() -> None:
+    schema = generation_plan_json_schema()
+    committed = PLAN_SCHEMA_PATH.read_text(encoding="utf-8")
+
+    assert schema["$schema"] == JSON_SCHEMA_DIALECT
+    assert schema["$id"] == GENERATION_PLAN_SCHEMA_ID
+    Draft202012Validator.check_schema(schema)
+    assert committed == render_generation_plan_json_schema()
 
 
 def test_schema_writer_creates_parent_directories(tmp_path: Path) -> None:

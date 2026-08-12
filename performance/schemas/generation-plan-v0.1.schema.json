@@ -1,0 +1,452 @@
+{
+  "$defs": {
+    "BodyGenerationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "configuration_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "look_at_binding_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look At Binding Id"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "skeleton_profile": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Skeleton Profile",
+          "type": "string"
+        },
+        "source_performance_cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "prompt",
+        "prompt_sha256",
+        "configuration_sha256",
+        "seed",
+        "provider",
+        "model",
+        "model_revision",
+        "prompt_version",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "skeleton_profile"
+      ],
+      "title": "BodyGenerationRequest",
+      "type": "object"
+    },
+    "CameraGenerationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Camera Binding Id",
+          "type": "string"
+        },
+        "configuration_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "lens_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Lens Mm",
+          "type": "number"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_camera_cut_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Camera Cut Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "subject_binding_ids": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+            "type": "string"
+          },
+          "title": "Subject Binding Ids",
+          "type": "array"
+        },
+        "target_binding_ids": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+            "type": "string"
+          },
+          "title": "Target Binding Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "prompt",
+        "prompt_sha256",
+        "configuration_sha256",
+        "seed",
+        "provider",
+        "model",
+        "model_revision",
+        "prompt_version",
+        "camera_binding_id",
+        "source_camera_cut_id",
+        "subject_binding_ids",
+        "target_binding_ids",
+        "lens_mm"
+      ],
+      "title": "CameraGenerationRequest",
+      "type": "object"
+    },
+    "FacialGenerationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "configuration_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "curve_profile": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Curve Profile",
+          "type": "string"
+        },
+        "dialogue_start_frame": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue Start Frame"
+        },
+        "dialogue_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dialogue Text"
+        },
+        "emotion": {
+          "title": "Emotion",
+          "type": "string"
+        },
+        "emotion_intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Emotion Intensity",
+          "type": "number"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "lip_sync": {
+          "title": "Lip Sync",
+          "type": "boolean"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_dialogue_cue_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Dialogue Cue Id"
+        },
+        "source_performance_cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "prompt",
+        "prompt_sha256",
+        "configuration_sha256",
+        "seed",
+        "provider",
+        "model",
+        "model_revision",
+        "prompt_version",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "curve_profile",
+        "emotion",
+        "emotion_intensity",
+        "lip_sync"
+      ],
+      "title": "FacialGenerationRequest",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/performance/v0.1/generation-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body_requests": {
+      "items": {
+        "$ref": "#/$defs/BodyGenerationRequest"
+      },
+      "minItems": 1,
+      "title": "Body Requests",
+      "type": "array"
+    },
+    "camera_requests": {
+      "items": {
+        "$ref": "#/$defs/CameraGenerationRequest"
+      },
+      "minItems": 1,
+      "title": "Camera Requests",
+      "type": "array"
+    },
+    "cir_fingerprint_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cir Fingerprint Sha256",
+      "type": "string"
+    },
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "duration_frames": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Frames",
+      "type": "integer"
+    },
+    "experiment_seed": {
+      "title": "Experiment Seed",
+      "type": "integer"
+    },
+    "facial_requests": {
+      "items": {
+        "$ref": "#/$defs/FacialGenerationRequest"
+      },
+      "minItems": 1,
+      "title": "Facial Requests",
+      "type": "array"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "project_id": {
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "request_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Request Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "cir_fingerprint_sha256",
+    "fps",
+    "duration_frames",
+    "experiment_seed",
+    "body_requests",
+    "facial_requests",
+    "camera_requests"
+  ],
+  "title": "PerformanceGenerationPlan",
+  "type": "object"
+}

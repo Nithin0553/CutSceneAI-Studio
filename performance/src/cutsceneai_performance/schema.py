@@ -4,11 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .models import GeneratedPerformancePackage
+from .models import GeneratedPerformancePackage, PerformanceGenerationPlan
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 PERFORMANCE_PACKAGE_SCHEMA_ID = (
     "https://schemas.cutsceneai.dev/performance/v0.1/package.schema.json"
+)
+GENERATION_PLAN_SCHEMA_ID = (
+    "https://schemas.cutsceneai.dev/performance/v0.1/generation-plan.schema.json"
 )
 
 
@@ -21,10 +24,23 @@ def performance_package_json_schema() -> dict[str, Any]:
     }
 
 
+def generation_plan_json_schema() -> dict[str, Any]:
+    generated = PerformanceGenerationPlan.model_json_schema(mode="validation")
+    return {
+        "$schema": JSON_SCHEMA_DIALECT,
+        "$id": GENERATION_PLAN_SCHEMA_ID,
+        **generated,
+    }
+
+
 def render_performance_package_json_schema() -> str:
     return (
         json.dumps(performance_package_json_schema(), indent=2, sort_keys=True) + "\n"
     )
+
+
+def render_generation_plan_json_schema() -> str:
+    return json.dumps(generation_plan_json_schema(), indent=2, sort_keys=True) + "\n"
 
 
 def write_performance_package_json_schema(path: str | Path) -> Path:

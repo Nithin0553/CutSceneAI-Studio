@@ -76,6 +76,98 @@ class CoordinateSpace(PerformanceModel):
     rotation_representation: Literal["quaternion_xyzw"] = "quaternion_xyzw"
 
 
+class GenerationModelConfig(PerformanceModel):
+    provider: str
+    model: str
+    model_revision: str
+    prompt_version: str
+    deterministic_algorithms: bool = True
+
+
+class PerformanceCompilerConfig(PerformanceModel):
+    request_version: Literal["0.1.0"] = "0.1.0"
+    experiment_seed: int = 20260812
+    body: GenerationModelConfig
+    facial: GenerationModelConfig
+    camera: GenerationModelConfig
+    skeleton_profile: Identifier = "cutsceneai-humanoid-v1"
+    facial_curve_profile: Identifier = "arkit-52"
+
+
+class GenerationRequest(PerformanceModel):
+    semantic_id: SemanticId
+    start_frame: int = Field(ge=0)
+    end_frame: int = Field(gt=0)
+    prompt: str
+    prompt_sha256: Sha256Digest
+    configuration_sha256: Sha256Digest
+    seed: int = Field(ge=0, le=2**32 - 1)
+    provider: str
+    model: str
+    model_revision: str
+    prompt_version: str
+
+    @model_validator(mode="after")
+    def validate_request_window(self) -> Self:
+        if self.end_frame <= self.start_frame:
+            raise ValueError("end_frame must be greater than start_frame.")
+        return self
+
+
+class BodyGenerationRequest(GenerationRequest):
+    actor_binding_id: SemanticId
+    source_performance_cue_id: SemanticId
+    skeleton_profile: Identifier
+    look_at_binding_id: SemanticId | None = None
+
+
+class FacialGenerationRequest(GenerationRequest):
+    actor_binding_id: SemanticId
+    source_performance_cue_id: SemanticId
+    source_dialogue_cue_id: SemanticId | None = None
+    curve_profile: Identifier
+    emotion: str
+    emotion_intensity: float = Field(ge=0, le=1)
+    lip_sync: bool
+    dialogue_text: str | None = None
+    dialogue_start_frame: int | None = Field(default=None, ge=0)
+
+
+class CameraGenerationRequest(GenerationRequest):
+    camera_binding_id: SemanticId
+    source_camera_cut_id: SemanticId
+    subject_binding_ids: list[SemanticId]
+    target_binding_ids: list[SemanticId]
+    lens_mm: float = Field(ge=8, le=300)
+
+
+class PerformanceGenerationPlan(PerformanceModel):
+    request_version: Literal["0.1.0"] = "0.1.0"
+    cir_schema_version: Literal["0.1.0"] = "0.1.0"
+    project_id: Identifier
+    cir_fingerprint_sha256: Sha256Digest
+    fps: int = Field(ge=1, le=240)
+    duration_frames: int = Field(gt=0)
+    experiment_seed: int
+    body_requests: list[BodyGenerationRequest] = Field(min_length=1)
+    facial_requests: list[FacialGenerationRequest] = Field(min_length=1)
+    camera_requests: list[CameraGenerationRequest] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_plan_invariants(self) -> Self:
+        requests: list[GenerationRequest] = [
+            *self.body_requests,
+            *self.facial_requests,
+            *self.camera_requests,
+        ]
+        if any(request.end_frame > self.duration_frames for request in requests):
+            raise ValueError("Generation request exceeds plan duration_frames.")
+        semantic_ids = [request.semantic_id for request in requests]
+        if len(semantic_ids) != len(set(semantic_ids)):
+            raise ValueError("Generation request semantic IDs must be unique.")
+        return self
+
+
 class TimedGeneratedTrack(PerformanceModel):
     semantic_id: SemanticId
     start_frame: int = Field(ge=0)

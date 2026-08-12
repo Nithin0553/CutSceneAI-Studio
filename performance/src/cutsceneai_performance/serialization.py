@@ -3,11 +3,15 @@ from __future__ import annotations
 import hashlib
 import json
 
-from .models import GeneratedPerformancePackage
+from .models import GeneratedPerformancePackage, PerformanceGenerationPlan
 
 
 def render_performance_package(package: GeneratedPerformancePackage) -> str:
     return json.dumps(package.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+
+
+def render_generation_plan(plan: PerformanceGenerationPlan) -> str:
+    return json.dumps(plan.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
 
 
 def performance_package_fingerprint(package: GeneratedPerformancePackage) -> str:
