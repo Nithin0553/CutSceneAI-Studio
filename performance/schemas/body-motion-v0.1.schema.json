@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "BodyMotionSample": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_index": {
+          "minimum": 0,
+          "title": "Frame Index",
+          "type": "integer"
+        },
+        "joint_rotations": {
+          "items": {
+            "$ref": "#/$defs/Quaternion"
+          },
+          "maxItems": 22,
+          "minItems": 22,
+          "title": "Joint Rotations",
+          "type": "array"
+        },
+        "root_translation": {
+          "$ref": "#/$defs/Vector3"
+        }
+      },
+      "required": [
+        "frame_index",
+        "root_translation",
+        "joint_rotations"
+      ],
+      "title": "BodyMotionSample",
+      "type": "object"
+    },
+    "CoordinateSpace": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "meter",
+          "default": "meter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "const": "-z",
+          "default": "-z",
+          "title": "Forward Axis",
+          "type": "string"
+        },
+        "handedness": {
+          "const": "right",
+          "default": "right",
+          "title": "Handedness",
+          "type": "string"
+        },
+        "rotation_representation": {
+          "const": "quaternion_xyzw",
+          "default": "quaternion_xyzw",
+          "title": "Rotation Representation",
+          "type": "string"
+        },
+        "up_axis": {
+          "const": "y",
+          "default": "y",
+          "title": "Up Axis",
+          "type": "string"
+        }
+      },
+      "title": "CoordinateSpace",
+      "type": "object"
+    },
+    "MotionResamplingRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "endpoint-preserving-linear-slerp-v1",
+          "default": "endpoint-preserving-linear-slerp-v1",
+          "title": "Method",
+          "type": "string"
+        },
+        "source_fps": {
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Source Fps",
+          "type": "integer"
+        },
+        "source_frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Source Frame Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_fps",
+        "source_frame_count"
+      ],
+      "title": "MotionResamplingRecord",
+      "type": "object"
+    },
+    "Quaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z",
+        "w"
+      ],
+      "title": "Quaternion",
+      "type": "object"
+    },
+    "Vector3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Vector3",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/performance/v0.1/body-motion.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Artifact Version",
+      "type": "string"
+    },
+    "coordinate_space": {
+      "$ref": "#/$defs/CoordinateSpace"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "frame_count": {
+      "exclusiveMinimum": 0,
+      "title": "Frame Count",
+      "type": "integer"
+    },
+    "joint_names": {
+      "const": [
+        "pelvis",
+        "left_hip",
+        "right_hip",
+        "spine1",
+        "left_knee",
+        "right_knee",
+        "spine2",
+        "left_ankle",
+        "right_ankle",
+        "spine3",
+        "left_foot",
+        "right_foot",
+        "neck",
+        "left_collar",
+        "right_collar",
+        "head",
+        "left_shoulder",
+        "right_shoulder",
+        "left_elbow",
+        "right_elbow",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "items": {
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "maxItems": 22,
+      "minItems": 22,
+      "title": "Joint Names",
+      "type": "array"
+    },
+    "parent_indices": {
+      "const": [
+        -1,
+        0,
+        0,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        9,
+        9,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19
+      ],
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 22,
+      "minItems": 22,
+      "title": "Parent Indices",
+      "type": "array"
+    },
+    "resampling": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MotionResamplingRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/BodyMotionSample"
+      },
+      "minItems": 1,
+      "title": "Samples",
+      "type": "array"
+    },
+    "skeleton_profile": {
+      "const": "cutsceneai-humanoid-v1",
+      "default": "cutsceneai-humanoid-v1",
+      "title": "Skeleton Profile",
+      "type": "string"
+    }
+  },
+  "required": [
+    "fps",
+    "frame_count",
+    "samples"
+  ],
+  "title": "BodyMotionArtifact",
+  "type": "object"
+}

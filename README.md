@@ -42,6 +42,8 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 - Canonical CIR fingerprinting and typed Unreal-to-Unity semantic parity reports
 - Engine-neutral generated-performance manifests with artifact hashes, model revisions, prompts,
   configurations, seeds, and deterministic-inference metadata
+- A strict 22-joint canonical body-motion artifact with unit-quaternion validation and deterministic
+  exact-frame root-translation/quaternion resampling
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -55,7 +57,8 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
-| Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 implemented; real-engine gate pending |
+| Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6 |
+| Generated performance | Compile inference requests and normalize generated artifacts | Contract and canonical body motion implemented; real inference SSD-blocked |
 
 ## Local setup
 
@@ -92,7 +95,7 @@ python performance\scripts\export_artifacts.py --check
 python parity\scripts\export_artifacts.py --check
 python adapters\unreal\scripts\export_artifacts.py --check
 python adapters\unity\scripts\export_artifacts.py --check
-python -m pytest cir\tests preview\tests dialogue\tests performance\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_performance --cov=cutsceneai_parity --cov=cutsceneai_unreal --cov=cutsceneai_unity --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python -m pytest cir\tests preview\tests dialogue\tests performance\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --import-mode=importlib --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_performance --cov=cutsceneai_parity --cov=cutsceneai_unreal --cov=cutsceneai_unity --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API

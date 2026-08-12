@@ -48,3 +48,11 @@ CineBench++ coverage grows with every milestone rather than being postponed unti
 work. For v1.0, CutSceneAI integrates proven motion, speech, and facial providers behind portable
 interfaces; training proprietary foundation models and real-time photoreal generation remain post-v1
 research.
+
+## Current generated-performance storage gate
+
+All contract, validator, resampling, adapter, package, and experiment-harness work continues before
+large model files are installed. Real model environments, checkpoints, SMPL assets, inference
+outputs, and inference-backed engine evidence are deferred until an external SSD is available. The
+exact stop/reminder condition is maintained in
+[`docs/acceptance/generated-performance-ssd-gate.md`](docs/acceptance/generated-performance-ssd-gate.md).

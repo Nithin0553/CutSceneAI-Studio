@@ -28,6 +28,7 @@ RelativeArtifactPath = Annotated[
 
 class PerformanceModel(BaseModel):
     model_config = ConfigDict(
+        allow_inf_nan=False,
         extra="forbid",
         str_strip_whitespace=True,
         validate_assignment=True,

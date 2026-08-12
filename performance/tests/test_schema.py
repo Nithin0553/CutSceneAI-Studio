@@ -4,13 +4,19 @@ import json
 from pathlib import Path
 
 from cutsceneai_performance import (
+    BODY_MOTION_SCHEMA_ID,
+    CANONICAL_HUMANOID_JOINTS,
+    CANONICAL_HUMANOID_PARENTS,
     GENERATION_PLAN_SCHEMA_ID,
     JSON_SCHEMA_DIALECT,
     PERFORMANCE_PACKAGE_SCHEMA_ID,
+    body_motion_json_schema,
     generation_plan_json_schema,
     performance_package_json_schema,
+    render_body_motion_json_schema,
     render_generation_plan_json_schema,
     render_performance_package_json_schema,
+    write_body_motion_json_schema,
     write_performance_package_json_schema,
 )
 from jsonschema import Draft202012Validator
@@ -20,6 +26,9 @@ SCHEMA_PATH = (
 )
 PLAN_SCHEMA_PATH = (
     Path(__file__).parents[1] / "schemas" / "generation-plan-v0.1.schema.json"
+)
+MOTION_SCHEMA_PATH = (
+    Path(__file__).parents[1] / "schemas" / "body-motion-v0.1.schema.json"
 )
 
 
@@ -49,6 +58,25 @@ def test_generation_plan_schema_matches_models() -> None:
     assert committed == render_generation_plan_json_schema()
 
 
+def test_body_motion_schema_matches_models() -> None:
+    schema = body_motion_json_schema()
+    committed = MOTION_SCHEMA_PATH.read_text(encoding="utf-8")
+
+    assert schema["$schema"] == JSON_SCHEMA_DIALECT
+    assert schema["$id"] == BODY_MOTION_SCHEMA_ID
+    assert schema["properties"]["joint_names"]["const"] == list(
+        CANONICAL_HUMANOID_JOINTS
+    )
+    assert schema["properties"]["parent_indices"]["const"] == list(
+        CANONICAL_HUMANOID_PARENTS
+    )
+    rotations = schema["$defs"]["BodyMotionSample"]["properties"]["joint_rotations"]
+    assert rotations["minItems"] == len(CANONICAL_HUMANOID_JOINTS)
+    assert rotations["maxItems"] == len(CANONICAL_HUMANOID_JOINTS)
+    Draft202012Validator.check_schema(schema)
+    assert committed == render_body_motion_json_schema()
+
+
 def test_schema_writer_creates_parent_directories(tmp_path: Path) -> None:
     destination = tmp_path / "nested" / "performance-package.schema.json"
 
@@ -58,3 +86,12 @@ def test_schema_writer_creates_parent_directories(tmp_path: Path) -> None:
     assert destination.read_text(encoding="utf-8") == (
         render_performance_package_json_schema()
     )
+
+
+def test_motion_schema_writer_creates_parent_directories(tmp_path: Path) -> None:
+    destination = tmp_path / "nested" / "body-motion.schema.json"
+
+    written = write_body_motion_json_schema(destination)
+
+    assert written == destination.resolve()
+    assert destination.read_text(encoding="utf-8") == (render_body_motion_json_schema())

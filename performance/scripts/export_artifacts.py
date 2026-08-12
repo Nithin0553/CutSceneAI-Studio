@@ -9,6 +9,7 @@ from cutsceneai_performance import (
     GenerationModelConfig,
     PerformanceCompilerConfig,
     compile_generation_plan,
+    render_body_motion_json_schema,
     render_generation_plan,
     render_generation_plan_json_schema,
     render_performance_package_json_schema,
@@ -21,6 +22,7 @@ SCHEMA_OUTPUT = (
 PLAN_SCHEMA_OUTPUT = (
     ROOT / "performance" / "schemas" / "generation-plan-v0.1.schema.json"
 )
+MOTION_SCHEMA_OUTPUT = ROOT / "performance" / "schemas" / "body-motion-v0.1.schema.json"
 EXAMPLE_OUTPUT = (
     ROOT / "performance" / "examples" / "office-dialogue.generation-plan.json"
 )
@@ -56,6 +58,7 @@ def expected_artifacts() -> dict[Path, str]:
     return {
         SCHEMA_OUTPUT: render_performance_package_json_schema(),
         PLAN_SCHEMA_OUTPUT: render_generation_plan_json_schema(),
+        MOTION_SCHEMA_OUTPUT: render_body_motion_json_schema(),
         EXAMPLE_OUTPUT: render_generation_plan(plan),
     }
 

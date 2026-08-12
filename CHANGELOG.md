@@ -7,6 +7,17 @@ versions until the first unified Studio release.
 
 ### Added
 
+- Generated Performance Package v0.1 with one unchanged, hashed body/facial/camera/audio
+  realization contract for both Unreal and Unity, including model, prompt, configuration, seed,
+  and inference provenance.
+- Deterministic CIR-to-generation-plan compilation with stable semantic IDs, exact frame windows,
+  request hashes, and controlled per-request seeds for body, face, and camera generation.
+- A strict `cutsceneai-humanoid-v1` 22-joint body-motion schema with fixed hierarchy,
+  finite-value and unit-quaternion validation, deterministic rendering and hashing, and exact-frame
+  linear/root plus shortest-path-SLERP rotation resampling.
+- An explicit external-SSD dependency gate that allows contracts, adapters, packaging, and
+  experiment harnesses to continue while preventing dry runs from being presented as real
+  generated-performance evidence.
 - Unity Timeline Adapter v0.1 for Unity 6000.0 and Timeline 1.8.12, with native animation,
   audio, camera activation, actor binding, semantic marker, and visible fallback compilation.
 - A separate typed Unity asset map so project-specific prefab, animation, and audio paths can be
@@ -47,6 +58,9 @@ versions until the first unified Studio release.
 
 ### Boundaries
 
+- Large model environments, MDM/HumanML3D and SMPL assets, retained inference outputs, and final
+  inference-backed engine evidence remain blocked until the external SSD is connected and its
+  explicit target path is verified.
 - Automated tests cannot execute Unity or Unreal in Python CI. Cross-engine implementation is
   complete, but final acceptance requires both readbacks after editor restart and a zero-error
   parity report. Placeholder animation and missing audio remain explicit realization warnings and

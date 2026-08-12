@@ -34,6 +34,7 @@ jobs:
             cir/pyproject.toml
             preview/pyproject.toml
             dialogue/pyproject.toml
+            performance/pyproject.toml
             parity/pyproject.toml
             adapters/unreal/pyproject.toml
             adapters/unity/pyproject.toml
@@ -42,31 +43,33 @@ jobs:
       - name: Install development dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
+          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./performance[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
 
       - name: Check lint and formatting
         run: |
-          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
-          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
+          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
+          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
 
       - name: Check static types
-        run: python -m mypy cir/src preview/src dialogue/src parity/src adapters/unreal/src adapters/unity/src backend/app scripts
+        run: python -m mypy cir/src preview/src dialogue/src performance/src parity/src adapters/unreal/src adapters/unity/src backend/app scripts
 
       - name: Check generated contracts
         run: |
           python cir/scripts/export_schema.py --check
           python preview/scripts/export_artifacts.py --check
           python dialogue/scripts/export_artifacts.py --check
+          python performance/scripts/export_artifacts.py --check
           python parity/scripts/export_artifacts.py --check
           python adapters/unreal/scripts/export_artifacts.py --check
           python adapters/unity/scripts/export_artifacts.py --check
 
       - name: Run tests with coverage
         run: |
-          python -m pytest cir/tests preview/tests dialogue/tests parity/tests adapters/unreal/tests adapters/unity/tests backend/tests -q \
+          python -m pytest cir/tests preview/tests dialogue/tests performance/tests parity/tests adapters/unreal/tests adapters/unity/tests backend/tests -q --import-mode=importlib \
             --cov=cutsceneai_cir \
             --cov=cutsceneai_preview \
             --cov=cutsceneai_dialogue \
+            --cov=cutsceneai_performance \
             --cov=cutsceneai_parity \
             --cov=cutsceneai_unreal \
             --cov=cutsceneai_unity \

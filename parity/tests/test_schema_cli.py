@@ -112,9 +112,7 @@ def test_cli_writes_expected_and_returns_nonzero_for_mismatch(
     assert "missing_engine_readback" in {item["code"] for item in report["issues"]}
 
 
-def test_cli_accepts_utf8_bom_readback(
-    cir_project: Project, tmp_path: Path
-) -> None:
+def test_cli_accepts_utf8_bom_readback(cir_project: Project, tmp_path: Path) -> None:
     cir_path = tmp_path / "scene.cir.json"
     cir_path.write_text(
         json.dumps(cir_project.model_dump(mode="json")), encoding="utf-8"

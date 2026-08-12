@@ -22,7 +22,6 @@ from .models import (
     TimelineSemantics,
 )
 
-
 T = TypeVar("T")
 
 
@@ -536,13 +535,13 @@ def _check_realization(
 
     for cue_id in sorted(animations.keys() & performance_ids):
         section = animations[cue_id]
-        cue = performance_by_id[cue_id]
+        performance_cue = performance_by_id[cue_id]
         _compare_frame(
             issues,
             scope=scope,
             semantic_id=cue_id,
             field="animation.start_frame",
-            expected=cue.start_frame,
+            expected=performance_cue.start_frame,
             actual=section.start_frame,
             tolerance_frames=tolerance_frames,
         )
@@ -551,7 +550,7 @@ def _check_realization(
             scope=scope,
             semantic_id=cue_id,
             field="animation.end_frame",
-            expected=cue.end_frame,
+            expected=performance_cue.end_frame,
             actual=section.end_frame,
             tolerance_frames=tolerance_frames,
         )
@@ -560,32 +559,32 @@ def _check_realization(
             scope=scope,
             semantic_id=cue_id,
             field="animation.actor_binding_id",
-            expected=cue.actor_binding_id,
+            expected=performance_cue.actor_binding_id,
             actual=section.actor_binding_id,
         )
 
     for cue_id in sorted(audio.keys() & dialogue_ids):
         section = audio[cue_id]
-        cue = dialogue_by_id[cue_id]
+        dialogue_cue = dialogue_by_id[cue_id]
         _compare_frame(
             issues,
             scope=scope,
             semantic_id=cue_id,
             field="audio.start_frame",
-            expected=cue.start_frame,
+            expected=dialogue_cue.start_frame,
             actual=section.start_frame,
             tolerance_frames=tolerance_frames,
         )
-        if section.end_frame > cue.window_end_frame + tolerance_frames:
+        if section.end_frame > dialogue_cue.window_end_frame + tolerance_frames:
             _issue(
                 issues,
                 scope=scope,
                 code="audio_exceeds_dialogue_window",
                 semantic_id=cue_id,
                 field="audio.end_frame",
-                expected=f"<= {cue.window_end_frame}",
+                expected=f"<= {dialogue_cue.window_end_frame}",
                 actual=section.end_frame,
-                delta_frames=section.end_frame - cue.window_end_frame,
+                delta_frames=section.end_frame - dialogue_cue.window_end_frame,
                 message=f"Audio section '{cue_id}' exceeds its CIR performance window.",
             )
         _compare_value(
@@ -593,7 +592,7 @@ def _check_realization(
             scope=scope,
             semantic_id=cue_id,
             field="audio.actor_binding_id",
-            expected=cue.actor_binding_id,
+            expected=dialogue_cue.actor_binding_id,
             actual=section.actor_binding_id,
         )
 
