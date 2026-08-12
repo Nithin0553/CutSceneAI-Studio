@@ -17,7 +17,6 @@ from cutsceneai_unity import (
     render_unity_plan_json_schema,
 )
 
-
 ROOT = Path(__file__).resolve().parents[3]
 CIR_EXAMPLE = ROOT / "cir" / "examples" / "office-dialogue.cir.json"
 UNITY_ROOT = ROOT / "adapters" / "unity"
@@ -81,7 +80,7 @@ def expected_artifacts() -> dict[Path, str]:
         UNITY_ROOT / "examples" / "office-dialogue.asset-map.example.json": (
             render_unity_asset_map(_example_asset_map(project))
         ),
-        UNITY_ROOT / "examples" / "CutSceneAIGeneratedTimeline.cs": (
+        UNITY_ROOT / "examples" / "CutSceneAISemanticMarker.cs": (
             render_unity_editor_script(plan)
         ),
     }

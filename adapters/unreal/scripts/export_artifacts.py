@@ -7,11 +7,11 @@ from cutsceneai_parity import compile_semantics
 from cutsceneai_unreal import (
     compile_project,
     render_unreal_import_script,
+    render_unreal_marker_upgrade_script,
     render_unreal_plan,
     render_unreal_plan_json_schema,
     render_unreal_readback_script,
 )
-
 
 ROOT = Path(__file__).resolve().parents[3]
 CIR_EXAMPLE = ROOT / "cir" / "examples" / "office-dialogue.cir.json"
@@ -27,6 +27,9 @@ IMPORTER_OUTPUT = (
 READBACK_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "readback_office_dialogue.py"
 )
+MARKER_UPGRADE_OUTPUT = (
+    ROOT / "adapters" / "unreal" / "examples" / "upgrade_office_dialogue_markers.py"
+)
 
 
 def expected_artifacts() -> dict[Path, str]:
@@ -39,6 +42,7 @@ def expected_artifacts() -> dict[Path, str]:
         EXAMPLE_OUTPUT: render_unreal_plan(plan),
         IMPORTER_OUTPUT: render_unreal_import_script(plan, semantics),
         READBACK_OUTPUT: render_unreal_readback_script(plan, semantics),
+        MARKER_UPGRADE_OUTPUT: render_unreal_marker_upgrade_script(plan, semantics),
     }
 
 

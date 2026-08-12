@@ -13,7 +13,7 @@ from .serialization import render_parity_report, render_timeline_semantics
 
 
 def _load_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def _write_or_print(content: str, output: Path | None) -> None:

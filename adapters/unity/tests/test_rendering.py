@@ -4,8 +4,11 @@ import re
 from pathlib import Path
 
 from cutsceneai_cir import Project
-from cutsceneai_unity import compile_project, render_unity_editor_script
-
+from cutsceneai_unity import (
+    UNITY_EDITOR_SCRIPT_FILENAME,
+    compile_project,
+    render_unity_editor_script,
+)
 
 UNITY_ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,8 +31,24 @@ def test_editor_script_is_deterministic_self_contained_and_non_destructive(
     assert _embedded_plan(first) == plan.model_dump(mode="json")
     assert "Refusing to replace existing Timeline asset" in first
     assert "Refusing to replace existing Scene asset" in first
+    assert "Refusing to replace existing semantic metadata asset" in first
     assert "AssetDatabase.LoadAssetAtPath<AnimationClip>" in first
     assert "AssetDatabase.LoadAssetAtPath<AudioClip>" in first
+    assert "AssetDatabase.AddObjectToAsset" not in first
+    assert 'private const string MetadataSuffix = ".semantics.json";' in first
+    assert "File.WriteAllText(" in first
+    assert "AssetDatabase.LoadAssetAtPath<TextAsset>(metadataPath)" in first
+    assert "placeholder = playable.clip == null" in first
+    assert UNITY_EDITOR_SCRIPT_FILENAME == "CutSceneAISemanticMarker.cs"
+    assert "public sealed class CutSceneAISemanticMarker" in first
+    assert "Keep this file named CutSceneAISemanticMarker.cs" in first
+    import_index = first.index("AssetDatabase.ImportAsset(")
+    save_index = first.rindex("AssetDatabase.SaveAssets();", 0, import_index)
+    scene_save_index = first.index("EditorSceneManager.SaveScene(", import_index)
+    assert save_index < import_index < scene_save_index
+    assert "BindSavedTracks(savedTimeline, director, actors, cameras);" in first
+    assert "Unity could not reload the saved Timeline asset" in first
+    assert "Unity could not import semantic metadata asset" in first
 
 
 def test_editor_script_builds_native_tracks_and_engine_readback(
@@ -70,7 +89,7 @@ def test_hostile_project_text_never_enters_csharp_source(cir_project: Project) -
 
 def test_committed_editor_script_matches_renderer(cir_project: Project) -> None:
     expected = render_unity_editor_script(compile_project(cir_project))
-    actual = (UNITY_ROOT / "examples" / "CutSceneAIGeneratedTimeline.cs").read_text(
+    actual = (UNITY_ROOT / "examples" / UNITY_EDITOR_SCRIPT_FILENAME).read_text(
         encoding="utf-8"
     )
     assert actual == expected

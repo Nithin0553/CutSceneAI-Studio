@@ -8,14 +8,20 @@ from pathlib import Path
 from cutsceneai_cir import validate_project
 from cutsceneai_parity import compile_semantics, render_timeline_semantics
 from cutsceneai_unity import (
+    UNITY_EDITOR_SCRIPT_FILENAME,
     UnityAssetMap,
-    compile_project as compile_unity,
     render_unity_editor_script,
     render_unity_plan,
 )
+from cutsceneai_unity import (
+    compile_project as compile_unity,
+)
 from cutsceneai_unreal import (
     compile_project as compile_unreal,
+)
+from cutsceneai_unreal import (
     render_unreal_import_script,
+    render_unreal_marker_upgrade_script,
     render_unreal_plan,
     render_unreal_readback_script,
 )
@@ -93,7 +99,7 @@ def compile_bundle(
     )
     _write(output_directory / "unity.plan.json", render_unity_plan(unity_plan))
     _write(
-        output_directory / "CutSceneAIGeneratedTimeline.cs",
+        output_directory / UNITY_EDITOR_SCRIPT_FILENAME,
         render_unity_editor_script(unity_plan),
     )
     _write(output_directory / "unreal.plan.json", render_unreal_plan(unreal_plan))
@@ -104,6 +110,10 @@ def compile_bundle(
     _write(
         output_directory / "cutsceneai-unreal-readback.py",
         render_unreal_readback_script(unreal_plan, semantics),
+    )
+    _write(
+        output_directory / "cutsceneai-unreal-upgrade-markers.py",
+        render_unreal_marker_upgrade_script(unreal_plan, semantics),
     )
 
 

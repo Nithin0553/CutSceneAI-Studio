@@ -27,7 +27,7 @@ from .models import (
     UnityTransform,
     UnityVector,
 )
-from .rendering import render_unity_editor_script
+from .rendering import UNITY_EDITOR_SCRIPT_FILENAME, render_unity_editor_script
 from .schema import (
     JSON_SCHEMA_DIALECT,
     UNITY_ASSET_MAP_SCHEMA_ID,
@@ -45,6 +45,7 @@ __all__ = [
     "DEFAULT_TIMELINE_PATH",
     "JSON_SCHEMA_DIALECT",
     "UNITY_ASSET_MAP_SCHEMA_ID",
+    "UNITY_EDITOR_SCRIPT_FILENAME",
     "UNITY_PLAN_SCHEMA_ID",
     "UnityActorBinding",
     "UnityAnimationAsset",

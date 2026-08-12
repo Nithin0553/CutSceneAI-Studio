@@ -6,7 +6,8 @@ The repository includes the CIR foundation, Director Agent v0.1, an engine-neutr
 pipeline, an Unreal Adapter v0.6 that produces editable Sequencer imports and imports verified
 portable dialogue bundles, a Unity Timeline Adapter v0.1, an engine-neutral timeline parity
 verifier, and Dialogue Engine v0.1 for recorded WAV ingestion and pluggable generated speech with
-exact timing and provenance.
+exact timing and provenance. The Generated Performance Package v0.1 contract now defines the
+single hashed body, facial, camera, and audio realization consumed by both engine adapters.
 
 ## What works now
 
@@ -39,6 +40,8 @@ exact timing and provenance.
 - Committed CIR, Preview, Dialogue, Unreal, Unity, and parity JSON Schema artifacts with CI drift
   detection
 - Canonical CIR fingerprinting and typed Unreal-to-Unity semantic parity reports
+- Engine-neutral generated-performance manifests with artifact hashes, model revisions, prompts,
+  configurations, seeds, and deterministic-inference metadata
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -64,7 +67,7 @@ Run these commands from the repository root. Python 3.12 is the recommended loca
 py -3.12 -m venv .venv3.12
 .\.venv3.12\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -e ".\parity[dev]" -e ".\adapters\unreal[dev]" -e ".\adapters\unity[dev]" -e ".\backend[dev]"
+python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -e ".\performance[dev]" -e ".\parity[dev]" -e ".\adapters\unreal[dev]" -e ".\adapters\unity[dev]" -e ".\backend[dev]"
 ```
 
 ### macOS or Linux
@@ -73,22 +76,23 @@ python -m pip install -e ".\cir[dev]" -e ".\preview[dev]" -e ".\dialogue[dev]" -
 python3.12 -m venv .venv3.12
 source .venv3.12/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
+python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./performance[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
 ```
 
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir preview dialogue parity adapters backend scripts
-python -m ruff format --check cir preview dialogue parity adapters backend scripts
-python -m mypy cir\src preview\src dialogue\src parity\src adapters\unreal\src adapters\unity\src backend\app scripts
+python -m ruff check cir preview dialogue performance parity adapters backend scripts
+python -m ruff format --check cir preview dialogue performance parity adapters backend scripts
+python -m mypy cir\src preview\src dialogue\src performance\src parity\src adapters\unreal\src adapters\unity\src backend\app scripts
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
 python dialogue\scripts\export_artifacts.py --check
+python performance\scripts\export_artifacts.py --check
 python parity\scripts\export_artifacts.py --check
 python adapters\unreal\scripts\export_artifacts.py --check
 python adapters\unity\scripts\export_artifacts.py --check
-python -m pytest cir\tests preview\tests dialogue\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_parity --cov=cutsceneai_unreal --cov=cutsceneai_unity --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
+python -m pytest cir\tests preview\tests dialogue\tests performance\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --cov=cutsceneai_cir --cov=cutsceneai_preview --cov=cutsceneai_dialogue --cov=cutsceneai_performance --cov=cutsceneai_parity --cov=cutsceneai_unreal --cov=cutsceneai_unity --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=95
 ```
 
 ## Run the API
@@ -137,6 +141,7 @@ The API is then available at `http://127.0.0.1:8000`.
 - `backend/` — FastAPI application and API tests
 - `preview/` — portable preview contract, compiler, storyboard renderer, and fixtures
 - `dialogue/` — recorded-audio bundling, pluggable speech generation, timing, and provenance
+- `performance/` — portable generated body, face, camera, audio, provenance, and hash contract
 - `parity/` — engine-neutral semantic readbacks, comparison contracts, CLI, and reports
 - `agents/` — Director and specialist agent implementations
 - `adapters/` — Unreal Sequencer and Unity Timeline integrations

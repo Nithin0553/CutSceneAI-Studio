@@ -55,10 +55,11 @@ Expected files:
 | --- | --- |
 | `cross-engine.manifest.json` | Source byte hash, canonical CIR hash, and engine versions |
 | `expected.semantics.json` | Engine-neutral comparison contract |
-| `CutSceneAIGeneratedTimeline.cs` | Unity importer plus readback exporter |
+| `CutSceneAISemanticMarker.cs` | Unity importer plus readback exporter; exact filename required by Unity marker serialization |
 | `unity.plan.json` | Typed Unity compilation plan |
 | `cutsceneai-unreal-import.py` | Unreal Sequencer importer |
 | `cutsceneai-unreal-readback.py` | Unreal saved-asset readback exporter |
+| `cutsceneai-unreal-upgrade-markers.py` | Guarded metadata-only upgrade for a validated legacy sequence |
 | `unreal.plan.json` | Typed Unreal compilation plan |
 
 Do not modify the CIR between this step and verification. A separate Unity asset map may be supplied
@@ -68,11 +69,12 @@ for a production-assets pass; it is not part of the CIR and does not change its 
 
 1. Create or open a Unity 6000.0 project.
 2. In Package Manager, confirm Timeline 1.8.12 (`com.unity.timeline`) is installed.
-3. Copy `build/cross-engine/CutSceneAIGeneratedTimeline.cs` to `Assets/Editor/`.
+3. Copy `build/cross-engine/CutSceneAISemanticMarker.cs` to `Assets/Editor/`. Preserve this exact
+   filename because the serialized `CutSceneAISemanticMarker` type must match its script filename.
 4. Wait for script compilation and resolve every compile error before continuing.
 5. Select **CutSceneAI > Import Generated Timeline**.
-6. Confirm `TL_SceneMeeting.playable` and `SC_SceneMeeting.unity` exist under
-   `Assets/CutSceneAI/`.
+6. Confirm `TL_SceneMeeting.playable`, `TL_SceneMeeting.semantics.json`, and
+   `SC_SceneMeeting.unity` exist under `Assets/CutSceneAI/`.
 7. Open the Timeline and confirm four performance clips and four non-overlapping camera activation
    clips span frame 0 through frame 432.
 8. Save, close the editor, reopen the same project, and select
@@ -97,6 +99,13 @@ only those known generated assets intentionally inside Unity first.
 
 The importer refuses to replace an existing Level Sequence. Resolve that exact target explicitly
 before a clean rerun.
+
+If the sequence was created before canonical `CSA|...` parity markers existed, the readback reports
+`Expected one timeline semantic marker, found 0`. Preserve that sequence and execute
+`cutsceneai-unreal-upgrade-markers.py` once. The script adds markers only after validating its
+legacy cue metadata, expected bindings, 24 fps display rate, `[0,432)` playback range, and all four
+native camera-cut ranges. Save, restart Unreal, and then execute the ordinary readback exporter.
+A divergent or partially tagged sequence is rejected instead of being relabeled.
 
 ## 5. Automatic parity gate
 

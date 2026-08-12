@@ -86,6 +86,13 @@ The generated products are:
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
 - `examples/readback_office_dialogue.py`
+- `examples/upgrade_office_dialogue_markers.py`
+
+The marker-upgrade script is only for a saved Level Sequence created before the
+cross-engine parity markers were introduced. It validates the legacy performance and dialogue
+markers, expected bindings, frame rate, playback range, and native camera-cut ranges before adding
+canonical `CSA|...` markers. It does not rebuild or alter native tracks, sections, animation, or
+audio, and it refuses partially upgraded or divergent sequences.
 
 ## Export through the API
 

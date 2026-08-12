@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-
 EXAMPLE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
 client = TestClient(app)
 
@@ -34,7 +33,7 @@ def test_export_unity_importer_returns_editor_script_with_readback() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/x-csharp")
     assert response.headers["content-disposition"] == (
-        'attachment; filename="CutSceneAIGeneratedTimeline.cs"'
+        'attachment; filename="CutSceneAISemanticMarker.cs"'
     )
     assert "CutSceneAI/Import Generated Timeline" in response.text
     assert "ExportReadbackInternal" in response.text

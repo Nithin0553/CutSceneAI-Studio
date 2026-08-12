@@ -112,6 +112,42 @@ def test_cli_writes_expected_and_returns_nonzero_for_mismatch(
     assert "missing_engine_readback" in {item["code"] for item in report["issues"]}
 
 
+def test_cli_accepts_utf8_bom_readback(
+    cir_project: Project, tmp_path: Path
+) -> None:
+    cir_path = tmp_path / "scene.cir.json"
+    cir_path.write_text(
+        json.dumps(cir_project.model_dump(mode="json")), encoding="utf-8"
+    )
+    readback = EngineTimelineReadback(
+        engine=EngineName.UNITY,
+        engine_version="6000.3.8f1",
+        adapter_version="0.1.0",
+        timeline_asset="Assets/Timeline.playable",
+        semantics=compile_semantics(cir_project),
+    )
+    readback_path = tmp_path / "unity.json"
+    readback_path.write_text(render_engine_readback(readback), encoding="utf-8-sig")
+    report_path = tmp_path / "report.json"
+
+    assert (
+        main(
+            [
+                "verify",
+                str(cir_path),
+                "--readback",
+                str(readback_path),
+                "--output",
+                str(report_path),
+            ]
+        )
+        == 0
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["equivalent"] is True
+    assert report["error_count"] == 0
+
+
 def test_cli_rejects_non_object_cir(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text("[]", encoding="utf-8")

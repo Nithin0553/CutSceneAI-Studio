@@ -1,10 +1,9 @@
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import ModuleType
 
 import pytest
-
 from cutsceneai_cir import Project
 from cutsceneai_parity import (
     EngineName,
@@ -18,7 +17,6 @@ from cutsceneai_unreal import (
     render_unreal_import_script,
     render_unreal_readback_script,
 )
-
 
 UNREAL_ROOT = Path(__file__).resolve().parents[1]
 READBACK = UNREAL_ROOT / "examples" / "readback_office_dialogue.py"
@@ -121,6 +119,10 @@ def test_generated_readback_inspects_saved_native_sequence(
         def get_guid(self) -> str:
             return self.value
 
+    class CameraBindingId:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
     class CameraComponent(Value):
         pass
 
@@ -198,12 +200,12 @@ def test_generated_readback_inspects_saved_native_sequence(
             return []
 
     class CameraSection:
-        def __init__(self, binding_id: BindingId, start: int, end: int) -> None:
+        def __init__(self, binding_id: CameraBindingId, start: int, end: int) -> None:
             self.binding_id = binding_id
             self.start = start
             self.end = end
 
-        def get_camera_binding_id(self) -> BindingId:
+        def get_camera_binding_id(self) -> CameraBindingId:
             return self.binding_id
 
         def get_start_frame(self) -> int:
@@ -322,7 +324,7 @@ def test_generated_readback_inspects_saved_native_sequence(
             cut["start_frame"],
             f"CSA|CAMERA|{cut['cut_id']}",
         )
-        binding_id = BindingId(camera["binding_id"])
+        binding_id = CameraBindingId(camera["binding_id"])
         bindings.append(
             Binding(
                 camera["display_name"],
@@ -347,6 +349,13 @@ def test_generated_readback_inspects_saved_native_sequence(
         @staticmethod
         def get_binding_id(binding: Binding) -> BindingId:
             return BindingId(binding.value)
+
+        @staticmethod
+        def resolve_binding_id(binding_id: CameraBindingId) -> Binding | None:
+            return next(
+                (binding for binding in bindings if binding.value == binding_id.value),
+                None,
+            )
 
         @staticmethod
         def find_tracks_by_exact_type(track_type) -> list:
@@ -403,7 +412,9 @@ def test_generated_readback_inspects_saved_native_sequence(
     monkeypatch.setitem(sys.modules, "unreal", unreal)
 
     namespace = {"__name__": "cutsceneai_generated_readback"}
-    exec(render_unreal_readback_script(unreal_plan, semantics), namespace)
+    exec(  # noqa: S102
+        render_unreal_readback_script(unreal_plan, semantics), namespace
+    )
     output_path = namespace["export_readback"]()
     readback = EngineTimelineReadback.model_validate(
         json.loads(output_path.read_text(encoding="utf-8"))

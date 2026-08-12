@@ -1,18 +1,18 @@
 from typing import Any
 
+from cutsceneai_cir import CIRValidationError, validate_project
+from cutsceneai_unity import (
+    UNITY_EDITOR_SCRIPT_FILENAME,
+    UnityExportPlan,
+    compile_project,
+    render_unity_editor_script,
+)
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 
 from app.api.cir_errors import domain_failure, failure_response, structural_failure
 from app.models.cir import CIRValidationFailure, CIRValidationProblem
-from cutsceneai_cir import CIRValidationError, validate_project
-from cutsceneai_unity import (
-    UnityExportPlan,
-    compile_project,
-    render_unity_editor_script,
-)
-
 
 router = APIRouter(prefix="/api/v1/adapters/unity", tags=["unity-adapter"])
 
@@ -67,5 +67,5 @@ def export_unity_importer(payload: Any = Body(...)) -> Response | JSONResponse:
     return Response(
         content=render_unity_editor_script(plan),
         media_type="text/x-csharp",
-        headers={"Content-Disposition": 'attachment; filename="CutSceneAIGeneratedTimeline.cs"'},
+        headers={"Content-Disposition": f'attachment; filename="{UNITY_EDITOR_SCRIPT_FILENAME}"'},
     )

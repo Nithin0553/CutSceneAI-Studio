@@ -1,0 +1,484 @@
+{
+  "$defs": {
+    "ArtifactFormat": {
+      "enum": [
+        "cutsceneai.motion+json",
+        "cutsceneai.face+json",
+        "cutsceneai.camera+json",
+        "audio/wav"
+      ],
+      "title": "ArtifactFormat",
+      "type": "string"
+    },
+    "ArtifactKind": {
+      "enum": [
+        "body_motion",
+        "facial_curves",
+        "camera_curves",
+        "dialogue_audio"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "ArtifactReference": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "format": {
+          "$ref": "#/$defs/ArtifactFormat"
+        },
+        "kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "relative_path": {
+          "minLength": 1,
+          "pattern": "^(?:body|face|camera|audio)/[a-z0-9][a-z0-9._-]*$",
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "format",
+        "relative_path",
+        "sha256",
+        "byte_length"
+      ],
+      "title": "ArtifactReference",
+      "type": "object"
+    },
+    "BodyMotionTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "joint_count": {
+          "exclusiveMinimum": 0,
+          "title": "Joint Count",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "sample_count": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "skeleton_profile": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Skeleton Profile",
+          "type": "string"
+        },
+        "source_performance_cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "artifact",
+        "provenance",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "skeleton_profile",
+        "joint_count",
+        "sample_count"
+      ],
+      "title": "BodyMotionTrack",
+      "type": "object"
+    },
+    "CameraAnimationTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "camera_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Camera Binding Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "sample_count": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_camera_cut_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Camera Cut Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "artifact",
+        "provenance",
+        "camera_binding_id",
+        "source_camera_cut_id",
+        "sample_count"
+      ],
+      "title": "CameraAnimationTrack",
+      "type": "object"
+    },
+    "CoordinateSpace": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_unit": {
+          "const": "meter",
+          "default": "meter",
+          "title": "Distance Unit",
+          "type": "string"
+        },
+        "forward_axis": {
+          "const": "-z",
+          "default": "-z",
+          "title": "Forward Axis",
+          "type": "string"
+        },
+        "handedness": {
+          "const": "right",
+          "default": "right",
+          "title": "Handedness",
+          "type": "string"
+        },
+        "rotation_representation": {
+          "const": "quaternion_xyzw",
+          "default": "quaternion_xyzw",
+          "title": "Rotation Representation",
+          "type": "string"
+        },
+        "up_axis": {
+          "const": "y",
+          "default": "y",
+          "title": "Up Axis",
+          "type": "string"
+        }
+      },
+      "title": "CoordinateSpace",
+      "type": "object"
+    },
+    "DialogueAudioTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "dialogue_cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Dialogue Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dialogue_cue_id",
+        "actor_binding_id",
+        "start_frame",
+        "end_frame",
+        "artifact"
+      ],
+      "title": "DialogueAudioTrack",
+      "type": "object"
+    },
+    "FacialAnimationTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "curve_count": {
+          "exclusiveMinimum": 0,
+          "title": "Curve Count",
+          "type": "integer"
+        },
+        "curve_profile": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Curve Profile",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "sample_count": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "semantic_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_dialogue_cue_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Dialogue Cue Id"
+        },
+        "source_performance_cue_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*(?::[a-z0-9][a-z0-9_-]*)+$",
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "artifact",
+        "provenance",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "curve_profile",
+        "curve_count",
+        "sample_count"
+      ],
+      "title": "FacialAnimationTrack",
+      "type": "object"
+    },
+    "ModelProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "configuration_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "deterministic_algorithms": {
+          "title": "Deterministic Algorithms",
+          "type": "boolean"
+        },
+        "generated_at_inference": {
+          "const": true,
+          "default": true,
+          "title": "Generated At Inference",
+          "type": "boolean"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "retrieved_pre_authored_clip": {
+          "const": false,
+          "default": false,
+          "title": "Retrieved Pre Authored Clip",
+          "type": "boolean"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "model_revision",
+        "prompt_sha256",
+        "configuration_sha256",
+        "seed",
+        "deterministic_algorithms"
+      ],
+      "title": "ModelProvenance",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/performance/v0.1/package.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audio_tracks": {
+      "items": {
+        "$ref": "#/$defs/DialogueAudioTrack"
+      },
+      "title": "Audio Tracks",
+      "type": "array"
+    },
+    "body_tracks": {
+      "items": {
+        "$ref": "#/$defs/BodyMotionTrack"
+      },
+      "minItems": 1,
+      "title": "Body Tracks",
+      "type": "array"
+    },
+    "camera_tracks": {
+      "items": {
+        "$ref": "#/$defs/CameraAnimationTrack"
+      },
+      "minItems": 1,
+      "title": "Camera Tracks",
+      "type": "array"
+    },
+    "cir_fingerprint_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cir Fingerprint Sha256",
+      "type": "string"
+    },
+    "cir_schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Cir Schema Version",
+      "type": "string"
+    },
+    "coordinate_space": {
+      "$ref": "#/$defs/CoordinateSpace"
+    },
+    "duration_frames": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Frames",
+      "type": "integer"
+    },
+    "facial_tracks": {
+      "items": {
+        "$ref": "#/$defs/FacialAnimationTrack"
+      },
+      "title": "Facial Tracks",
+      "type": "array"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "package_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Package Version",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "cir_fingerprint_sha256",
+    "fps",
+    "duration_frames",
+    "body_tracks",
+    "camera_tracks"
+  ],
+  "title": "GeneratedPerformancePackage",
+  "type": "object"
+}

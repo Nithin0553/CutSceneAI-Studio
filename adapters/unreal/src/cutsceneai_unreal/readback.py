@@ -6,7 +6,6 @@ from cutsceneai_parity import TimelineSemantics
 
 from .models import UnrealExportPlan
 
-
 _READBACK_TEMPLATE = '''"""Generated CutSceneAI Unreal semantic readback exporter.
 
 Run this file inside Unreal Editor after importing and saving the generated Level Sequences.
@@ -177,6 +176,20 @@ def _semantic_camera(value, start_frame, end_frame, *, cut_id=None):
     }
 
 
+def _resolved_binding_display_name(sequence, binding_id, binding_name_by_key):
+    try:
+        binding = sequence.resolve_binding_id(binding_id)
+        try:
+            is_valid = binding.is_valid()
+        except Exception:
+            is_valid = True
+        if is_valid:
+            return _display_name(binding)
+    except Exception:
+        pass
+    return binding_name_by_key.get(_binding_key(binding_id))
+
+
 def _camera_ranges(sequence, binding_name_by_key):
     result = []
     tracks = sequence.find_tracks_by_exact_type(
@@ -185,7 +198,9 @@ def _camera_ranges(sequence, binding_name_by_key):
     for track in tracks:
         for section in track.get_sections():
             binding_id = section.get_camera_binding_id()
-            display_name = binding_name_by_key.get(_binding_key(binding_id))
+            display_name = _resolved_binding_display_name(
+                sequence, binding_id, binding_name_by_key
+            )
             start_frame, end_frame = _section_range(section)
             result.append((display_name, start_frame, end_frame))
     return sorted(result, key=lambda item: (item[1], item[2], str(item[0])))
