@@ -15,16 +15,15 @@ from .models import (
 )
 from .motion import BodyMotionArtifact, resample_body_motion
 
-ArtifactT_co = TypeVar("ArtifactT_co", covariant=True)
 ArtifactT = TypeVar("ArtifactT")
 
 
 @dataclass(frozen=True, slots=True)
-class ProviderArtifact(Generic[ArtifactT_co]):
+class ProviderArtifact(Generic[ArtifactT]):
     """Canonical provider samples plus the exact request metadata used to create them."""
 
     request_semantic_id: str
-    artifact: ArtifactT_co
+    artifact: ArtifactT
     provider: str
     model: str
     model_revision: str
@@ -37,11 +36,11 @@ class ProviderArtifact(Generic[ArtifactT_co]):
 
 
 @dataclass(frozen=True, slots=True)
-class NormalizedArtifact(Generic[ArtifactT_co]):
+class NormalizedArtifact(Generic[ArtifactT]):
     """Provider output validated and fitted to its exact generation-request window."""
 
     request_semantic_id: str
-    artifact: ArtifactT_co
+    artifact: ArtifactT
     provenance: ModelProvenance
 
 
@@ -65,7 +64,7 @@ class CameraGenerationBackend(Protocol):
 
 def _provenance(
     request: GenerationRequest,
-    output: ProviderArtifact[object],
+    output: ProviderArtifact[ArtifactT],
 ) -> ModelProvenance:
     echoed_fields = {
         "request_semantic_id": (request.semantic_id, output.request_semantic_id),
