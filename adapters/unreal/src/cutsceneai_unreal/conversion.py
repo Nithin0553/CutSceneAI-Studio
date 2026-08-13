@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from math import copysign, sqrt
+from typing import Protocol
 
-from cutsceneai_cir import Quaternion, Transform, Vector3
+from cutsceneai_cir import Transform
 
 from .models import UnrealQuaternion, UnrealTransform, UnrealVector
 
@@ -11,11 +12,24 @@ _EPSILON = 1e-12
 _CLEAN_EPSILON = 1e-8
 
 
+class _Vector3Like(Protocol):
+    x: float
+    y: float
+    z: float
+
+
+class _QuaternionLike(Protocol):
+    x: float
+    y: float
+    z: float
+    w: float
+
+
 def _clean(value: float) -> float:
     return 0.0 if abs(value) <= _CLEAN_EPSILON else value
 
 
-def convert_position(position: Vector3) -> UnrealVector:
+def convert_position(position: _Vector3Like) -> UnrealVector:
     """Convert CIR right-handed, Y-up meters into Unreal left-handed, Z-up centimeters."""
 
     return UnrealVector(
@@ -25,13 +39,13 @@ def convert_position(position: Vector3) -> UnrealVector:
     )
 
 
-def convert_scale(scale: Vector3) -> UnrealVector:
+def convert_scale(scale: _Vector3Like) -> UnrealVector:
     """Map scale components into Unreal's semantic forward/right/up axes."""
 
     return UnrealVector(x=scale.z, y=scale.x, z=scale.y)
 
 
-def convert_quaternion(rotation: Quaternion) -> UnrealQuaternion:
+def convert_quaternion(rotation: _QuaternionLike) -> UnrealQuaternion:
     """Convert an orientation across the CIR-to-Unreal reflected basis."""
 
     norm = sqrt(

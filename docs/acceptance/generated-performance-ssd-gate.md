@@ -20,11 +20,11 @@ reported as generated-performance evidence.
 | Canonical transform, filmback, and focal-length camera contract and resampler | Complete |
 | Provider interfaces and canonical output normalization | Complete |
 | Package assembly, hash/provenance verification, and archive/path safety | Complete |
-| Unreal 5.8 and Unity 6 generated-artifact mappings | Pending |
+| Unreal 5.8 and Unity 6 generated-artifact mappings | Complete |
 | Reliability, repeatability, portability, and native-realization harnesses | Pending |
 
-The SSD is not yet required. Unreal/Unity generated-artifact mappings and the experiment harnesses
-remain repository-only work and must be completed before the mandatory trigger below is reached.
+The SSD is not yet required. The experiment and native-realization harnesses remain repository-only
+work and must be completed before the mandatory trigger below is reached.
 
 ## Work that continues without the SSD
 

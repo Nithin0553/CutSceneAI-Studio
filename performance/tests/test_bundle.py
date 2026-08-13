@@ -16,6 +16,7 @@ from cutsceneai_performance import (
     PerformanceInputError,
     PerformanceOutputError,
     assemble_performance_bundle,
+    decode_performance_bundle,
     load_performance_bundle,
     render_performance_bundle,
     verify_performance_bundle,
@@ -102,6 +103,19 @@ def test_assembler_creates_complete_hashed_engine_neutral_bundle(
         assert track.artifact.byte_length == len(data)
     with pytest.raises(TypeError):
         bundle.artifact_files["body/not-allowed.json"] = b"mutation"  # type: ignore[index]
+
+
+def test_decoder_exposes_immutable_typed_artifacts(performance_fixture: Any) -> None:
+    bundle = assembled(performance_fixture)
+
+    decoded = decode_performance_bundle(bundle)
+
+    assert decoded.body_artifacts["body:fixture:mina"].frame_count == 4
+    assert decoded.facial_artifacts["face:fixture:mina"].frame_count == 4
+    assert decoded.camera_artifacts["camera-motion:fixture:shot"].frame_count == 4
+    assert decoded.audio_artifacts["dialogue:fixture:mina"].startswith(b"RIFF")
+    with pytest.raises(TypeError):
+        decoded.audio_artifacts["dialogue:fixture:mina"] = b"mutation"  # type: ignore[index]
 
 
 def test_bundle_zip_is_deterministic_and_round_trips(

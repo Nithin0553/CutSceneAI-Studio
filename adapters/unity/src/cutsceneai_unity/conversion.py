@@ -1,17 +1,32 @@
 from __future__ import annotations
 
-from cutsceneai_cir import Quaternion, Transform, Vector3
+from typing import Protocol
+
+from cutsceneai_cir import Transform
 
 from .models import UnityQuaternion, UnityTransform, UnityVector
 
 
-def convert_position(position: Vector3) -> UnityVector:
+class _Vector3Like(Protocol):
+    x: float
+    y: float
+    z: float
+
+
+class _QuaternionLike(Protocol):
+    x: float
+    y: float
+    z: float
+    w: float
+
+
+def convert_position(position: _Vector3Like) -> UnityVector:
     """Convert CIR right-handed Y-up coordinates into Unity left-handed Y-up coordinates."""
 
     return UnityVector(x=position.x, y=position.y, z=-position.z)
 
 
-def convert_quaternion(rotation: Quaternion) -> UnityQuaternion:
+def convert_quaternion(rotation: _QuaternionLike) -> UnityQuaternion:
     """Reflect a CIR quaternion across Z for Unity's left-handed coordinates."""
 
     return UnityQuaternion(
@@ -22,7 +37,7 @@ def convert_quaternion(rotation: Quaternion) -> UnityQuaternion:
     )
 
 
-def convert_scale(scale: Vector3) -> UnityVector:
+def convert_scale(scale: _Vector3Like) -> UnityVector:
     return UnityVector(x=scale.x, y=scale.y, z=scale.z)
 
 

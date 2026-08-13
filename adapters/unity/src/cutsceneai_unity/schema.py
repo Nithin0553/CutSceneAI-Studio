@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from .models import UnityAssetMap, UnityExportPlan
+from .performance_models import UnityPerformanceMapping
 
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
@@ -13,6 +14,10 @@ UNITY_PLAN_SCHEMA_ID = (
 )
 UNITY_ASSET_MAP_SCHEMA_ID = (
     "https://schemas.cutsceneai.dev/unity/v0.1/asset-map.schema.json"
+)
+UNITY_PERFORMANCE_MAPPING_SCHEMA_ID = (
+    "https://schemas.cutsceneai.dev/adapters/unity/generated-performance/"
+    "v0.1/mapping.schema.json"
 )
 
 
@@ -29,6 +34,10 @@ def unity_asset_map_json_schema() -> dict[str, Any]:
     return _schema(UnityAssetMap, UNITY_ASSET_MAP_SCHEMA_ID)
 
 
+def unity_performance_mapping_json_schema() -> dict[str, Any]:
+    return _schema(UnityPerformanceMapping, UNITY_PERFORMANCE_MAPPING_SCHEMA_ID)
+
+
 def _render(schema: dict[str, Any]) -> str:
     return json.dumps(schema, indent=2, sort_keys=True) + "\n"
 
@@ -39,6 +48,10 @@ def render_unity_plan_json_schema() -> str:
 
 def render_unity_asset_map_json_schema() -> str:
     return _render(unity_asset_map_json_schema())
+
+
+def render_unity_performance_mapping_json_schema() -> str:
+    return _render(unity_performance_mapping_json_schema())
 
 
 def write_json_schema(path: str | Path, content: str) -> Path:

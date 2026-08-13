@@ -104,10 +104,29 @@ The automated bundle tests use small synthetic numerical and PCM fixtures. They 
 contract and failure behavior only; they are not evidence that a body, facial, or camera model has
 run successfully.
 
+## Engine mapping boundary
+
+`verify_performance_bundle_semantics` verifies that a bundle belongs to exactly one unchanged
+timeline scene before an adapter can map it. Project identity, CIR fingerprint, frame rate,
+duration, body and facial cue bindings, camera cuts, audio cues, and dialogue windows must all
+match exactly.
+
+Both adapters then decode the same verified artifact bytes and retain every source artifact hash
+and model-provenance record. Unreal maps the canonical 22-joint profile to the UE5 Mannequin bone
+contract, converts world samples to left-handed Z-up centimeters, and targets `/Game/...` assets.
+Unity maps the same joints to Humanoid bones, converts samples to left-handed Y-up meters, and
+targets `Assets/...` animation and audio files. Both map the fixed facial curve order to the 52
+lower-camel-case ARKit blendshape names and preserve camera filmback, focal length, and exact
+half-open frame windows.
+
+The committed mapping JSON Schemas and synthetic tests prove deterministic conversion and reject
+semantic, binding, frame, joint, curve, and target-path drift. They are plans for native asset
+realization, not proof that either editor imported, saved, reopened, or rendered generated assets.
+
 The large model runtime, checkpoints, model datasets, SMPL assets, and real inference outputs are
 intentionally deferred until the external-SSD gate in
 [`docs/acceptance/generated-performance-ssd-gate.md`](../docs/acceptance/generated-performance-ssd-gate.md).
-The schema, validators, resampler, adapter boundaries, package assembly, and experiment harnesses
+The schemas, validators, resamplers, adapter mappings, package assembly, and experiment harnesses
 remain normal repository work and do not depend on that storage device.
 
 Regenerate or check the committed schema with:

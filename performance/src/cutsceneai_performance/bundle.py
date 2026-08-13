@@ -85,6 +85,16 @@ class PerformanceBundle:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class DecodedPerformanceBundle:
+    """Typed canonical artifacts from one already verified performance bundle."""
+
+    body_artifacts: Mapping[str, BodyMotionArtifact]
+    facial_artifacts: Mapping[str, FacialCurveArtifact]
+    camera_artifacts: Mapping[str, CameraCurveArtifact]
+    audio_artifacts: Mapping[str, bytes]
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -611,6 +621,51 @@ def verify_performance_bundle(bundle: PerformanceBundle) -> None:
             raise PerformanceOutputError(
                 f"Audio track '{audio_track.dialogue_cue_id}' does not match its WAV duration."
             )
+
+
+def decode_performance_bundle(bundle: PerformanceBundle) -> DecodedPerformanceBundle:
+    """Verify a bundle and expose its artifacts as immutable typed mappings."""
+
+    verify_performance_bundle(bundle)
+    package = bundle.package
+    return DecodedPerformanceBundle(
+        body_artifacts=MappingProxyType(
+            {
+                track.semantic_id: _parse_json_model(
+                    _artifact_data(bundle, track.artifact),
+                    label=track.artifact.relative_path,
+                    model=BodyMotionArtifact,
+                )
+                for track in package.body_tracks
+            }
+        ),
+        facial_artifacts=MappingProxyType(
+            {
+                track.semantic_id: _parse_json_model(
+                    _artifact_data(bundle, track.artifact),
+                    label=track.artifact.relative_path,
+                    model=FacialCurveArtifact,
+                )
+                for track in package.facial_tracks
+            }
+        ),
+        camera_artifacts=MappingProxyType(
+            {
+                track.semantic_id: _parse_json_model(
+                    _artifact_data(bundle, track.artifact),
+                    label=track.artifact.relative_path,
+                    model=CameraCurveArtifact,
+                )
+                for track in package.camera_tracks
+            }
+        ),
+        audio_artifacts=MappingProxyType(
+            {
+                track.dialogue_cue_id: _artifact_data(bundle, track.artifact)
+                for track in package.audio_tracks
+            }
+        ),
+    )
 
 
 def _write_entry(archive: ZipFile, path: str, data: bytes) -> None:

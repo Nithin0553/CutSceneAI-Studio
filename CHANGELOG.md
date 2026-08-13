@@ -26,6 +26,14 @@ versions until the first unified Studio release.
 - Deterministic Generated Performance ZIP assembly and untrusted loading with exact plan/manifest
   relationships, artifact entry sets, SHA-256 and byte-length checks, PCM frame timing, archive
   limits, safe paths, and compression/encryption rejection.
+- Exact bundle-to-timeline semantic verification for project, fingerprint, frame rate, scene,
+  body, face, camera, audio, and dialogue-window identities before engine mapping.
+- Typed Unreal 5.8 generated-performance mappings from the canonical 22-joint profile to UE5
+  Mannequin bones, ARKit-52 face curves, Cine Camera samples, and deterministic `/Game/...` targets.
+- Typed Unity 6 generated-performance mappings from the same bundle to Humanoid bones, ARKit-52
+  blendshapes, Camera samples, and deterministic `Assets/...` animation and audio targets.
+- Public Unreal and Unity generated-performance mapping JSON Schemas with preserved source bundle,
+  artifact, CIR, and provider-provenance hashes.
 - An explicit external-SSD dependency gate that allows contracts, adapters, packaging, and
   experiment harnesses to continue while preventing dry runs from being presented as real
   generated-performance evidence.
@@ -76,6 +84,9 @@ versions until the first unified Studio release.
   complete, but final acceptance requires both readbacks after editor restart and a zero-error
   parity report. Placeholder animation and missing audio remain explicit realization warnings and
   fail the strict production gate.
+- Generated-performance mappings are deterministic plans, not native editor assets. Native
+  realization, save/reopen readback, and rendering remain part of the pending non-SSD harness and
+  later inference-backed acceptance.
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
   beat and shot pacing are never silently extended. Project-wide asset discovery, environment
   resolution, facial animation, spatial audio, and voice cloning remain later milestones.
@@ -90,8 +101,8 @@ versions until the first unified Studio release.
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 79 source files, all seven schema/artifact drift checks,
-  and 375 automated tests passed locally with 97.12% branch-aware coverage. The 153 Generated
+- Ruff check and formatting, mypy across 84 source files, all seven schema/artifact drift checks,
+  and 426 automated tests passed locally with 97.44% branch-aware coverage. The 162 Generated
   Performance tests retain 100% statement and branch coverage.
 - Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
   required before merge.

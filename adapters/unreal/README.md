@@ -71,6 +71,23 @@ Level Sequence target, refuses replacement, imports through `AssetImportTask`, a
 result as a `SoundBase`. Audio section end frames come from the Dialogue manifest rather than the
 enclosing performance range.
 
+## Generated Performance mapping contract
+
+`compile_performance_bundle` accepts one verified Generated Performance Package plus the exact
+timeline semantics and Unreal export plan. It rejects identity, frame-rate, scene, actor, camera,
+or target-path drift, then emits `UnrealPerformanceMapping` with:
+
+- canonical 22-joint body samples converted to Unreal centimeters and mapped to the UE5 Mannequin;
+- fixed ARKit-52 curve bindings using native lower-camel-case blendshape names;
+- per-frame Cine Camera transform, filmback, focal-length, and cut bindings;
+- deterministic `/Game/CutSceneAI/GeneratedPerformance/...` animation and Sound Wave targets; and
+- the unchanged bundle SHA-256, CIR fingerprint, artifact references, and model provenance.
+
+The public contract is committed at `schemas/unreal-performance-mapping-v0.1.schema.json`. This
+mapping is deterministic adapter input for the forthcoming native-realization harness. It does not
+yet create an Anim Sequence, facial curve asset, Cine Camera keys, or Sound Wave in Unreal, and it
+is not Unreal acceptance evidence.
+
 ## Generate the committed artifacts
 
 From the repository root:
@@ -83,6 +100,7 @@ python adapters\unreal\scripts\export_artifacts.py --check
 The generated products are:
 
 - `schemas/unreal-sequencer-plan-v0.6.schema.json`
+- `schemas/unreal-performance-mapping-v0.1.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
 - `examples/readback_office_dialogue.py`

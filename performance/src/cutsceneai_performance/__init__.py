@@ -6,8 +6,10 @@ from .bundle import (
     PERFORMANCE_MANIFEST_PATH,
     PERFORMANCE_PLAN_PATH,
     DialogueAudioArtifact,
+    DecodedPerformanceBundle,
     PerformanceBundle,
     assemble_performance_bundle,
+    decode_performance_bundle,
     load_performance_bundle,
     render_performance_bundle,
     verify_performance_bundle,
@@ -22,6 +24,7 @@ from .camera import (
 from .compiler import compile_generation_plan
 from .errors import PerformanceError, PerformanceInputError, PerformanceOutputError
 from .facial import (
+    ARKIT_52_BLENDSHAPE_NAMES,
     ARKIT_52_CURVES,
     FACIAL_RESAMPLING_METHOD,
     FacialCurveArtifact,
@@ -88,6 +91,7 @@ from .schema import (
     write_facial_curve_json_schema,
     write_performance_package_json_schema,
 )
+from .semantics import verify_performance_bundle_semantics
 from .serialization import (
     body_motion_artifact_sha256,
     camera_curve_artifact_sha256,
@@ -101,6 +105,7 @@ from .serialization import (
 )
 
 __all__ = [
+    "ARKIT_52_BLENDSHAPE_NAMES",
     "ARKIT_52_CURVES",
     "BODY_MOTION_SCHEMA_ID",
     "CAMERA_CURVE_SCHEMA_ID",
@@ -135,6 +140,7 @@ __all__ = [
     "CoordinateSpace",
     "DialogueAudioTrack",
     "DialogueAudioArtifact",
+    "DecodedPerformanceBundle",
     "FacialAnimationTrack",
     "FacialCurveArtifact",
     "FacialCurveSample",
@@ -160,6 +166,7 @@ __all__ = [
     "camera_curve_artifact_sha256",
     "camera_curve_json_schema",
     "assemble_performance_bundle",
+    "decode_performance_bundle",
     "compile_generation_plan",
     "facial_curve_artifact_sha256",
     "facial_curve_json_schema",
@@ -185,6 +192,7 @@ __all__ = [
     "resample_camera_curves",
     "resample_facial_curves",
     "verify_performance_bundle",
+    "verify_performance_bundle_semantics",
     "write_body_motion_json_schema",
     "write_camera_curve_json_schema",
     "write_facial_curve_json_schema",

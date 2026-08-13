@@ -52,6 +52,9 @@ single hashed body, facial, camera, and audio realization consumed by both engin
   matching and exact-frame output normalization
 - A deterministic Generated Performance ZIP assembler and untrusted loader with exact entry,
   hash, timing, provenance, compression, size, and path-safety verification
+- Exact bundle-to-timeline semantic binding before either engine can consume generated artifacts
+- Deterministic Unreal 5.8 and Unity 6 mapping plans for canonical body motion, ARKit-52 face
+  curves, animated camera/lens samples, dialogue WAVs, source hashes, and model provenance
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -66,7 +69,7 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
 | Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6 |
-| Generated performance | Compile, normalize, and package generated artifacts | Package, plan, canonical artifacts, provider boundary, and verified portable ZIP implemented; engine mappings next; real inference SSD-blocked |
+| Generated performance | Compile, normalize, package, and map generated artifacts | Package, plan, canonical artifacts, provider boundary, verified portable ZIP, and both engine mapping contracts implemented; native-realization harness next; real inference SSD-blocked |
 
 ## Local setup
 
@@ -93,8 +96,8 @@ python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -
 ## Run the quality gate
 
 ```powershell
-python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts
-python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts
+python -m ruff check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts cutsceneai_test_support
+python -m ruff format --check cir\src cir\scripts cir\tests preview\src preview\scripts preview\tests dialogue\src dialogue\scripts dialogue\tests performance\src performance\scripts performance\tests parity\src parity\scripts parity\tests adapters\unreal\src adapters\unreal\scripts adapters\unreal\tests adapters\unity\src adapters\unity\scripts adapters\unity\tests backend\app backend\tests scripts cutsceneai_test_support
 python -m mypy cir\src preview\src dialogue\src performance\src parity\src adapters\unreal\src adapters\unity\src backend\app scripts
 python cir\scripts\export_schema.py --check
 python preview\scripts\export_artifacts.py --check
@@ -158,6 +161,7 @@ The API is then available at `http://127.0.0.1:8000`.
 - `adapters/` — Unreal Sequencer and Unity Timeline integrations
 - `shared/` — reusable fixtures and cross-service components
 - `tests/` — future acceptance and integration suites
+- `cutsceneai_test_support/` — deterministic fixtures shared across package test suites
 - `infrastructure/` — deployment assets
 - `ROADMAP.md` — ordered product milestones and acceptance gates through Studio v1.0
 - `CHANGELOG.md` — user-visible release history and current unreleased scope

@@ -9,6 +9,7 @@ from cutsceneai_unreal import (
     render_unreal_import_script,
     render_unreal_marker_upgrade_script,
     render_unreal_plan,
+    render_unreal_performance_mapping_json_schema,
     render_unreal_plan_json_schema,
     render_unreal_readback_script,
 )
@@ -17,6 +18,13 @@ ROOT = Path(__file__).resolve().parents[3]
 CIR_EXAMPLE = ROOT / "cir" / "examples" / "office-dialogue.cir.json"
 SCHEMA_OUTPUT = (
     ROOT / "adapters" / "unreal" / "schemas" / "unreal-sequencer-plan-v0.6.schema.json"
+)
+PERFORMANCE_MAPPING_SCHEMA_OUTPUT = (
+    ROOT
+    / "adapters"
+    / "unreal"
+    / "schemas"
+    / "unreal-performance-mapping-v0.1.schema.json"
 )
 EXAMPLE_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "office-dialogue.unreal.json"
@@ -39,6 +47,9 @@ def expected_artifacts() -> dict[Path, str]:
     semantics = compile_semantics(project)
     return {
         SCHEMA_OUTPUT: render_unreal_plan_json_schema(),
+        PERFORMANCE_MAPPING_SCHEMA_OUTPUT: (
+            render_unreal_performance_mapping_json_schema()
+        ),
         EXAMPLE_OUTPUT: render_unreal_plan(plan),
         IMPORTER_OUTPUT: render_unreal_import_script(plan, semantics),
         READBACK_OUTPUT: render_unreal_readback_script(plan, semantics),

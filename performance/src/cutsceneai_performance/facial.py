@@ -66,6 +66,11 @@ ARKIT_52_CURVES = (
     "nose_sneer_right",
     "tongue_out",
 )
+ARKIT_52_BLENDSHAPE_NAMES = tuple(
+    parts[0] + "".join(part.title() for part in parts[1:])
+    for curve_name in ARKIT_52_CURVES
+    if (parts := curve_name.split("_"))
+)
 FACIAL_RESAMPLING_METHOD: Literal["endpoint-preserving-linear-v1"] = (
     LINEAR_RESAMPLING_METHOD
 )

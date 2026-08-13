@@ -1,0 +1,684 @@
+{
+  "$defs": {
+    "ArtifactFormat": {
+      "enum": [
+        "cutsceneai.motion+json",
+        "cutsceneai.face+json",
+        "cutsceneai.camera+json",
+        "audio/wav"
+      ],
+      "title": "ArtifactFormat",
+      "type": "string"
+    },
+    "ArtifactKind": {
+      "enum": [
+        "body_motion",
+        "facial_curves",
+        "camera_curves",
+        "dialogue_audio"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "ArtifactReference": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "format": {
+          "$ref": "#/$defs/ArtifactFormat"
+        },
+        "kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "relative_path": {
+          "minLength": 1,
+          "pattern": "^(?:body|face|camera|audio)/[a-z0-9][a-z0-9._-]*$",
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "format",
+        "relative_path",
+        "sha256",
+        "byte_length"
+      ],
+      "title": "ArtifactReference",
+      "type": "object"
+    },
+    "ModelProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "configuration_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "deterministic_algorithms": {
+          "title": "Deterministic Algorithms",
+          "type": "boolean"
+        },
+        "generated_at_inference": {
+          "const": true,
+          "default": true,
+          "title": "Generated At Inference",
+          "type": "boolean"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "minLength": 1,
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "retrieved_pre_authored_clip": {
+          "const": false,
+          "default": false,
+          "title": "Retrieved Pre Authored Clip",
+          "type": "boolean"
+        },
+        "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "model_revision",
+        "prompt_sha256",
+        "configuration_sha256",
+        "seed",
+        "deterministic_algorithms"
+      ],
+      "title": "ModelProvenance",
+      "type": "object"
+    },
+    "UnrealBodyKeyframe": {
+      "additionalProperties": false,
+      "properties": {
+        "joint_rotations": {
+          "items": {
+            "$ref": "#/$defs/UnrealQuaternion"
+          },
+          "title": "Joint Rotations",
+          "type": "array"
+        },
+        "root_location_cm": {
+          "$ref": "#/$defs/UnrealVector"
+        },
+        "timeline_frame": {
+          "minimum": 0,
+          "title": "Timeline Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeline_frame",
+        "root_location_cm",
+        "joint_rotations"
+      ],
+      "title": "UnrealBodyKeyframe",
+      "type": "object"
+    },
+    "UnrealCameraKeyframe": {
+      "additionalProperties": false,
+      "properties": {
+        "focal_length_mm": {
+          "maximum": 300,
+          "minimum": 8,
+          "title": "Focal Length Mm",
+          "type": "number"
+        },
+        "location_cm": {
+          "$ref": "#/$defs/UnrealVector"
+        },
+        "rotation": {
+          "$ref": "#/$defs/UnrealQuaternion"
+        },
+        "timeline_frame": {
+          "minimum": 0,
+          "title": "Timeline Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeline_frame",
+        "location_cm",
+        "rotation",
+        "focal_length_mm"
+      ],
+      "title": "UnrealCameraKeyframe",
+      "type": "object"
+    },
+    "UnrealFacialCurveBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "source_curve_name": {
+          "title": "Source Curve Name",
+          "type": "string"
+        },
+        "target_curve_name": {
+          "pattern": "^[a-z][A-Za-z0-9]*$",
+          "title": "Target Curve Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_curve_name",
+        "target_curve_name"
+      ],
+      "title": "UnrealFacialCurveBinding",
+      "type": "object"
+    },
+    "UnrealFacialKeyframe": {
+      "additionalProperties": false,
+      "properties": {
+        "timeline_frame": {
+          "minimum": 0,
+          "title": "Timeline Frame",
+          "type": "integer"
+        },
+        "weights": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Weights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "timeline_frame",
+        "weights"
+      ],
+      "title": "UnrealFacialKeyframe",
+      "type": "object"
+    },
+    "UnrealGeneratedAudioTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "dialogue_cue_id": {
+          "title": "Dialogue Cue Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "target_sound_path": {
+          "pattern": "^/Game/",
+          "title": "Target Sound Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dialogue_cue_id",
+        "actor_binding_id",
+        "start_frame",
+        "end_frame",
+        "source_artifact",
+        "target_sound_path"
+      ],
+      "title": "UnrealGeneratedAudioTrack",
+      "type": "object"
+    },
+    "UnrealGeneratedBodyTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "joint_bindings": {
+          "items": {
+            "$ref": "#/$defs/UnrealJointBinding"
+          },
+          "title": "Joint Bindings",
+          "type": "array"
+        },
+        "keyframes": {
+          "items": {
+            "$ref": "#/$defs/UnrealBodyKeyframe"
+          },
+          "minItems": 1,
+          "title": "Keyframes",
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "rotation_space": {
+          "const": "converted-canonical-parent-local",
+          "default": "converted-canonical-parent-local",
+          "title": "Rotation Space",
+          "type": "string"
+        },
+        "semantic_id": {
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "source_performance_cue_id": {
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "source_skeleton_profile": {
+          "const": "cutsceneai-humanoid-v1",
+          "title": "Source Skeleton Profile",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "target_animation_path": {
+          "pattern": "^/Game/",
+          "title": "Target Animation Path",
+          "type": "string"
+        },
+        "target_rig_profile": {
+          "const": "ue5-mannequin-v1",
+          "default": "ue5-mannequin-v1",
+          "title": "Target Rig Profile",
+          "type": "string"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "source_artifact",
+        "provenance",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "source_skeleton_profile",
+        "target_animation_path",
+        "joint_bindings",
+        "keyframes"
+      ],
+      "title": "UnrealGeneratedBodyTrack",
+      "type": "object"
+    },
+    "UnrealGeneratedCameraTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_binding_id": {
+          "title": "Camera Binding Id",
+          "type": "string"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "keyframes": {
+          "items": {
+            "$ref": "#/$defs/UnrealCameraKeyframe"
+          },
+          "minItems": 1,
+          "title": "Keyframes",
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "semantic_id": {
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "sensor_height_mm": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Sensor Height Mm",
+          "type": "number"
+        },
+        "sensor_width_mm": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Sensor Width Mm",
+          "type": "number"
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "source_camera_cut_id": {
+          "title": "Source Camera Cut Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "source_artifact",
+        "provenance",
+        "camera_binding_id",
+        "source_camera_cut_id",
+        "sensor_width_mm",
+        "sensor_height_mm",
+        "keyframes"
+      ],
+      "title": "UnrealGeneratedCameraTrack",
+      "type": "object"
+    },
+    "UnrealGeneratedFacialTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "curve_bindings": {
+          "items": {
+            "$ref": "#/$defs/UnrealFacialCurveBinding"
+          },
+          "title": "Curve Bindings",
+          "type": "array"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        },
+        "keyframes": {
+          "items": {
+            "$ref": "#/$defs/UnrealFacialKeyframe"
+          },
+          "minItems": 1,
+          "title": "Keyframes",
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ModelProvenance"
+        },
+        "semantic_id": {
+          "title": "Semantic Id",
+          "type": "string"
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/ArtifactReference"
+        },
+        "source_curve_profile": {
+          "const": "arkit-52",
+          "title": "Source Curve Profile",
+          "type": "string"
+        },
+        "source_dialogue_cue_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Dialogue Cue Id"
+        },
+        "source_performance_cue_id": {
+          "title": "Source Performance Cue Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "target_animation_path": {
+          "pattern": "^/Game/",
+          "title": "Target Animation Path",
+          "type": "string"
+        },
+        "target_curve_profile": {
+          "const": "arkit-52-blendshapes",
+          "default": "arkit-52-blendshapes",
+          "title": "Target Curve Profile",
+          "type": "string"
+        }
+      },
+      "required": [
+        "semantic_id",
+        "start_frame",
+        "end_frame",
+        "source_artifact",
+        "provenance",
+        "actor_binding_id",
+        "source_performance_cue_id",
+        "source_curve_profile",
+        "target_animation_path",
+        "curve_bindings",
+        "keyframes"
+      ],
+      "title": "UnrealGeneratedFacialTrack",
+      "type": "object"
+    },
+    "UnrealJointBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "parent_index": {
+          "minimum": -1,
+          "title": "Parent Index",
+          "type": "integer"
+        },
+        "source_joint_name": {
+          "title": "Source Joint Name",
+          "type": "string"
+        },
+        "target_bone_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Target Bone Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_joint_name",
+        "target_bone_name",
+        "parent_index"
+      ],
+      "title": "UnrealJointBinding",
+      "type": "object"
+    },
+    "UnrealQuaternion": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnrealQuaternion",
+      "type": "object"
+    },
+    "UnrealVector": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnrealVector",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/adapters/unreal/generated-performance/v0.1/mapping.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audio_tracks": {
+      "items": {
+        "$ref": "#/$defs/UnrealGeneratedAudioTrack"
+      },
+      "title": "Audio Tracks",
+      "type": "array"
+    },
+    "body_tracks": {
+      "items": {
+        "$ref": "#/$defs/UnrealGeneratedBodyTrack"
+      },
+      "minItems": 1,
+      "title": "Body Tracks",
+      "type": "array"
+    },
+    "camera_tracks": {
+      "items": {
+        "$ref": "#/$defs/UnrealGeneratedCameraTrack"
+      },
+      "minItems": 1,
+      "title": "Camera Tracks",
+      "type": "array"
+    },
+    "cir_fingerprint_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cir Fingerprint Sha256",
+      "type": "string"
+    },
+    "duration_frames": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Frames",
+      "type": "integer"
+    },
+    "facial_tracks": {
+      "items": {
+        "$ref": "#/$defs/UnrealGeneratedFacialTrack"
+      },
+      "minItems": 1,
+      "title": "Facial Tracks",
+      "type": "array"
+    },
+    "fps": {
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Fps",
+      "type": "integer"
+    },
+    "mapping_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Mapping Version",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "source_bundle_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Bundle Sha256",
+      "type": "string"
+    },
+    "source_package_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Source Package Version",
+      "type": "string"
+    },
+    "source_scene_id": {
+      "title": "Source Scene Id",
+      "type": "string"
+    },
+    "target_engine": {
+      "const": "Unreal Engine",
+      "default": "Unreal Engine",
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "const": "5.8.0",
+      "default": "5.8.0",
+      "title": "Target Engine Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_bundle_sha256",
+    "project_id",
+    "cir_fingerprint_sha256",
+    "source_scene_id",
+    "fps",
+    "duration_frames",
+    "body_tracks",
+    "facial_tracks",
+    "camera_tracks"
+  ],
+  "title": "UnrealPerformanceMapping",
+  "type": "object"
+}

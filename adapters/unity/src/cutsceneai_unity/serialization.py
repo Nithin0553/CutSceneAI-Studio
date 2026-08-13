@@ -1,6 +1,7 @@
 import json
 
 from .models import UnityAssetMap, UnityExportPlan
+from .performance_models import UnityPerformanceMapping
 
 
 def render_unity_plan(plan: UnityExportPlan) -> str:
@@ -11,3 +12,7 @@ def render_unity_asset_map(asset_map: UnityAssetMap) -> str:
     return (
         json.dumps(asset_map.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
     )
+
+
+def render_unity_performance_mapping(mapping: UnityPerformanceMapping) -> str:
+    return json.dumps(mapping.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"

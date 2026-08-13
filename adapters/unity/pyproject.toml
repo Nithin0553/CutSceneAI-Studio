@@ -10,6 +10,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "cutsceneai-cir>=0.1.0,<0.2.0",
     "cutsceneai-parity>=0.1.0,<0.2.0",
+    "cutsceneai-performance>=0.1.0,<0.2.0",
     "cutsceneai-preview>=0.1.0,<0.2.0",
     "pydantic==2.13.4"
 ]

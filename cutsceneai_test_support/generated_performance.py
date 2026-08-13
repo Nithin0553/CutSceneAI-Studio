@@ -5,13 +5,7 @@ from io import BytesIO
 from typing import TypeVar
 import wave
 
-import pytest
-from cutsceneai_cir import (
-    CameraAngle,
-    CameraFraming,
-    CameraMovement,
-    ShotPurpose,
-)
+from cutsceneai_cir import CameraAngle, CameraFraming, CameraMovement, ShotPurpose
 from cutsceneai_parity import (
     EntityKind,
     SemanticCameraCut,
@@ -34,12 +28,15 @@ from cutsceneai_performance import (
     FacialCurveArtifact,
     FacialCurveSample,
     FacialGenerationRequest,
+    PerformanceBundle,
     PerformanceGenerationPlan,
     ProviderArtifact,
     Quaternion,
     Vector3,
+    assemble_performance_bundle,
 )
 from cutsceneai_performance.models import GenerationRequest
+
 
 SHA_A = "a" * 64
 SHA_B = "b" * 64
@@ -48,12 +45,9 @@ ArtifactT = TypeVar("ArtifactT")
 
 
 @dataclass(frozen=True, slots=True)
-class PerformanceFixture:
-    plan: PerformanceGenerationPlan
-    body_outputs: tuple[ProviderArtifact[BodyMotionArtifact], ...]
-    facial_outputs: tuple[ProviderArtifact[FacialCurveArtifact], ...]
-    camera_outputs: tuple[ProviderArtifact[CameraCurveArtifact], ...]
-    audio_outputs: tuple[DialogueAudioArtifact, ...]
+class GeneratedPerformanceFixture:
+    bundle: PerformanceBundle
+    semantics: TimelineSemantics
 
 
 def _request_fields(semantic_id: str) -> dict[str, object]:
@@ -118,64 +112,7 @@ def _identity_rotations() -> list[Quaternion]:
     return [Quaternion(x=0.0, y=0.0, z=0.0, w=1.0) for _ in CANONICAL_HUMANOID_JOINTS]
 
 
-def _body_artifact() -> BodyMotionArtifact:
-    return BodyMotionArtifact(
-        fps=12,
-        frame_count=2,
-        samples=[
-            BodyMotionSample(
-                frame_index=0,
-                root_translation=Vector3(x=0.0, y=0.0, z=0.0),
-                joint_rotations=_identity_rotations(),
-            ),
-            BodyMotionSample(
-                frame_index=1,
-                root_translation=Vector3(x=1.0, y=0.0, z=0.0),
-                joint_rotations=_identity_rotations(),
-            ),
-        ],
-    )
-
-
-def _facial_artifact() -> FacialCurveArtifact:
-    return FacialCurveArtifact(
-        fps=12,
-        frame_count=2,
-        samples=[
-            FacialCurveSample(
-                frame_index=0,
-                weights=[0.0 for _ in ARKIT_52_CURVES],
-            ),
-            FacialCurveSample(
-                frame_index=1,
-                weights=[1.0 for _ in ARKIT_52_CURVES],
-            ),
-        ],
-    )
-
-
-def _camera_artifact() -> CameraCurveArtifact:
-    return CameraCurveArtifact(
-        fps=12,
-        frame_count=2,
-        samples=[
-            CameraCurveSample(
-                frame_index=0,
-                position=Vector3(x=0.0, y=1.0, z=2.0),
-                rotation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
-                focal_length_mm=35.0,
-            ),
-            CameraCurveSample(
-                frame_index=1,
-                position=Vector3(x=1.0, y=2.0, z=3.0),
-                rotation=Quaternion(x=0.0, y=1.0, z=0.0, w=0.0),
-                focal_length_mm=50.0,
-            ),
-        ],
-    )
-
-
-def provider_output(
+def _provider_output(
     request: GenerationRequest,
     artifact: ArtifactT,
 ) -> ProviderArtifact[ArtifactT]:
@@ -194,45 +131,17 @@ def provider_output(
     )
 
 
-def wav_bytes(
-    *,
-    frame_count: int = 4000,
-    sample_rate: int = 48000,
-    channels: int = 1,
-    sample_width: int = 2,
-) -> bytes:
+def _wav_bytes() -> bytes:
     output = BytesIO()
     with wave.open(output, "wb") as audio:
-        audio.setnchannels(channels)
-        audio.setsampwidth(sample_width)
-        audio.setframerate(sample_rate)
-        audio.writeframes(b"\x00" * frame_count * channels * sample_width)
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(48_000)
+        audio.writeframes(b"\x00" * 8_000)
     return output.getvalue()
 
 
-def make_performance_fixture() -> PerformanceFixture:
-    plan = _plan()
-    body_request = plan.body_requests[0]
-    facial_request = plan.facial_requests[0]
-    camera_request = plan.camera_requests[0]
-    return PerformanceFixture(
-        plan=plan,
-        body_outputs=(provider_output(body_request, _body_artifact()),),
-        facial_outputs=(provider_output(facial_request, _facial_artifact()),),
-        camera_outputs=(provider_output(camera_request, _camera_artifact()),),
-        audio_outputs=(
-            DialogueAudioArtifact(
-                dialogue_cue_id="dialogue:fixture:mina",
-                actor_binding_id="actor:mina",
-                start_frame=1,
-                end_frame=3,
-                data=wav_bytes(),
-            ),
-        ),
-    )
-
-
-def make_timeline_semantics() -> TimelineSemantics:
+def _semantics() -> TimelineSemantics:
     return TimelineSemantics(
         cir_fingerprint_sha256=SHA_C,
         project_id="fixture-project",
@@ -290,11 +199,69 @@ def make_timeline_semantics() -> TimelineSemantics:
     )
 
 
-@pytest.fixture
-def performance_fixture() -> PerformanceFixture:
-    return make_performance_fixture()
-
-
-@pytest.fixture
-def timeline_semantics() -> TimelineSemantics:
-    return make_timeline_semantics()
+def make_generated_performance_fixture() -> GeneratedPerformanceFixture:
+    plan = _plan()
+    body = BodyMotionArtifact(
+        fps=12,
+        frame_count=2,
+        samples=[
+            BodyMotionSample(
+                frame_index=0,
+                root_translation=Vector3(x=0.0, y=0.0, z=0.0),
+                joint_rotations=_identity_rotations(),
+            ),
+            BodyMotionSample(
+                frame_index=1,
+                root_translation=Vector3(x=1.0, y=0.0, z=0.0),
+                joint_rotations=_identity_rotations(),
+            ),
+        ],
+    )
+    face = FacialCurveArtifact(
+        fps=12,
+        frame_count=2,
+        samples=[
+            FacialCurveSample(
+                frame_index=0,
+                weights=[0.0 for _ in ARKIT_52_CURVES],
+            ),
+            FacialCurveSample(
+                frame_index=1,
+                weights=[1.0 for _ in ARKIT_52_CURVES],
+            ),
+        ],
+    )
+    camera = CameraCurveArtifact(
+        fps=12,
+        frame_count=2,
+        samples=[
+            CameraCurveSample(
+                frame_index=0,
+                position=Vector3(x=0.0, y=1.0, z=2.0),
+                rotation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+                focal_length_mm=35.0,
+            ),
+            CameraCurveSample(
+                frame_index=1,
+                position=Vector3(x=1.0, y=2.0, z=3.0),
+                rotation=Quaternion(x=0.0, y=1.0, z=0.0, w=0.0),
+                focal_length_mm=50.0,
+            ),
+        ],
+    )
+    bundle = assemble_performance_bundle(
+        plan,
+        body_outputs=(_provider_output(plan.body_requests[0], body),),
+        facial_outputs=(_provider_output(plan.facial_requests[0], face),),
+        camera_outputs=(_provider_output(plan.camera_requests[0], camera),),
+        audio_outputs=(
+            DialogueAudioArtifact(
+                dialogue_cue_id="dialogue:fixture:mina",
+                actor_binding_id="actor:mina",
+                start_frame=1,
+                end_frame=3,
+                data=_wav_bytes(),
+            ),
+        ),
+    )
+    return GeneratedPerformanceFixture(bundle=bundle, semantics=_semantics())

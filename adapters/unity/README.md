@@ -15,6 +15,23 @@ The generated editor script creates:
 
 No Cinemachine dependency is required for v0.1.
 
+## Generated Performance mapping contract
+
+`compile_performance_bundle` accepts one verified Generated Performance Package and its exact Unity
+export plan. It rejects identity, frame-rate, scene, actor, camera-cut, or target-path drift, then
+emits `UnityPerformanceMapping` with:
+
+- canonical 22-joint body samples converted to Unity coordinates and mapped to Humanoid bones;
+- fixed ARKit-52 curve bindings using lower-camel-case blendshape names;
+- per-frame Camera transform, sensor, focal-length, and cut bindings;
+- deterministic `Assets/CutSceneAI/GeneratedPerformance/...` animation and audio targets; and
+- the unchanged bundle SHA-256, CIR fingerprint, artifact references, and model provenance.
+
+The public contract is committed at `schemas/unity-performance-mapping-v0.1.schema.json`. This
+mapping is deterministic adapter input for the forthcoming native-realization harness. It does not
+yet create an AnimationClip, facial blendshape clip, Camera keys, or AudioClip in Unity, and it is
+not Unity acceptance evidence.
+
 ## Generate the editor script
 
 Create an engine-neutral semantic pilot with placeholders:

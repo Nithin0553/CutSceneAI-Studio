@@ -47,8 +47,8 @@ jobs:
 
       - name: Check lint and formatting
         run: |
-          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
-          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts
+          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts cutsceneai_test_support
+          python -m ruff format --check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests scripts cutsceneai_test_support
 
       - name: Check static types
         run: python -m mypy cir/src preview/src dialogue/src performance/src parity/src adapters/unreal/src adapters/unity/src backend/app scripts
