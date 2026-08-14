@@ -34,8 +34,10 @@ samples into engine-native tracks.
 
 `body-motion-v0.1.schema.json` defines the first numerical artifact boundary. A body artifact has
 one sample for every frame in its owning half-open track window, so `frame_count` must equal
-`end_frame - start_frame`. Root translations are global-space meters. Each sample then stores one
-parent-relative `xyzw` quaternion for every joint in the fixed `cutsceneai-humanoid-v1` order.
+`end_frame - start_frame`. `root_translation_space` explicitly defines translations as meter
+offsets from the target reference pose. `joint_rotation_space` explicitly defines every `xyzw`
+quaternion as a parent-local delta composed with the corresponding target reference-pose rotation
+in the fixed `cutsceneai-humanoid-v1` order.
 
 The profile contains the 22 SMPL/HumanML3D body joints from `pelvis` through `left_wrist` and
 `right_wrist`, together with fixed parent indices. Validators reject reordered joints, altered
@@ -119,15 +121,25 @@ targets `Assets/...` animation and audio files. Both map the fixed facial curve 
 lower-camel-case ARKit blendshape names and preserve camera filmback, focal length, and exact
 half-open frame windows.
 
-The committed mapping JSON Schemas and synthetic tests prove deterministic conversion and reject
-semantic, binding, frame, joint, curve, and target-path drift. They are plans for native asset
-realization, not proof that either editor imported, saved, reopened, or rendered generated assets.
+The committed mapping and native-target JSON Schemas plus synthetic tests prove deterministic
+conversion and reject semantic, binding, frame, joint, curve, target-asset, and output-path drift.
+The Unity and Unreal packages now generate no-replacement native editor harnesses that import all
+four modalities, save, restart, read back the native timeline, render its complete frame range, and
+run a self-contained evidence collector. The collector binds exact mapping, editor-log, readback,
+canonical-timeline, and render-manifest hashes to lifecycle and modality evidence while requiring
+distinct editor processes. Repository tests validate the harnesses; only retained editor output is
+native acceptance evidence.
+
+See
+[`generated-performance-native-realization-v0.1.md`](../docs/acceptance/generated-performance-native-realization-v0.1.md)
+for the exact Unity and Unreal commands and pass criteria.
 
 The large model runtime, checkpoints, model datasets, SMPL assets, and real inference outputs are
 intentionally deferred until the external-SSD gate in
 [`docs/acceptance/generated-performance-ssd-gate.md`](../docs/acceptance/generated-performance-ssd-gate.md).
-The schemas, validators, resamplers, adapter mappings, package assembly, and experiment harnesses
-remain normal repository work and do not depend on that storage device.
+The schemas, validators, resamplers, adapter mappings, package assembly, native editor harnesses,
+and experiment ledger are complete repository work and do not depend on that storage device. The
+next phase is retained real inference, so the external SSD is now the mandatory prerequisite.
 
 Regenerate or check the committed schema with:
 

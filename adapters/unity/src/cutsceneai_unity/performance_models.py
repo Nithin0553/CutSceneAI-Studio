@@ -14,7 +14,6 @@ from pydantic import Field, model_validator
 
 from .models import UnityModel, UnityQuaternion, UnityVector
 
-
 UNITY_HUMANOID_BONES = (
     "Hips",
     "LeftUpperLeg",
@@ -72,8 +71,11 @@ class UnityGeneratedBodyTrack(UnityGeneratedTrack):
     source_performance_cue_id: str
     source_skeleton_profile: Literal["cutsceneai-humanoid-v1"]
     target_rig_profile: Literal["unity-humanoid-v1"] = "unity-humanoid-v1"
-    rotation_space: Literal["converted-canonical-parent-local"] = (
-        "converted-canonical-parent-local"
+    root_translation_space: Literal["target-reference-pose-offset"] = (
+        "target-reference-pose-offset"
+    )
+    rotation_space: Literal["target-reference-pose-relative-parent-local"] = (
+        "target-reference-pose-relative-parent-local"
     )
     target_animation_path: str = Field(pattern=r"^Assets/.+\.anim$")
     joint_bindings: list[UnityJointBinding]
@@ -158,6 +160,7 @@ class UnityCameraKeyframe(UnityModel):
 class UnityGeneratedCameraTrack(UnityGeneratedTrack):
     camera_binding_id: str
     source_camera_cut_id: str
+    target_animation_path: str = Field(pattern=r"^Assets/.+\.anim$")
     sensor_width_mm: float = Field(gt=0, le=100)
     sensor_height_mm: float = Field(gt=0, le=100)
     keyframes: list[UnityCameraKeyframe] = Field(min_length=1)

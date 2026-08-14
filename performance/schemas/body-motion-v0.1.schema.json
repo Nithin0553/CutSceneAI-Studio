@@ -207,6 +207,12 @@
       "title": "Joint Names",
       "type": "array"
     },
+    "joint_rotation_space": {
+      "const": "reference-pose-relative-parent-local",
+      "default": "reference-pose-relative-parent-local",
+      "title": "Joint Rotation Space",
+      "type": "string"
+    },
     "parent_indices": {
       "const": [
         -1,
@@ -250,6 +256,12 @@
         }
       ],
       "default": null
+    },
+    "root_translation_space": {
+      "const": "reference-pose-offset",
+      "default": "reference-pose-offset",
+      "title": "Root Translation Space",
+      "type": "string"
     },
     "samples": {
       "items": {

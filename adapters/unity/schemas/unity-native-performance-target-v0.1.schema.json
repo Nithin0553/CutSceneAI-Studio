@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "UnityNativeActorTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "animator_path": {
+          "default": "",
+          "title": "Animator Path",
+          "type": "string"
+        },
+        "facial_renderer_path": {
+          "title": "Facial Renderer Path",
+          "type": "string"
+        },
+        "prefab_path": {
+          "pattern": "^Assets(?:/[A-Za-z0-9_.-]+)+\\.prefab$",
+          "title": "Prefab Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor_binding_id",
+        "prefab_path",
+        "facial_renderer_path"
+      ],
+      "title": "UnityNativeActorTarget",
+      "type": "object"
+    },
+    "UnityNativeRenderSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "default": 720,
+          "maximum": 4320,
+          "minimum": 64,
+          "title": "Height",
+          "type": "integer"
+        },
+        "image_format": {
+          "const": "png",
+          "default": "png",
+          "title": "Image Format",
+          "type": "string"
+        },
+        "output_directory": {
+          "default": "CutSceneAIEvidence/Unity/Frames",
+          "title": "Output Directory",
+          "type": "string"
+        },
+        "width": {
+          "default": 1280,
+          "maximum": 7680,
+          "minimum": 64,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "title": "UnityNativeRenderSettings",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/adapters/unity/generated-performance/v0.1/native-target.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actors": {
+      "items": {
+        "$ref": "#/$defs/UnityNativeActorTarget"
+      },
+      "minItems": 1,
+      "title": "Actors",
+      "type": "array"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "render": {
+      "$ref": "#/$defs/UnityNativeRenderSettings"
+    },
+    "scene_asset_path": {
+      "pattern": "^Assets(?:/[A-Za-z0-9_.-]+)+\\.unity$",
+      "title": "Scene Asset Path",
+      "type": "string"
+    },
+    "source_mapping_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Mapping Sha256",
+      "type": "string"
+    },
+    "target_engine": {
+      "const": "Unity",
+      "default": "Unity",
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "const": "6000.0",
+      "default": "6000.0",
+      "title": "Target Engine Version",
+      "type": "string"
+    },
+    "target_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Target Version",
+      "type": "string"
+    },
+    "timeline_asset_path": {
+      "pattern": "^Assets(?:/[A-Za-z0-9_.-]+)+\\.playable$",
+      "title": "Timeline Asset Path",
+      "type": "string"
+    },
+    "timeline_package_version": {
+      "const": "1.8.12",
+      "default": "1.8.12",
+      "title": "Timeline Package Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "source_mapping_sha256",
+    "timeline_asset_path",
+    "scene_asset_path",
+    "actors"
+  ],
+  "title": "UnityNativeRealizationTarget",
+  "type": "object"
+}

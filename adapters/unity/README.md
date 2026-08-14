@@ -21,16 +21,39 @@ No Cinemachine dependency is required for v0.1.
 export plan. It rejects identity, frame-rate, scene, actor, camera-cut, or target-path drift, then
 emits `UnityPerformanceMapping` with:
 
-- canonical 22-joint body samples converted to Unity coordinates and mapped to Humanoid bones;
+- canonical 22-joint body samples converted to Unity coordinates, mapped to Humanoid bones, and
+  declared as reference-pose-relative rotations plus reference-pose root offsets;
 - fixed ARKit-52 curve bindings using lower-camel-case blendshape names;
 - per-frame Camera transform, sensor, focal-length, and cut bindings;
 - deterministic `Assets/CutSceneAI/GeneratedPerformance/...` animation and audio targets; and
 - the unchanged bundle SHA-256, CIR fingerprint, artifact references, and model provenance.
 
-The public contract is committed at `schemas/unity-performance-mapping-v0.1.schema.json`. This
-mapping is deterministic adapter input for the forthcoming native-realization harness. It does not
-yet create an AnimationClip, facial blendshape clip, Camera keys, or AudioClip in Unity, and it is
-not Unity acceptance evidence.
+The public mapping and native-target contracts are committed at
+`schemas/unity-performance-mapping-v0.1.schema.json` and
+`schemas/unity-native-performance-target-v0.1.schema.json`.
+
+`compile_unity_native_performance_package` re-verifies the unchanged bundle and exact mapping, then
+generates a no-replacement Unity harness. The harness validates Unity `6000.0.x`, Timeline `1.8.12`,
+the target Humanoid bones, ARKit-52 blendshapes, WAV hashes, and all destination conflicts before
+mutation. It creates reference-pose-correct body clips, facial blendshape clips, generated camera
+and focal-length clips, audio tracks, a Timeline, and a Scene. A second editor process reopens the
+saved assets, emits four-modality readback, renders every frame, and produces hash-anchored engine
+evidence.
+
+Compile one harness from explicit inputs with:
+
+```powershell
+cutsceneai-unity-native `
+  --bundle .\evidence\performance.bundle.zip `
+  --plan .\evidence\unity.plan.json `
+  --mapping .\evidence\unity.mapping.json `
+  --target .\evidence\unity.native-target.json `
+  --output .\evidence\unity.native-harness.zip
+```
+
+The deterministic Python tests are harness validation, not Unity acceptance evidence. The full
+editor command and evidence criteria are in
+[`docs/acceptance/generated-performance-native-realization-v0.1.md`](../../docs/acceptance/generated-performance-native-realization-v0.1.md).
 
 ## Generate the editor script
 

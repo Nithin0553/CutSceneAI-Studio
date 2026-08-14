@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "UnrealNativeActorTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_binding_id": {
+          "title": "Actor Binding Id",
+          "type": "string"
+        },
+        "require_arkit_52_morph_targets": {
+          "const": true,
+          "default": true,
+          "title": "Require Arkit 52 Morph Targets",
+          "type": "boolean"
+        },
+        "require_ue5_mannequin_bones": {
+          "const": true,
+          "default": true,
+          "title": "Require Ue5 Mannequin Bones",
+          "type": "boolean"
+        },
+        "skeletal_mesh_path": {
+          "pattern": "^/Game(?:/[A-Za-z][A-Za-z0-9_]*)+(?:\\.[A-Za-z][A-Za-z0-9_]*)?$",
+          "title": "Skeletal Mesh Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor_binding_id",
+        "skeletal_mesh_path"
+      ],
+      "title": "UnrealNativeActorTarget",
+      "type": "object"
+    },
+    "UnrealNativeRenderSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "default": 720,
+          "maximum": 4320,
+          "minimum": 64,
+          "title": "Height",
+          "type": "integer"
+        },
+        "image_format": {
+          "const": "png",
+          "default": "png",
+          "title": "Image Format",
+          "type": "string"
+        },
+        "map_path": {
+          "pattern": "^/Game(?:/[A-Za-z][A-Za-z0-9_]*)+(?:\\.[A-Za-z][A-Za-z0-9_]*)?$",
+          "title": "Map Path",
+          "type": "string"
+        },
+        "output_directory": {
+          "default": "CutSceneAI/Native/Unreal/Frames",
+          "title": "Output Directory",
+          "type": "string"
+        },
+        "width": {
+          "default": 1280,
+          "maximum": 7680,
+          "minimum": 64,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "map_path"
+      ],
+      "title": "UnrealNativeRenderSettings",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/adapters/unreal/generated-performance/v0.1/native-target.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actors": {
+      "items": {
+        "$ref": "#/$defs/UnrealNativeActorTarget"
+      },
+      "minItems": 1,
+      "title": "Actors",
+      "type": "array"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "render": {
+      "$ref": "#/$defs/UnrealNativeRenderSettings"
+    },
+    "sequence_asset_name": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+      "title": "Sequence Asset Name",
+      "type": "string"
+    },
+    "sequence_package_path": {
+      "pattern": "^/Game(?:/[A-Za-z][A-Za-z0-9_]*)+$",
+      "title": "Sequence Package Path",
+      "type": "string"
+    },
+    "source_mapping_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Mapping Sha256",
+      "type": "string"
+    },
+    "target_engine": {
+      "const": "Unreal Engine",
+      "default": "Unreal Engine",
+      "title": "Target Engine",
+      "type": "string"
+    },
+    "target_engine_version": {
+      "const": "5.8.0",
+      "default": "5.8.0",
+      "title": "Target Engine Version",
+      "type": "string"
+    },
+    "target_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Target Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "source_mapping_sha256",
+    "sequence_package_path",
+    "sequence_asset_name",
+    "actors",
+    "render"
+  ],
+  "title": "UnrealNativeRealizationTarget",
+  "type": "object"
+}

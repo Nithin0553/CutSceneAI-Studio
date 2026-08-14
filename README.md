@@ -60,6 +60,8 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 - A typed experiment ledger that fixes the 10-scene by 5-seed reliability denominator, verifies
   three-run repeatability, unchanged-bundle portability, native restart/readback/render evidence,
   and permanently separates synthetic harness results from publishable evidence
+- Typed Unity and Unreal native-target manifests plus installed one-command compilers that generate
+  no-replacement import/save/restart/readback/render harnesses and hash-anchored engine evidence
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -74,7 +76,7 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
 | Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6; four-modality generated-performance gate implemented |
-| Generated performance | Compile, normalize, package, map, and evaluate generated artifacts | Package, plan, canonical artifacts, provider boundary, verified portable ZIP, engine mappings, and experiment ledger implemented; native-realization harness next; real inference SSD-blocked |
+| Generated performance | Compile, normalize, package, realize, and evaluate generated artifacts | Package, plan, canonical artifacts, provider boundary, verified portable ZIP, engine mappings, native Unity/Unreal harnesses, evidence collector, and experiment ledger implemented; real inference SSD-blocked |
 
 ## Local setup
 
@@ -244,6 +246,19 @@ python scripts\compile_cross_engine.py `
 After importing, restarting, and exporting readbacks from both editors, verify them with
 `python -m cutsceneai_parity verify --require-both-engines`. The complete commands and pass criteria
 are in [`docs/acceptance/cross-engine-parity-v0.1.md`](docs/acceptance/cross-engine-parity-v0.1.md).
+
+## Generated-performance native realization v0.1
+
+`cutsceneai-unity-native` and `cutsceneai-unreal-native` compile one verified performance bundle,
+the exact engine plan and mapping, and an explicit native target manifest into no-replacement editor
+harnesses. Unity uses two editor processes for import/save and restart/readback/render. Unreal uses
+three for import/save, restart/readback, and restart/Movie Render Queue. Both produce strict
+four-modality readbacks, complete render manifests, combined editor logs, and hash-anchored engine
+evidence.
+
+The complete input contracts, commands, target-asset requirements, and pass criteria are in
+[`docs/acceptance/generated-performance-native-realization-v0.1.md`](docs/acceptance/generated-performance-native-realization-v0.1.md).
+Synthetic repository tests validate the automation but are not native-editor or paper evidence.
 
 ## Unreal Adapter v0.6
 

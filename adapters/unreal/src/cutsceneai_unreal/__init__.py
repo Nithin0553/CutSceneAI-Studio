@@ -38,6 +38,24 @@ from .models import (
     UnrealTransform,
     UnrealVector,
 )
+from .native import (
+    UNREAL_NATIVE_IMPORT_FILENAME,
+    UNREAL_NATIVE_READBACK_FILENAME,
+    UNREAL_NATIVE_RENDER_FILENAME,
+    UNREAL_NATIVE_RUNNER_FILENAME,
+    UnrealNativePerformancePackage,
+    compile_unreal_native_performance_package,
+    render_unreal_native_import_script,
+    render_unreal_native_performance_package,
+    render_unreal_native_readback_script,
+    render_unreal_native_render_script,
+    render_unreal_native_runner_script,
+)
+from .native_models import (
+    UnrealNativeActorTarget,
+    UnrealNativeRealizationTarget,
+    UnrealNativeRenderSettings,
+)
 from .performance import (
     DEFAULT_GENERATED_PERFORMANCE_PATH,
     compile_performance_bundle,
@@ -59,16 +77,24 @@ from .readback import render_unreal_readback_script
 from .rendering import render_unreal_import_script
 from .schema import (
     JSON_SCHEMA_DIALECT,
+    UNREAL_NATIVE_TARGET_SCHEMA_ID,
     UNREAL_PERFORMANCE_MAPPING_SCHEMA_ID,
     UNREAL_PLAN_SCHEMA_ID,
+    render_unreal_native_target_json_schema,
     render_unreal_performance_mapping_json_schema,
     render_unreal_plan_json_schema,
+    unreal_native_target_json_schema,
     unreal_performance_mapping_json_schema,
     unreal_plan_json_schema,
+    write_unreal_native_target_json_schema,
     write_unreal_performance_mapping_json_schema,
     write_unreal_plan_json_schema,
 )
-from .serialization import render_unreal_performance_mapping, render_unreal_plan
+from .serialization import (
+    render_unreal_native_target,
+    render_unreal_performance_mapping,
+    render_unreal_plan,
+)
 
 __all__ = [
     "CHARACTER_CLASS_PATH",
@@ -78,8 +104,13 @@ __all__ = [
     "JSON_SCHEMA_DIALECT",
     "SKELETAL_MESH_ACTOR_CLASS_PATH",
     "STATIC_MESH_ACTOR_CLASS_PATH",
-    "UNREAL_PLAN_SCHEMA_ID",
+    "UNREAL_NATIVE_IMPORT_FILENAME",
+    "UNREAL_NATIVE_READBACK_FILENAME",
+    "UNREAL_NATIVE_RENDER_FILENAME",
+    "UNREAL_NATIVE_RUNNER_FILENAME",
+    "UNREAL_NATIVE_TARGET_SCHEMA_ID",
     "UNREAL_PERFORMANCE_MAPPING_SCHEMA_ID",
+    "UNREAL_PLAN_SCHEMA_ID",
     "UNREAL_UE5_MANNEQUIN_BONES",
     "UnrealActorBinding",
     "UnrealActorKind",
@@ -101,6 +132,10 @@ __all__ = [
     "UnrealGeneratedFacialTrack",
     "UnrealJointBinding",
     "UnrealMeshType",
+    "UnrealNativeActorTarget",
+    "UnrealNativePerformancePackage",
+    "UnrealNativeRealizationTarget",
+    "UnrealNativeRenderSettings",
     "UnrealPerformanceCue",
     "UnrealPerformanceMapping",
     "UnrealPlaceholderVisual",
@@ -112,6 +147,7 @@ __all__ = [
     "compile_dialogue_bundle",
     "compile_performance_bundle",
     "compile_project",
+    "compile_unreal_native_performance_package",
     "convert_position",
     "convert_quaternion",
     "convert_scale",
@@ -120,13 +156,22 @@ __all__ = [
     "render_unreal_dialogue_import_package",
     "render_unreal_import_script",
     "render_unreal_marker_upgrade_script",
+    "render_unreal_native_import_script",
+    "render_unreal_native_performance_package",
+    "render_unreal_native_readback_script",
+    "render_unreal_native_render_script",
+    "render_unreal_native_runner_script",
+    "render_unreal_native_target",
+    "render_unreal_native_target_json_schema",
     "render_unreal_performance_mapping",
     "render_unreal_performance_mapping_json_schema",
     "render_unreal_plan",
     "render_unreal_plan_json_schema",
     "render_unreal_readback_script",
-    "unreal_plan_json_schema",
+    "unreal_native_target_json_schema",
     "unreal_performance_mapping_json_schema",
+    "unreal_plan_json_schema",
+    "write_unreal_native_target_json_schema",
     "write_unreal_performance_mapping_json_schema",
     "write_unreal_plan_json_schema",
 ]

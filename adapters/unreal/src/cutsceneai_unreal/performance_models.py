@@ -14,7 +14,6 @@ from pydantic import Field, model_validator
 
 from .models import UnrealModel, UnrealQuaternion, UnrealVector
 
-
 UNREAL_UE5_MANNEQUIN_BONES = (
     "pelvis",
     "thigh_l",
@@ -72,8 +71,11 @@ class UnrealGeneratedBodyTrack(UnrealGeneratedTrack):
     source_performance_cue_id: str
     source_skeleton_profile: Literal["cutsceneai-humanoid-v1"]
     target_rig_profile: Literal["ue5-mannequin-v1"] = "ue5-mannequin-v1"
-    rotation_space: Literal["converted-canonical-parent-local"] = (
-        "converted-canonical-parent-local"
+    root_translation_space: Literal["target-reference-pose-offset"] = (
+        "target-reference-pose-offset"
+    )
+    rotation_space: Literal["target-reference-pose-relative-parent-local"] = (
+        "target-reference-pose-relative-parent-local"
     )
     target_animation_path: str = Field(pattern=r"^/Game/")
     joint_bindings: list[UnrealJointBinding]

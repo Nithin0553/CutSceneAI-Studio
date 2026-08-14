@@ -52,8 +52,9 @@ research.
 ## Current generated-performance storage gate
 
 Contract, validator, resampling, package, deterministic Unreal/Unity mapping, four-modality parity,
-and experiment-ledger work is complete. The remaining native-realization harness work continues
-before large model files are installed. Real model environments, checkpoints, SMPL assets, inference outputs, and
-inference-backed engine evidence are deferred until an external SSD is available. The exact
-stop/reminder condition is maintained in
+native import/save/restart/readback/render automation, evidence collection, and experiment-ledger
+work is complete. The non-SSD implementation gate is closed. Real model environments, checkpoints,
+SMPL assets, retained inference outputs, and inference-backed engine evidence are the next phase and
+are blocked until an external SSD is connected and verified. The reached stop/reminder condition is
+maintained in
 [`docs/acceptance/generated-performance-ssd-gate.md`](docs/acceptance/generated-performance-ssd-gate.md).

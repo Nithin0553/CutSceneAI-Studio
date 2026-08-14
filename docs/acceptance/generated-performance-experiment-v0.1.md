@@ -88,6 +88,14 @@ Use `mode: paper` only for retained real inference and real editor evidence. Pap
 runs are present. Changing a label from synthetic to real is not evidence; the referenced bundles,
 logs, readbacks, native targets, render manifests, and their digests must be retained for audit.
 
+## Native engine evidence
+
+Compile and run the exact Unity and Unreal native harnesses described in
+[`generated-performance-native-realization-v0.1.md`](generated-performance-native-realization-v0.1.md).
+Their self-contained collector produces each `EngineRunEvidence` record only after validating the
+unchanged bundle identity, mapping/readback semantics, distinct editor processes, render accounting,
+all four modality counts, artifact hashes, and native target references.
+
 ## External-SSD boundary
 
 The contracts, schemas, aggregator, synthetic fixtures, and native editor automation can be built

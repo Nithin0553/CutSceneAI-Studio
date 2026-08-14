@@ -13,9 +13,10 @@ from cutsceneai_unity import (
     render_unity_asset_map,
     render_unity_asset_map_json_schema,
     render_unity_editor_script,
+    render_unity_native_target_json_schema,
+    render_unity_performance_mapping_json_schema,
     render_unity_plan,
     render_unity_plan_json_schema,
-    render_unity_performance_mapping_json_schema,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -77,6 +78,9 @@ def expected_artifacts() -> dict[Path, str]:
         ),
         UNITY_ROOT / "schemas" / "unity-performance-mapping-v0.1.schema.json": (
             render_unity_performance_mapping_json_schema()
+        ),
+        UNITY_ROOT / "schemas" / "unity-native-performance-target-v0.1.schema.json": (
+            render_unity_native_target_json_schema()
         ),
         UNITY_ROOT / "examples" / "office-dialogue.unity.json": (
             render_unity_plan(plan)

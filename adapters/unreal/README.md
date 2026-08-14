@@ -77,16 +77,40 @@ enclosing performance range.
 timeline semantics and Unreal export plan. It rejects identity, frame-rate, scene, actor, camera,
 or target-path drift, then emits `UnrealPerformanceMapping` with:
 
-- canonical 22-joint body samples converted to Unreal centimeters and mapped to the UE5 Mannequin;
+- canonical 22-joint body samples converted to Unreal centimeters, mapped to the UE5 Mannequin,
+  and declared as reference-pose-relative rotations plus reference-pose root offsets;
 - fixed ARKit-52 curve bindings using native lower-camel-case blendshape names;
 - per-frame Cine Camera transform, filmback, focal-length, and cut bindings;
 - deterministic `/Game/CutSceneAI/GeneratedPerformance/...` animation and Sound Wave targets; and
 - the unchanged bundle SHA-256, CIR fingerprint, artifact references, and model provenance.
 
-The public contract is committed at `schemas/unreal-performance-mapping-v0.1.schema.json`. This
-mapping is deterministic adapter input for the forthcoming native-realization harness. It does not
-yet create an Anim Sequence, facial curve asset, Cine Camera keys, or Sound Wave in Unreal, and it
-is not Unreal acceptance evidence.
+The public mapping and native-target contracts are committed at
+`schemas/unreal-performance-mapping-v0.1.schema.json` and
+`schemas/unreal-native-performance-target-v0.1.schema.json`.
+
+`compile_unreal_native_performance_package` re-verifies the unchanged bundle, exact semantics,
+mapping, and native target, then generates a no-replacement Unreal harness. The harness validates
+Unreal `5.8.0`, UE5 Mannequin bones, ARKit-52 morph targets, WAV hashes, and all asset conflicts
+before mutation. It creates reference-pose-correct body Anim Sequences, facial curves, Sound Waves,
+Cine Camera transform/focal tracks and cuts, and one saved Level Sequence. Separate restart/readback
+and Movie Render Queue processes then produce four-modality readback, every expected PNG frame, and
+hash-anchored engine evidence.
+
+Compile one harness from explicit inputs with:
+
+```powershell
+cutsceneai-unreal-native `
+  --bundle .\evidence\performance.bundle.zip `
+  --plan .\evidence\unreal.plan.json `
+  --mapping .\evidence\unreal.mapping.json `
+  --target .\evidence\unreal.native-target.json `
+  --semantics .\evidence\timeline.semantics.json `
+  --output .\evidence\unreal.native-harness.zip
+```
+
+The deterministic Python tests are harness validation, not Unreal acceptance evidence. The full
+editor command and evidence criteria are in
+[`docs/acceptance/generated-performance-native-realization-v0.1.md`](../../docs/acceptance/generated-performance-native-realization-v0.1.md).
 
 ## Generate the committed artifacts
 
@@ -101,6 +125,7 @@ The generated products are:
 
 - `schemas/unreal-sequencer-plan-v0.6.schema.json`
 - `schemas/unreal-performance-mapping-v0.1.schema.json`
+- `schemas/unreal-native-performance-target-v0.1.schema.json`
 - `examples/office-dialogue.unreal.json`
 - `examples/import_office_dialogue.py`
 - `examples/readback_office_dialogue.py`

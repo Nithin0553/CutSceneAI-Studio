@@ -32,8 +32,24 @@ versions until the first unified Studio release.
   Mannequin bones, ARKit-52 face curves, Cine Camera samples, and deterministic `/Game/...` targets.
 - Typed Unity 6 generated-performance mappings from the same bundle to Humanoid bones, ARKit-52
   blendshapes, Camera samples, and deterministic `Assets/...` animation and audio targets.
+- Explicit reference-pose semantics for canonical body root offsets and parent-local joint rotation
+  deltas, carried through both engine mappings and composed with each target rig's reference pose.
 - Public Unreal and Unity generated-performance mapping JSON Schemas with preserved source bundle,
   artifact, CIR, and provider-provenance hashes.
+- Public Unity and Unreal native-target schemas for exact prefab/Animator/face-renderer and Skeletal
+  Mesh/map destinations, strict versions, render settings, unique actors, and safe output paths.
+- `cutsceneai-unity-native` and `cutsceneai-unreal-native` one-command compilers that re-verify the
+  unchanged bundle and deterministic mapping, refuse output replacement, and package exact editor
+  import/save/restart/readback/render automation.
+- Unity 6000.0/Timeline 1.8.12 native realization with reference-pose-correct Humanoid body clips,
+  layered ARKit-52 facial clips, generated camera/lens animation, audio, saved Timeline/Scene,
+  second-process readback, and complete PNG rendering.
+- Unreal 5.8.0 native realization with reference-pose-correct Anim Sequences, ARKit-52 facial
+  curves, verified Sound Waves, Cine Camera transform/focal tracks and cuts, saved Level Sequence,
+  separate restart/readback, and Movie Render Queue processes.
+- A self-contained evidence collector that requires distinct editor processes and binds exact
+  mapping, log, readback, canonical timeline, render manifest, lifecycle, modality, artifact, and
+  native target evidence into the experiment ledger.
 - Strict parity coverage for native body animation, facial curves, generated camera sections, and
   audio, with explicit four-modality and required-engine settings retained in every report.
 - A typed generated-performance experiment plan, per-attempt evidence record, aggregate report,
@@ -91,25 +107,25 @@ versions until the first unified Studio release.
   complete, but final acceptance requires both readbacks after editor restart and a zero-error
   parity report. Placeholder animation and missing audio remain explicit realization warnings and
   fail the strict production gate.
-- Generated-performance mappings and experiment records are contracts, not native editor assets.
-  Native realization automation remains the pending non-SSD harness; real inference-backed
-  acceptance remains SSD-blocked.
+- Native realization automation is implemented and deterministically tested, but Python CI cannot
+  execute either editor. Retained real-editor output remains required for native acceptance, and
+  real inference-backed acceptance remains SSD-blocked.
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
   beat and shot pacing are never silently extended. Project-wide asset discovery, environment
   resolution, facial animation, spatial audio, and voice cloning remain later milestones.
 
 ### Validated
 
-- Deterministic generation, schema drift, semantic mismatch detection, and a simulated Unreal
-  saved-Level-Sequence readback cover the cross-engine pipeline locally. Real Unity 6000.0 and
-  Unreal 5.8.0 readback evidence remains pending.
+- Deterministic generation, schema drift, semantic mismatch detection, native-target validation,
+  generated-script syntax, archive integrity, lifecycle enforcement, and evidence collection cover
+  the native harness locally. Real Unity 6000.0 and Unreal 5.8.0 readback evidence remains pending.
 - Live OpenAI speech acceptance produced two audible WAV files with no warnings: Mina used `marin`
   at frames `120-178`, Arjun used `cedar` at `216-302`, portable CIR URIs and request provenance
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 86 source files, all seven schema/artifact drift checks,
-  and 447 automated tests passed locally with 97.59% branch-aware coverage. The 162 Generated
+- Ruff check and formatting, mypy across 93 source files, all seven schema/artifact drift checks,
+  and 504 automated tests passed locally with 97.46% branch-aware coverage. The 185 Generated
   Performance tests retain 100% statement and branch coverage.
 - Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
   required before merge.

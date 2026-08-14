@@ -2,9 +2,10 @@
 
 ## Status
 
-The external SSD is an active, explicitly deferred dependency as of 2026-08-12. It does not block
-contract, validation, adapter, packaging, or experiment-harness implementation. It does block the
-large-model runtime and the evidence that can only be produced by real inference.
+The external SSD became the mandatory next-step dependency on 2026-08-14. Contract, validation,
+adapter, packaging, native-realization harness, evidence-collector, and experiment-ledger work is
+complete. The next phase installs the large-model runtime and retains real inference outputs, so it
+must not begin until the external SSD is connected and its explicit target path is verified.
 
 This boundary prevents placeholder samples, pre-authored animation, or dry-run output from being
 reported as generated-performance evidence.
@@ -23,13 +24,13 @@ reported as generated-performance evidence.
 | Unreal 5.8 and Unity 6 generated-artifact mappings | Complete |
 | Four-modality strict readback and parity evidence contract | Complete |
 | Reliability, repeatability, and portability experiment ledger and aggregator | Complete |
-| Native Unreal/Unity realization, restart/readback, and render harnesses | Pending |
+| Native Unreal/Unity realization, restart/readback, render, and evidence harnesses | Complete |
 
-The SSD is not yet required. The native-realization harness remains repository-only work and must
-be completed before the mandatory trigger below is reached. Synthetic experiment records validate
-the aggregator only and are permanently ineligible for paper evidence.
+The non-SSD implementation gate is complete. Synthetic tests validate deterministic native harness
+generation and the experiment aggregator only; they are permanently ineligible for paper evidence
+and are not a substitute for retained editor or inference output.
 
-## Work that continues without the SSD
+## Work completed without the SSD
 
 - Generated Performance Package and deterministic generation-plan contracts.
 - Canonical body, facial, camera, and audio artifact schemas and validators.
@@ -38,6 +39,8 @@ the aggregator only and are permanently ineligible for paper evidence.
   with small synthetic fixtures.
 - Package assembly, file hashing, provenance checks, and archive/path safety.
 - Unreal 5.8 and Unity 6 adapter compilation against canonical artifacts without changing CIR.
+- Native Unity and Unreal import/save/restart/readback/render automation with strict target
+  manifests, no-replacement preflight, and hash-anchored evidence collection.
 - Reliability, repeatability, portability, and native-realization experiment harnesses.
 - Documentation, CI, static analysis, schema drift checks, and automated unit/integration tests.
 
@@ -54,10 +57,10 @@ the aggregator only and are permanently ineligible for paper evidence.
 
 ## Mandatory trigger
 
-The SSD becomes mandatory when every non-SSD item above has an automated passing gate and the next
-step is to install/download the selected model runtime or execute real model inference. At that
-point work must stop before any checkpoint download, and the user must be reminded to connect and
-prepare the external SSD.
+This trigger has been reached. Every non-SSD item above has an automated passing repository gate,
+and the next work is to install/download the selected model runtime and execute retained real model
+inference. Work stops before any checkpoint download until the user connects and prepares the
+external SSD.
 
 After the SSD is available, its explicit drive/path, free space, filesystem, and write access must
 be verified before model installation. Checkpoints, caches, model assets, and inference outputs

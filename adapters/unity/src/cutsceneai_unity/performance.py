@@ -30,7 +30,6 @@ from .performance_models import (
     UnityPerformanceMapping,
 )
 
-
 DEFAULT_GENERATED_PERFORMANCE_PATH = "Assets/CutSceneAI/GeneratedPerformance"
 
 
@@ -93,7 +92,9 @@ def compile_performance_bundle(
 ) -> UnityPerformanceMapping:
     """Convert one verified package into a deterministic Unity 6 mapping plan."""
 
-    if not re.fullmatch(r"Assets(?:/[A-Za-z0-9_.-]+)+", target_path):
+    if not re.fullmatch(r"Assets(?:/[A-Za-z0-9_.-]+)+", target_path) or any(
+        part in {"", ".", ".."} for part in target_path.split("/")[1:]
+    ):
         raise ValueError("target_path must be a normalized Unity Assets path.")
     source_scene_id = _validate_export_plan(bundle, export_plan)
     decoded = decode_performance_bundle(bundle)
@@ -192,6 +193,9 @@ def compile_performance_bundle(
                 source_camera_cut_id=camera_track.source_camera_cut_id,
                 start_frame=camera_track.start_frame,
                 end_frame=camera_track.end_frame,
+                target_animation_path=(
+                    f"{target_path}/Camera/CA_{_asset_name(camera_track.semantic_id)}.anim"
+                ),
                 source_artifact=camera_track.artifact.model_copy(deep=True),
                 provenance=camera_track.provenance.model_copy(deep=True),
                 sensor_width_mm=camera_artifact.sensor_width_mm,

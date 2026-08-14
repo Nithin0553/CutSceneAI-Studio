@@ -290,9 +290,15 @@
         "provenance": {
           "$ref": "#/$defs/ModelProvenance"
         },
+        "root_translation_space": {
+          "const": "target-reference-pose-offset",
+          "default": "target-reference-pose-offset",
+          "title": "Root Translation Space",
+          "type": "string"
+        },
         "rotation_space": {
-          "const": "converted-canonical-parent-local",
-          "default": "converted-canonical-parent-local",
+          "const": "target-reference-pose-relative-parent-local",
+          "default": "target-reference-pose-relative-parent-local",
           "title": "Rotation Space",
           "type": "string"
         },

@@ -290,9 +290,15 @@
         "provenance": {
           "$ref": "#/$defs/ModelProvenance"
         },
+        "root_translation_space": {
+          "const": "target-reference-pose-offset",
+          "default": "target-reference-pose-offset",
+          "title": "Root Translation Space",
+          "type": "string"
+        },
         "rotation_space": {
-          "const": "converted-canonical-parent-local",
-          "default": "converted-canonical-parent-local",
+          "const": "target-reference-pose-relative-parent-local",
+          "default": "target-reference-pose-relative-parent-local",
           "title": "Rotation Space",
           "type": "string"
         },
@@ -395,6 +401,11 @@
           "minimum": 0,
           "title": "Start Frame",
           "type": "integer"
+        },
+        "target_animation_path": {
+          "pattern": "^Assets/.+\\.anim$",
+          "title": "Target Animation Path",
+          "type": "string"
         }
       },
       "required": [
@@ -405,6 +416,7 @@
         "provenance",
         "camera_binding_id",
         "source_camera_cut_id",
+        "target_animation_path",
         "sensor_width_mm",
         "sensor_height_mm",
         "keyframes"

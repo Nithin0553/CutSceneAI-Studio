@@ -112,6 +112,8 @@ def test_compile_maps_exact_bundle_into_unity_native_contract(
     body = mapping.body_tracks[0]
     assert body.source_artifact == package.body_tracks[0].artifact
     assert body.provenance == package.body_tracks[0].provenance
+    assert body.root_translation_space == "target-reference-pose-offset"
+    assert body.rotation_space == "target-reference-pose-relative-parent-local"
     assert tuple(item.target_human_bone for item in body.joint_bindings) == (
         UNITY_HUMANOID_BONES
     )
@@ -121,6 +123,9 @@ def test_compile_maps_exact_bundle_into_unity_native_contract(
     assert face.curve_bindings[0].target_blendshape_name == "browDownLeft"
     assert face.curve_bindings[-1].target_blendshape_name == "tongueOut"
     camera = mapping.camera_tracks[0]
+    assert camera.target_animation_path.endswith(
+        "/Camera/CA_CameraMotionFixtureShot.anim"
+    )
     assert camera.keyframes[0].position_m == UnityVector(x=0.0, y=1.0, z=-2.0)
     assert camera.keyframes[-1].position_m == UnityVector(x=1.0, y=2.0, z=-3.0)
     assert mapping.audio_tracks[0].target_audio_path.endswith(
@@ -182,7 +187,8 @@ def test_compile_rejects_export_plan_drift(
 
 
 @pytest.mark.parametrize(
-    "target_path", ["CutSceneAI/Generated", "Assets", "Assets/Bad Path"]
+    "target_path",
+    ["CutSceneAI/Generated", "Assets", "Assets/Bad Path", "Assets/../Escape"],
 )
 def test_compile_rejects_non_normalized_unity_target_paths(
     generated_fixture: GeneratedPerformanceFixture,

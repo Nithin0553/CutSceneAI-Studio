@@ -84,6 +84,10 @@ class BodyMotionArtifact(PerformanceModel):
     artifact_version: Literal["0.1.0"] = "0.1.0"
     skeleton_profile: Literal["cutsceneai-humanoid-v1"] = "cutsceneai-humanoid-v1"
     coordinate_space: CoordinateSpace = Field(default_factory=CoordinateSpace)
+    root_translation_space: Literal["reference-pose-offset"] = "reference-pose-offset"
+    joint_rotation_space: Literal["reference-pose-relative-parent-local"] = (
+        "reference-pose-relative-parent-local"
+    )
     fps: int = Field(ge=1, le=240)
     frame_count: int = Field(gt=0)
     joint_names: list[Identifier] = Field(

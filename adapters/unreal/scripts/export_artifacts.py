@@ -8,8 +8,9 @@ from cutsceneai_unreal import (
     compile_project,
     render_unreal_import_script,
     render_unreal_marker_upgrade_script,
-    render_unreal_plan,
+    render_unreal_native_target_json_schema,
     render_unreal_performance_mapping_json_schema,
+    render_unreal_plan,
     render_unreal_plan_json_schema,
     render_unreal_readback_script,
 )
@@ -25,6 +26,13 @@ PERFORMANCE_MAPPING_SCHEMA_OUTPUT = (
     / "unreal"
     / "schemas"
     / "unreal-performance-mapping-v0.1.schema.json"
+)
+NATIVE_TARGET_SCHEMA_OUTPUT = (
+    ROOT
+    / "adapters"
+    / "unreal"
+    / "schemas"
+    / "unreal-native-performance-target-v0.1.schema.json"
 )
 EXAMPLE_OUTPUT = (
     ROOT / "adapters" / "unreal" / "examples" / "office-dialogue.unreal.json"
@@ -50,6 +58,7 @@ def expected_artifacts() -> dict[Path, str]:
         PERFORMANCE_MAPPING_SCHEMA_OUTPUT: (
             render_unreal_performance_mapping_json_schema()
         ),
+        NATIVE_TARGET_SCHEMA_OUTPUT: render_unreal_native_target_json_schema(),
         EXAMPLE_OUTPUT: render_unreal_plan(plan),
         IMPORTER_OUTPUT: render_unreal_import_script(plan, semantics),
         READBACK_OUTPUT: render_unreal_readback_script(plan, semantics),

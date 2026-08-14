@@ -127,6 +127,8 @@ def test_compile_maps_exact_bundle_into_unreal_native_contract(
     body = mapping.body_tracks[0]
     assert body.source_artifact == package.body_tracks[0].artifact
     assert body.provenance == package.body_tracks[0].provenance
+    assert body.root_translation_space == "target-reference-pose-offset"
+    assert body.rotation_space == "target-reference-pose-relative-parent-local"
     assert tuple(item.target_bone_name for item in body.joint_bindings) == (
         UNREAL_UE5_MANNEQUIN_BONES
     )

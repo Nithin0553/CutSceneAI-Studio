@@ -55,6 +55,8 @@ def test_body_motion_artifact_declares_canonical_engine_neutral_profile() -> Non
     assert tuple(motion.parent_indices) == CANONICAL_HUMANOID_PARENTS
     assert motion.coordinate_space.handedness == "right"
     assert motion.coordinate_space.forward_axis == "-z"
+    assert motion.root_translation_space == "reference-pose-offset"
+    assert motion.joint_rotation_space == "reference-pose-relative-parent-local"
     assert motion.samples[0].joint_rotations[0].w == 1.0
 
 
@@ -77,6 +79,8 @@ def test_resampler_fits_exact_frame_window_and_preserves_endpoints() -> None:
     assert result.resampling.method == MOTION_RESAMPLING_METHOD
     assert result.resampling.source_fps == 20
     assert result.resampling.source_frame_count == 2
+    assert result.root_translation_space == source.root_translation_space
+    assert result.joint_rotation_space == source.joint_rotation_space
     assert result.samples[0].root_translation == source.samples[0].root_translation
     assert result.samples[-1].root_translation == source.samples[-1].root_translation
     assert result.samples[1].root_translation == Vector3(x=1.0, y=2.0, z=-1.0)
