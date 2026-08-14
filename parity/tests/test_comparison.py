@@ -20,6 +20,23 @@ def _realize(readback: EngineTimelineReadback) -> None:
             )
             for cue in scene.performance_cues
         ],
+        facial_sections=[
+            RealizedSection(
+                semantic_id=cue.cue_id,
+                actor_binding_id=cue.actor_binding_id,
+                start_frame=cue.start_frame,
+                end_frame=cue.end_frame,
+            )
+            for cue in scene.performance_cues
+        ],
+        camera_sections=[
+            RealizedSection(
+                semantic_id=cut.cut_id,
+                start_frame=cut.start_frame,
+                end_frame=cut.end_frame,
+            )
+            for cut in scene.camera_cuts
+        ],
         audio_sections=[
             RealizedSection(
                 semantic_id=cue.cue_id,
@@ -39,7 +56,7 @@ def test_identical_readbacks_are_semantically_equivalent_with_coverage_warnings(
 
     assert report.equivalent is True
     assert report.error_count == 0
-    assert report.warning_count == 12
+    assert report.warning_count == 28
 
 
 def test_complete_realization_passes_strict_verification(
@@ -53,6 +70,8 @@ def test_complete_realization_passes_strict_verification(
         readbacks,
         tolerance_frames=0,
         require_animation=True,
+        require_facial=True,
+        require_camera=True,
         require_audio=True,
     )
 
@@ -60,7 +79,11 @@ def test_complete_realization_passes_strict_verification(
     assert report.error_count == 0
     assert report.warning_count == 0
     assert [item.animation_section_count for item in report.readbacks] == [4, 4]
+    assert [item.facial_section_count for item in report.readbacks] == [4, 4]
+    assert [item.camera_section_count for item in report.readbacks] == [4, 4]
     assert [item.audio_section_count for item in report.readbacks] == [2, 2]
+    assert report.requirements.facial is True
+    assert report.requirements.camera is True
 
 
 def test_engine_specific_asset_paths_do_not_define_semantic_equality(
@@ -78,6 +101,8 @@ def test_engine_specific_asset_paths_do_not_define_semantic_equality(
         readbacks,
         tolerance_frames=0,
         require_animation=True,
+        require_facial=True,
+        require_camera=True,
         require_audio=True,
     )
 
@@ -126,6 +151,25 @@ def test_audio_end_frames_are_compared_directly_between_engines(
     assert issue.delta_frames == 2
 
 
+def test_facial_and_camera_realization_mismatches_are_reported(
+    cir_project: Project, readbacks: list[EngineTimelineReadback]
+) -> None:
+    for readback in readbacks:
+        _realize(readback)
+    readbacks[1].evidence.facial_sections[0].end_frame += 2
+    readbacks[1].evidence.camera_sections[0].start_frame += 2
+
+    report = verify_readbacks(cir_project, readbacks, tolerance_frames=1)
+
+    mismatches = {
+        item.field: item.delta_frames
+        for item in report.issues
+        if item.scope == "realization:unreal_to_unity" and item.code == "frame_mismatch"
+    }
+    assert mismatches["facial.end_frame"] == 2
+    assert mismatches["camera.start_frame"] == 2
+
+
 def test_missing_extra_duplicate_and_header_changes_fail(
     cir_project: Project, readbacks: list[EngineTimelineReadback]
 ) -> None:
@@ -162,6 +206,27 @@ def test_realization_failures_and_duplicate_engine_are_detected(
             end_frame=1,
         )
     )
+    readbacks[0].evidence.animation_sections.append(
+        RealizedSection(
+            semantic_id="performance:unexpected",
+            start_frame=0,
+            end_frame=1,
+        )
+    )
+    readbacks[0].evidence.facial_sections.append(
+        RealizedSection(
+            semantic_id="facial:unexpected",
+            start_frame=0,
+            end_frame=1,
+        )
+    )
+    readbacks[0].evidence.camera_sections.append(
+        RealizedSection(
+            semantic_id="camera:unexpected",
+            start_frame=0,
+            end_frame=1,
+        )
+    )
     readbacks[1].engine = readbacks[0].engine
 
     report = verify_readbacks(
@@ -169,6 +234,8 @@ def test_realization_failures_and_duplicate_engine_are_detected(
         readbacks,
         tolerance_frames=0,
         require_animation=True,
+        require_facial=True,
+        require_camera=True,
         require_audio=True,
     )
 
@@ -179,8 +246,13 @@ def test_realization_failures_and_duplicate_engine_are_detected(
         "frame_mismatch",
         "audio_exceeds_dialogue_window",
         "unexpected_realized_audio",
+        "unexpected_realized_animation",
+        "unexpected_realized_facial",
+        "unexpected_realized_camera",
         "missing_realized_animation",
         "missing_realized_audio",
+        "missing_realized_facial",
+        "missing_realized_camera",
     } <= codes
 
 
@@ -195,6 +267,8 @@ def test_placeholder_animation_does_not_satisfy_strict_realization(
         cir_project,
         readbacks,
         require_animation=True,
+        require_facial=True,
+        require_camera=True,
         require_audio=True,
     )
 
@@ -204,6 +278,26 @@ def test_placeholder_animation_does_not_satisfy_strict_realization(
         and item.semantic_id == readbacks[1].evidence.animation_sections[0].semantic_id
         for item in report.issues
     )
+
+
+def test_placeholder_facial_and_camera_do_not_satisfy_strict_realization(
+    cir_project: Project, readbacks: list[EngineTimelineReadback]
+) -> None:
+    for readback in readbacks:
+        _realize(readback)
+    readbacks[0].evidence.facial_sections[0].placeholder = True
+    readbacks[0].evidence.camera_sections[0].placeholder = True
+
+    report = verify_readbacks(
+        cir_project,
+        readbacks,
+        require_facial=True,
+        require_camera=True,
+    )
+
+    codes = {item.code for item in report.issues}
+    assert "missing_realized_facial" in codes
+    assert "missing_realized_camera" in codes
 
 
 def test_invalid_verifier_arguments_are_rejected(cir_project: Project) -> None:

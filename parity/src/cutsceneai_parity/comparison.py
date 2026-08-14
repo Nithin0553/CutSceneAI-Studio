@@ -13,6 +13,7 @@ from .models import (
     IssueSeverity,
     ParityIssue,
     ParityReport,
+    RealizationRequirements,
     ReadbackSummary,
     SemanticCameraCut,
     SemanticDialogueCue,
@@ -442,14 +443,17 @@ def _compare_semantics(
         )
 
 
-def _expected_ids(semantics: TimelineSemantics) -> tuple[set[str], set[str]]:
+def _expected_ids(
+    semantics: TimelineSemantics,
+) -> tuple[set[str], set[str], set[str]]:
     performance_ids = {
         cue.cue_id for scene in semantics.scenes for cue in scene.performance_cues
     }
     dialogue_ids = {
         cue.cue_id for scene in semantics.scenes for cue in scene.dialogue_cues
     }
-    return performance_ids, dialogue_ids
+    camera_ids = {cut.cut_id for scene in semantics.scenes for cut in scene.camera_cuts}
+    return performance_ids, dialogue_ids, camera_ids
 
 
 def _check_realization(
@@ -457,17 +461,33 @@ def _check_realization(
     expected: TimelineSemantics,
     *,
     require_animation: bool,
+    require_facial: bool,
+    require_camera: bool,
     require_audio: bool,
     tolerance_frames: int,
     issues: list[ParityIssue],
 ) -> None:
     scope = f"realization:{readback.engine.value}"
-    performance_ids, dialogue_ids = _expected_ids(expected)
+    performance_ids, dialogue_ids, camera_ids = _expected_ids(expected)
     animations = _index_unique(
         readback.evidence.animation_sections,
         lambda item: item.semantic_id,
         scope=scope,
         collection="animation_sections",
+        issues=issues,
+    )
+    facial = _index_unique(
+        readback.evidence.facial_sections,
+        lambda item: item.semantic_id,
+        scope=scope,
+        collection="facial_sections",
+        issues=issues,
+    )
+    camera = _index_unique(
+        readback.evidence.camera_sections,
+        lambda item: item.semantic_id,
+        scope=scope,
+        collection="camera_sections",
         issues=issues,
     )
     audio = _index_unique(
@@ -482,6 +502,12 @@ def _check_realization(
         for cue_id, section in animations.items()
         if not section.placeholder
     }
+    production_facial = {
+        cue_id: section for cue_id, section in facial.items() if not section.placeholder
+    }
+    production_camera = {
+        cut_id: section for cut_id, section in camera.items() if not section.placeholder
+    }
     production_audio = {
         cue_id: section for cue_id, section in audio.items() if not section.placeholder
     }
@@ -491,12 +517,21 @@ def _check_realization(
     dialogue_by_id = {
         cue.cue_id: cue for scene in expected.scenes for cue in scene.dialogue_cues
     }
+    camera_by_id = {
+        cut.cut_id: cut for scene in expected.scenes for cut in scene.camera_cuts
+    }
 
     missing_animation_severity = (
         IssueSeverity.ERROR if require_animation else IssueSeverity.WARNING
     )
     missing_audio_severity = (
         IssueSeverity.ERROR if require_audio else IssueSeverity.WARNING
+    )
+    missing_facial_severity = (
+        IssueSeverity.ERROR if require_facial else IssueSeverity.WARNING
+    )
+    missing_camera_severity = (
+        IssueSeverity.ERROR if require_camera else IssueSeverity.WARNING
     )
     for cue_id in sorted(performance_ids - production_animations.keys()):
         _issue(
@@ -516,6 +551,24 @@ def _check_realization(
             severity=missing_audio_severity,
             message=f"Dialogue cue '{cue_id}' has no native audio section.",
         )
+    for cue_id in sorted(performance_ids - production_facial.keys()):
+        _issue(
+            issues,
+            scope=scope,
+            code="missing_realized_facial",
+            semantic_id=cue_id,
+            severity=missing_facial_severity,
+            message=f"Performance cue '{cue_id}' has no native facial curve section.",
+        )
+    for cut_id in sorted(camera_ids - production_camera.keys()):
+        _issue(
+            issues,
+            scope=scope,
+            code="missing_realized_camera",
+            semantic_id=cut_id,
+            severity=missing_camera_severity,
+            message=f"Camera cut '{cut_id}' has no native generated camera section.",
+        )
     for cue_id in sorted(animations.keys() - performance_ids):
         _issue(
             issues,
@@ -531,6 +584,22 @@ def _check_realization(
             code="unexpected_realized_audio",
             semantic_id=cue_id,
             message=f"Audio section '{cue_id}' has no CIR dialogue cue.",
+        )
+    for cue_id in sorted(facial.keys() - performance_ids):
+        _issue(
+            issues,
+            scope=scope,
+            code="unexpected_realized_facial",
+            semantic_id=cue_id,
+            message=f"Facial section '{cue_id}' has no CIR performance cue.",
+        )
+    for cut_id in sorted(camera.keys() - camera_ids):
+        _issue(
+            issues,
+            scope=scope,
+            code="unexpected_realized_camera",
+            semantic_id=cut_id,
+            message=f"Camera section '{cut_id}' has no CIR camera cut.",
         )
 
     for cue_id in sorted(animations.keys() & performance_ids):
@@ -596,8 +665,44 @@ def _check_realization(
             actual=section.actor_binding_id,
         )
 
+    for cue_id in sorted(facial.keys() & performance_ids):
+        section = facial[cue_id]
+        performance_cue = performance_by_id[cue_id]
+        for field in ("start_frame", "end_frame"):
+            _compare_frame(
+                issues,
+                scope=scope,
+                semantic_id=cue_id,
+                field=f"facial.{field}",
+                expected=getattr(performance_cue, field),
+                actual=getattr(section, field),
+                tolerance_frames=tolerance_frames,
+            )
+        _compare_value(
+            issues,
+            scope=scope,
+            semantic_id=cue_id,
+            field="facial.actor_binding_id",
+            expected=performance_cue.actor_binding_id,
+            actual=section.actor_binding_id,
+        )
 
-def _compare_audio_realization(
+    for cut_id in sorted(camera.keys() & camera_ids):
+        section = camera[cut_id]
+        camera_cut = camera_by_id[cut_id]
+        for field in ("start_frame", "end_frame"):
+            _compare_frame(
+                issues,
+                scope=scope,
+                semantic_id=cut_id,
+                field=f"camera.{field}",
+                expected=getattr(camera_cut, field),
+                actual=getattr(section, field),
+                tolerance_frames=tolerance_frames,
+            )
+
+
+def _compare_realization_sections(
     left: EngineTimelineReadback,
     right: EngineTimelineReadback,
     *,
@@ -605,19 +710,30 @@ def _compare_audio_realization(
     issues: list[ParityIssue],
 ) -> None:
     scope = f"realization:{left.engine.value}_to_{right.engine.value}"
-    left_by_id = {item.semantic_id: item for item in left.evidence.audio_sections}
-    right_by_id = {item.semantic_id: item for item in right.evidence.audio_sections}
-    for cue_id in sorted(left_by_id.keys() & right_by_id.keys()):
-        for field in ("start_frame", "end_frame"):
-            _compare_frame(
-                issues,
-                scope=scope,
-                semantic_id=cue_id,
-                field=f"audio.{field}",
-                expected=getattr(left_by_id[cue_id], field),
-                actual=getattr(right_by_id[cue_id], field),
-                tolerance_frames=tolerance_frames,
-            )
+    collections = (
+        (
+            "animation",
+            left.evidence.animation_sections,
+            right.evidence.animation_sections,
+        ),
+        ("facial", left.evidence.facial_sections, right.evidence.facial_sections),
+        ("camera", left.evidence.camera_sections, right.evidence.camera_sections),
+        ("audio", left.evidence.audio_sections, right.evidence.audio_sections),
+    )
+    for modality, left_sections, right_sections in collections:
+        left_by_id = {item.semantic_id: item for item in left_sections}
+        right_by_id = {item.semantic_id: item for item in right_sections}
+        for semantic_id in sorted(left_by_id.keys() & right_by_id.keys()):
+            for field in ("start_frame", "end_frame"):
+                _compare_frame(
+                    issues,
+                    scope=scope,
+                    semantic_id=semantic_id,
+                    field=f"{modality}.{field}",
+                    expected=getattr(left_by_id[semantic_id], field),
+                    actual=getattr(right_by_id[semantic_id], field),
+                    tolerance_frames=tolerance_frames,
+                )
 
 
 def verify_readbacks(
@@ -626,6 +742,8 @@ def verify_readbacks(
     *,
     tolerance_frames: int = 1,
     require_animation: bool = False,
+    require_facial: bool = False,
+    require_camera: bool = False,
     require_audio: bool = False,
     required_engines: Sequence[EngineName] = (),
 ) -> ParityReport:
@@ -661,6 +779,8 @@ def verify_readbacks(
             readback,
             expected,
             require_animation=require_animation,
+            require_facial=require_facial,
+            require_camera=require_camera,
             require_audio=require_audio,
             tolerance_frames=tolerance_frames,
             issues=issues,
@@ -684,7 +804,7 @@ def verify_readbacks(
             tolerance_frames=tolerance_frames,
             issues=issues,
         )
-        _compare_audio_realization(
+        _compare_realization_sections(
             left,
             right,
             tolerance_frames=tolerance_frames,
@@ -697,6 +817,13 @@ def verify_readbacks(
         project_id=expected.project_id,
         cir_fingerprint_sha256=expected.cir_fingerprint_sha256,
         tolerance_frames=tolerance_frames,
+        requirements=RealizationRequirements(
+            animation=require_animation,
+            facial=require_facial,
+            camera=require_camera,
+            audio=require_audio,
+            engines=list(required_engines),
+        ),
         equivalent=error_count == 0,
         error_count=error_count,
         warning_count=warning_count,
@@ -707,6 +834,8 @@ def verify_readbacks(
                 adapter_version=readback.adapter_version,
                 timeline_asset=readback.timeline_asset,
                 animation_section_count=len(readback.evidence.animation_sections),
+                facial_section_count=len(readback.evidence.facial_sections),
+                camera_section_count=len(readback.evidence.camera_sections),
                 audio_section_count=len(readback.evidence.audio_sections),
             )
             for readback in readbacks

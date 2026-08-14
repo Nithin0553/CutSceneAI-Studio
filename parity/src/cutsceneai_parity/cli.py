@@ -8,8 +8,17 @@ from cutsceneai_cir import validate_project
 
 from .comparison import verify_readbacks
 from .compiler import compile_semantics
+from .experiment import verify_generated_performance_experiment
+from .experiment_models import (
+    GeneratedPerformanceAttemptEvidence,
+    GeneratedPerformanceExperimentPlan,
+)
 from .models import EngineName, EngineTimelineReadback
-from .serialization import render_parity_report, render_timeline_semantics
+from .serialization import (
+    render_generated_performance_experiment_report,
+    render_parity_report,
+    render_timeline_semantics,
+)
 
 
 def _load_json(path: Path) -> object:
@@ -46,6 +55,8 @@ def _verify(args: argparse.Namespace) -> int:
         readbacks,
         tolerance_frames=args.tolerance_frames,
         require_animation=args.require_animation,
+        require_facial=args.require_facial,
+        require_camera=args.require_camera,
         require_audio=args.require_audio,
         required_engines=(
             (EngineName.UNREAL, EngineName.UNITY) if args.require_both_engines else ()
@@ -53,6 +64,17 @@ def _verify(args: argparse.Namespace) -> int:
     )
     _write_or_print(render_parity_report(report), args.output)
     return 0 if report.equivalent else 1
+
+
+def _verify_experiment(args: argparse.Namespace) -> int:
+    plan = GeneratedPerformanceExperimentPlan.model_validate(_load_json(args.plan))
+    attempts = [
+        GeneratedPerformanceAttemptEvidence.model_validate(_load_json(path))
+        for path in args.attempt
+    ]
+    report = verify_generated_performance_experiment(plan, attempts)
+    _write_or_print(render_generated_performance_experiment_report(report), args.output)
+    return 0 if report.gate_passed else 1
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -75,10 +97,21 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--readback", type=Path, action="append", required=True)
     verify.add_argument("--tolerance-frames", type=int, default=1)
     verify.add_argument("--require-animation", action="store_true")
+    verify.add_argument("--require-facial", action="store_true")
+    verify.add_argument("--require-camera", action="store_true")
     verify.add_argument("--require-audio", action="store_true")
     verify.add_argument("--require-both-engines", action="store_true")
     verify.add_argument("--output", "-o", type=Path)
     verify.set_defaults(handler=_verify)
+
+    experiment = commands.add_parser(
+        "experiment-verify",
+        help="Verify reliability, repeatability, portability, and native evidence.",
+    )
+    experiment.add_argument("plan", type=Path)
+    experiment.add_argument("--attempt", type=Path, action="append", default=[])
+    experiment.add_argument("--output", "-o", type=Path)
+    experiment.set_defaults(handler=_verify_experiment)
     return parser
 
 

@@ -34,6 +34,13 @@ versions until the first unified Studio release.
   blendshapes, Camera samples, and deterministic `Assets/...` animation and audio targets.
 - Public Unreal and Unity generated-performance mapping JSON Schemas with preserved source bundle,
   artifact, CIR, and provider-provenance hashes.
+- Strict parity coverage for native body animation, facial curves, generated camera sections, and
+  audio, with explicit four-modality and required-engine settings retained in every report.
+- A typed generated-performance experiment plan, per-attempt evidence record, aggregate report,
+  CLI, and public schemas for the fixed 10-scene by 5-seed reliability denominator, three-run
+  repeatability, unchanged-bundle portability, and native restart/readback/render evidence.
+- Explicit harness and paper evidence modes: synthetic fixtures can validate the aggregator but
+  can never produce a publishable report, while failed attempts remain in the planned denominator.
 - An explicit external-SSD dependency gate that allows contracts, adapters, packaging, and
   experiment harnesses to continue while preventing dry runs from being presented as real
   generated-performance evidence.
@@ -46,7 +53,7 @@ versions until the first unified Studio release.
 - Restart-safe Unity and Unreal readback exporters that reopen saved native timeline assets and
   inspect actual frame rate, duration, bindings, markers, clips, camera cuts, and focal lengths.
 - `cutsceneai-parity verify` with CIR-to-engine and Unreal-to-Unity comparisons, one-frame
-  tolerance, required-engine enforcement, and optional strict animation/audio coverage.
+  tolerance, required-engine enforcement, and optional strict body/facial/camera/audio coverage.
 - `scripts/compile_cross_engine.py` to generate both engine import/readback bundles from one
   unchanged CIR while recording its source byte hash and canonical hash.
 - `POST /api/v1/adapters/unity/export`, `POST /api/v1/adapters/unity/importer.cs`, and
@@ -84,9 +91,9 @@ versions until the first unified Studio release.
   complete, but final acceptance requires both readbacks after editor restart and a zero-error
   parity report. Placeholder animation and missing audio remain explicit realization warnings and
   fail the strict production gate.
-- Generated-performance mappings are deterministic plans, not native editor assets. Native
-  realization, save/reopen readback, and rendering remain part of the pending non-SSD harness and
-  later inference-backed acceptance.
+- Generated-performance mappings and experiment records are contracts, not native editor assets.
+  Native realization automation remains the pending non-SSD harness; real inference-backed
+  acceptance remains SSD-blocked.
 - CIR 0.1 has no dialogue-duration field, so exact audio end timing lives in the Dialogue manifest;
   beat and shot pacing are never silently extended. Project-wide asset discovery, environment
   resolution, facial animation, spatial audio, and voice cloning remain later milestones.
@@ -101,8 +108,8 @@ versions until the first unified Studio release.
   were present, and the required AI-voice disclosure was included.
 - Unreal v0.6 archive, compiler, package, backend, checksum, conflict, and generated-script tests
   use local WAV fixtures and make no billable provider calls.
-- Ruff check and formatting, mypy across 84 source files, all seven schema/artifact drift checks,
-  and 426 automated tests passed locally with 97.44% branch-aware coverage. The 162 Generated
+- Ruff check and formatting, mypy across 86 source files, all seven schema/artifact drift checks,
+  and 447 automated tests passed locally with 97.59% branch-aware coverage. The 162 Generated
   Performance tests retain 100% statement and branch coverage.
 - Unreal Engine 5.8 restart and Movie Render Queue acceptance for the v0.6 automatic import remains
   required before merge.

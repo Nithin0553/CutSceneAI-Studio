@@ -55,6 +55,11 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 - Exact bundle-to-timeline semantic binding before either engine can consume generated artifacts
 - Deterministic Unreal 5.8 and Unity 6 mapping plans for canonical body motion, ARKit-52 face
   curves, animated camera/lens samples, dialogue WAVs, source hashes, and model provenance
+- Four-modality strict parity evidence for body animation, facial curves, generated cameras, and
+  audio, including explicit requirements in every report
+- A typed experiment ledger that fixes the 10-scene by 5-seed reliability denominator, verifies
+  three-run repeatability, unchanged-bundle portability, native restart/readback/render evidence,
+  and permanently separates synthetic harness results from publishable evidence
 - One-command generation of both engine import/readback bundles without modifying the source CIR
 - Python 3.11, 3.12, and 3.13 quality gates
 
@@ -68,8 +73,8 @@ single hashed body, facial, camera, and audio realization consumed by both engin
 | Preview services | Compile portable manifests and SVG storyboard timelines | Preview v0.1 complete |
 | Dialogue services | Bind recorded WAV or generated speech with timing and provenance | v0.1 complete |
 | Engine adapters | Translate CIR into editable native timelines | Unreal v0.6; Unity v0.1 implemented |
-| Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6 |
-| Generated performance | Compile, normalize, package, and map generated artifacts | Package, plan, canonical artifacts, provider boundary, verified portable ZIP, and both engine mapping contracts implemented; native-realization harness next; real inference SSD-blocked |
+| Timeline parity | Read saved engine assets and compare cinematic semantics | v0.1 accepted in Unreal 5.8 and Unity 6; four-modality generated-performance gate implemented |
+| Generated performance | Compile, normalize, package, map, and evaluate generated artifacts | Package, plan, canonical artifacts, provider boundary, verified portable ZIP, engine mappings, and experiment ledger implemented; native-realization harness next; real inference SSD-blocked |
 
 ## Local setup
 

@@ -73,6 +73,20 @@
           },
           "title": "Audio Sections",
           "type": "array"
+        },
+        "camera_sections": {
+          "items": {
+            "$ref": "#/$defs/RealizedSection"
+          },
+          "title": "Camera Sections",
+          "type": "array"
+        },
+        "facial_sections": {
+          "items": {
+            "$ref": "#/$defs/RealizedSection"
+          },
+          "title": "Facial Sections",
+          "type": "array"
         }
       },
       "title": "ReadbackEvidence",

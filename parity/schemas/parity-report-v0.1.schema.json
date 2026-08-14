@@ -121,12 +121,22 @@
           "title": "Audio Section Count",
           "type": "integer"
         },
+        "camera_section_count": {
+          "minimum": 0,
+          "title": "Camera Section Count",
+          "type": "integer"
+        },
         "engine": {
           "$ref": "#/$defs/EngineName"
         },
         "engine_version": {
           "title": "Engine Version",
           "type": "string"
+        },
+        "facial_section_count": {
+          "minimum": 0,
+          "title": "Facial Section Count",
+          "type": "integer"
         },
         "timeline_asset": {
           "title": "Timeline Asset",
@@ -139,9 +149,45 @@
         "adapter_version",
         "timeline_asset",
         "animation_section_count",
+        "facial_section_count",
+        "camera_section_count",
         "audio_section_count"
       ],
       "title": "ReadbackSummary",
+      "type": "object"
+    },
+    "RealizationRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "animation": {
+          "default": false,
+          "title": "Animation",
+          "type": "boolean"
+        },
+        "audio": {
+          "default": false,
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "camera": {
+          "default": false,
+          "title": "Camera",
+          "type": "boolean"
+        },
+        "engines": {
+          "items": {
+            "$ref": "#/$defs/EngineName"
+          },
+          "title": "Engines",
+          "type": "array"
+        },
+        "facial": {
+          "default": false,
+          "title": "Facial",
+          "type": "boolean"
+        }
+      },
+      "title": "RealizationRequirements",
       "type": "object"
     }
   },
@@ -186,6 +232,9 @@
       "default": "0.1.0",
       "title": "Report Version",
       "type": "string"
+    },
+    "requirements": {
+      "$ref": "#/$defs/RealizationRequirements"
     },
     "tolerance_frames": {
       "minimum": 0,

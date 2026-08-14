@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "EngineName": {
+      "enum": [
+        "unreal",
+        "unity"
+      ],
+      "title": "EngineName",
+      "type": "string"
+    },
+    "ExperimentMode": {
+      "enum": [
+        "harness",
+        "paper"
+      ],
+      "title": "ExperimentMode",
+      "type": "string"
+    },
+    "ExperimentScene": {
+      "additionalProperties": false,
+      "properties": {
+        "cir_fingerprint_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cir Fingerprint Sha256",
+          "type": "string"
+        },
+        "expected_audio_sections": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Audio Sections",
+          "type": "integer"
+        },
+        "expected_body_sections": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Body Sections",
+          "type": "integer"
+        },
+        "expected_camera_sections": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Camera Sections",
+          "type": "integer"
+        },
+        "expected_facial_sections": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Facial Sections",
+          "type": "integer"
+        },
+        "expected_frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Frame Count",
+          "type": "integer"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_id",
+        "project_id",
+        "cir_fingerprint_sha256",
+        "expected_frame_count",
+        "expected_body_sections",
+        "expected_facial_sections",
+        "expected_camera_sections",
+        "expected_audio_sections"
+      ],
+      "title": "ExperimentScene",
+      "type": "object"
+    },
+    "RepeatabilityCase": {
+      "additionalProperties": false,
+      "properties": {
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene_id",
+        "seed"
+      ],
+      "title": "RepeatabilityCase",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/parity/v0.1/generated-performance-experiment-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "minimum_first_pass_success_rate": {
+      "default": 1.0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Minimum First Pass Success Rate",
+      "type": "number"
+    },
+    "minimum_native_realization_rate": {
+      "default": 1.0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Minimum Native Realization Rate",
+      "type": "number"
+    },
+    "minimum_portability_rate": {
+      "default": 1.0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Minimum Portability Rate",
+      "type": "number"
+    },
+    "minimum_repeatability_rate": {
+      "default": 1.0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Minimum Repeatability Rate",
+      "type": "number"
+    },
+    "mode": {
+      "$ref": "#/$defs/ExperimentMode"
+    },
+    "plan_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Plan Version",
+      "type": "string"
+    },
+    "repeat_runs": {
+      "const": 3,
+      "default": 3,
+      "title": "Repeat Runs",
+      "type": "integer"
+    },
+    "repeatability_cases": {
+      "items": {
+        "$ref": "#/$defs/RepeatabilityCase"
+      },
+      "minItems": 1,
+      "title": "Repeatability Cases",
+      "type": "array"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/ExperimentScene"
+      },
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    },
+    "seeds": {
+      "items": {
+        "type": "integer"
+      },
+      "minItems": 1,
+      "title": "Seeds",
+      "type": "array"
+    },
+    "target_engines": {
+      "items": {
+        "$ref": "#/$defs/EngineName"
+      },
+      "title": "Target Engines",
+      "type": "array"
+    },
+    "tolerance_frames": {
+      "default": 1,
+      "minimum": 0,
+      "title": "Tolerance Frames",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "mode",
+    "scenes",
+    "seeds",
+    "repeatability_cases"
+  ],
+  "title": "GeneratedPerformanceExperimentPlan",
+  "type": "object"
+}

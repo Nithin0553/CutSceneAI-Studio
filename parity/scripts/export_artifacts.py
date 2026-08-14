@@ -5,6 +5,9 @@ from pathlib import Path
 from cutsceneai_cir import validate_project
 from cutsceneai_parity import (
     compile_semantics,
+    render_generated_performance_attempt_evidence_json_schema,
+    render_generated_performance_experiment_plan_json_schema,
+    render_generated_performance_experiment_report_json_schema,
     render_engine_readback_json_schema,
     render_parity_report_json_schema,
     render_timeline_semantics,
@@ -30,6 +33,15 @@ def expected_artifacts() -> dict[Path, str]:
         ),
         SCHEMA_ROOT / "parity-report-v0.1.schema.json": (
             render_parity_report_json_schema()
+        ),
+        SCHEMA_ROOT / "generated-performance-experiment-plan-v0.1.schema.json": (
+            render_generated_performance_experiment_plan_json_schema()
+        ),
+        SCHEMA_ROOT / "generated-performance-attempt-v0.1.schema.json": (
+            render_generated_performance_attempt_evidence_json_schema()
+        ),
+        SCHEMA_ROOT / "generated-performance-experiment-report-v0.1.schema.json": (
+            render_generated_performance_experiment_report_json_schema()
         ),
         EXAMPLE_OUTPUT: render_timeline_semantics(semantics),
     }

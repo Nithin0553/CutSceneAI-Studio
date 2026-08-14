@@ -1,0 +1,646 @@
+{
+  "$defs": {
+    "EngineName": {
+      "enum": [
+        "unreal",
+        "unity"
+      ],
+      "title": "EngineName",
+      "type": "string"
+    },
+    "EngineRunEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "editor_log_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Editor Log Sha256"
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineName"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "import_completed": {
+          "default": false,
+          "title": "Import Completed",
+          "type": "boolean"
+        },
+        "mapping_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Sha256"
+        },
+        "missing_realization_warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Realization Warnings",
+          "type": "array"
+        },
+        "modalities": {
+          "items": {
+            "$ref": "#/$defs/ModalityRealizationEvidence"
+          },
+          "title": "Modalities",
+          "type": "array"
+        },
+        "readback_completed": {
+          "default": false,
+          "title": "Readback Completed",
+          "type": "boolean"
+        },
+        "readback_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Readback Sha256"
+        },
+        "render_completed": {
+          "default": false,
+          "title": "Render Completed",
+          "type": "boolean"
+        },
+        "render_manifest_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Render Manifest Sha256"
+        },
+        "rendered_frame_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Rendered Frame Count",
+          "type": "integer"
+        },
+        "restarted": {
+          "default": false,
+          "title": "Restarted",
+          "type": "boolean"
+        },
+        "saved": {
+          "default": false,
+          "title": "Saved",
+          "type": "boolean"
+        },
+        "source_bundle_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Bundle Sha256"
+        },
+        "timeline_fingerprint_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeline Fingerprint Sha256"
+        }
+      },
+      "required": [
+        "engine",
+        "engine_version"
+      ],
+      "title": "EngineRunEvidence",
+      "type": "object"
+    },
+    "EvidenceOrigin": {
+      "enum": [
+        "synthetic",
+        "real"
+      ],
+      "title": "EvidenceOrigin",
+      "type": "string"
+    },
+    "GeneratedArtifactDigests": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_sha256s": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Audio Sha256S",
+          "type": "array"
+        },
+        "body_motion_sha256s": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Body Motion Sha256S",
+          "type": "array"
+        },
+        "camera_curves_sha256s": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Camera Curves Sha256S",
+          "type": "array"
+        },
+        "facial_curves_sha256s": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Facial Curves Sha256S",
+          "type": "array"
+        },
+        "generation_plan_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Generation Plan Sha256",
+          "type": "string"
+        },
+        "performance_package_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Performance Package Sha256",
+          "type": "string"
+        },
+        "source_bundle_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Bundle Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_bundle_sha256",
+        "generation_plan_sha256",
+        "performance_package_sha256",
+        "body_motion_sha256s",
+        "facial_curves_sha256s",
+        "camera_curves_sha256s",
+        "audio_sha256s"
+      ],
+      "title": "GeneratedArtifactDigests",
+      "type": "object"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "ModalityRealizationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_section_count": {
+          "minimum": 0,
+          "title": "Expected Section Count",
+          "type": "integer"
+        },
+        "modality": {
+          "$ref": "#/$defs/PerformanceModality"
+        },
+        "placeholder_section_count": {
+          "minimum": 0,
+          "title": "Placeholder Section Count",
+          "type": "integer"
+        },
+        "realized_section_count": {
+          "minimum": 0,
+          "title": "Realized Section Count",
+          "type": "integer"
+        },
+        "source_artifact_sha256s": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Source Artifact Sha256S",
+          "type": "array"
+        },
+        "target_asset_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Asset Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "modality",
+        "expected_section_count",
+        "realized_section_count",
+        "placeholder_section_count"
+      ],
+      "title": "ModalityRealizationEvidence",
+      "type": "object"
+    },
+    "ParityIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "delta_frames": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta Frames"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "semantic_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Semantic Id"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        }
+      },
+      "required": [
+        "severity",
+        "scope",
+        "code",
+        "message"
+      ],
+      "title": "ParityIssue",
+      "type": "object"
+    },
+    "ParityReport": {
+      "additionalProperties": false,
+      "properties": {
+        "cir_fingerprint_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cir Fingerprint Sha256",
+          "type": "string"
+        },
+        "equivalent": {
+          "title": "Equivalent",
+          "type": "boolean"
+        },
+        "error_count": {
+          "minimum": 0,
+          "title": "Error Count",
+          "type": "integer"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ParityIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "readbacks": {
+          "items": {
+            "$ref": "#/$defs/ReadbackSummary"
+          },
+          "title": "Readbacks",
+          "type": "array"
+        },
+        "report_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Report Version",
+          "type": "string"
+        },
+        "requirements": {
+          "$ref": "#/$defs/RealizationRequirements"
+        },
+        "tolerance_frames": {
+          "minimum": 0,
+          "title": "Tolerance Frames",
+          "type": "integer"
+        },
+        "warning_count": {
+          "minimum": 0,
+          "title": "Warning Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project_id",
+        "cir_fingerprint_sha256",
+        "tolerance_frames",
+        "equivalent",
+        "error_count",
+        "warning_count",
+        "readbacks",
+        "issues"
+      ],
+      "title": "ParityReport",
+      "type": "object"
+    },
+    "PerformanceModality": {
+      "enum": [
+        "body",
+        "facial",
+        "camera",
+        "audio"
+      ],
+      "title": "PerformanceModality",
+      "type": "string"
+    },
+    "ReadbackSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_version": {
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "animation_section_count": {
+          "minimum": 0,
+          "title": "Animation Section Count",
+          "type": "integer"
+        },
+        "audio_section_count": {
+          "minimum": 0,
+          "title": "Audio Section Count",
+          "type": "integer"
+        },
+        "camera_section_count": {
+          "minimum": 0,
+          "title": "Camera Section Count",
+          "type": "integer"
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineName"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "facial_section_count": {
+          "minimum": 0,
+          "title": "Facial Section Count",
+          "type": "integer"
+        },
+        "timeline_asset": {
+          "title": "Timeline Asset",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine",
+        "engine_version",
+        "adapter_version",
+        "timeline_asset",
+        "animation_section_count",
+        "facial_section_count",
+        "camera_section_count",
+        "audio_section_count"
+      ],
+      "title": "ReadbackSummary",
+      "type": "object"
+    },
+    "RealizationRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "animation": {
+          "default": false,
+          "title": "Animation",
+          "type": "boolean"
+        },
+        "audio": {
+          "default": false,
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "camera": {
+          "default": false,
+          "title": "Camera",
+          "type": "boolean"
+        },
+        "engines": {
+          "items": {
+            "$ref": "#/$defs/EngineName"
+          },
+          "title": "Engines",
+          "type": "array"
+        },
+        "facial": {
+          "default": false,
+          "title": "Facial",
+          "type": "boolean"
+        }
+      },
+      "title": "RealizationRequirements",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/parity/v0.1/generated-performance-attempt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GeneratedArtifactDigests"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cir_fingerprint_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cir Fingerprint Sha256",
+      "type": "string"
+    },
+    "clean_run": {
+      "title": "Clean Run",
+      "type": "boolean"
+    },
+    "engines": {
+      "items": {
+        "$ref": "#/$defs/EngineRunEvidence"
+      },
+      "title": "Engines",
+      "type": "array"
+    },
+    "evidence_origin": {
+      "$ref": "#/$defs/EvidenceOrigin"
+    },
+    "evidence_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Evidence Version",
+      "type": "string"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "generation_completed": {
+      "title": "Generation Completed",
+      "type": "boolean"
+    },
+    "manual_repair_count": {
+      "minimum": 0,
+      "title": "Manual Repair Count",
+      "type": "integer"
+    },
+    "parity_report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParityReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "repeat_index": {
+      "maximum": 3,
+      "minimum": 1,
+      "title": "Repeat Index",
+      "type": "integer"
+    },
+    "scene_id": {
+      "title": "Scene Id",
+      "type": "string"
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "evidence_origin",
+    "scene_id",
+    "project_id",
+    "cir_fingerprint_sha256",
+    "seed",
+    "repeat_index",
+    "clean_run",
+    "manual_repair_count",
+    "generation_completed"
+  ],
+  "title": "GeneratedPerformanceAttemptEvidence",
+  "type": "object"
+}

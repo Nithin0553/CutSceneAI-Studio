@@ -108,6 +108,8 @@ class RealizedSection(FrameRange):
 
 class ReadbackEvidence(ParityModel):
     animation_sections: list[RealizedSection] = Field(default_factory=list)
+    facial_sections: list[RealizedSection] = Field(default_factory=list)
+    camera_sections: list[RealizedSection] = Field(default_factory=list)
     audio_sections: list[RealizedSection] = Field(default_factory=list)
 
 
@@ -140,7 +142,17 @@ class ReadbackSummary(ParityModel):
     adapter_version: str
     timeline_asset: str
     animation_section_count: int = Field(ge=0)
+    facial_section_count: int = Field(ge=0)
+    camera_section_count: int = Field(ge=0)
     audio_section_count: int = Field(ge=0)
+
+
+class RealizationRequirements(ParityModel):
+    animation: bool = False
+    facial: bool = False
+    camera: bool = False
+    audio: bool = False
+    engines: list[EngineName] = Field(default_factory=list)
 
 
 class ParityReport(ParityModel):
@@ -148,6 +160,9 @@ class ParityReport(ParityModel):
     project_id: str
     cir_fingerprint_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     tolerance_frames: int = Field(ge=0)
+    requirements: RealizationRequirements = Field(
+        default_factory=RealizationRequirements
+    )
     equivalent: bool
     error_count: int = Field(ge=0)
     warning_count: int = Field(ge=0)

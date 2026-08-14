@@ -133,7 +133,8 @@ errors.
 
 ## 6. Production-realization gate
 
-After both engines contain mapped production animation and the same measured dialogue clips, rerun:
+After both engines contain mapped production body animation, facial curves, generated camera
+curves, and the same measured dialogue clips, rerun:
 
 ```bash
 python -m cutsceneai_parity verify \
@@ -142,15 +143,17 @@ python -m cutsceneai_parity verify \
   --readback /path/to/office-dialogue.unity.readback.json \
   --require-both-engines \
   --require-animation \
+  --require-facial \
+  --require-camera \
   --require-audio \
   --tolerance-frames 1 \
   --output build/cross-engine/parity-report.strict.json
 ```
 
-Strict acceptance requires zero errors and zero missing-realization warnings. Unity empty placeholder
-animation clips do not count as production animation. Because CIR 0.1 does not encode audio duration,
-the verifier compares actual audio end frames directly between Unreal and Unity; for the accepted
-office dialogue those ends are frames `178` and `302`.
+Strict acceptance requires zero errors and zero missing-realization warnings. Placeholder body,
+facial, or camera sections do not count as production realization. Because CIR 0.1 does not encode
+audio duration, the verifier compares actual audio end frames directly between Unreal and Unity;
+for the accepted office dialogue those ends are frames `178` and `302`.
 
 Artist-filled native sections are supported after the initial metadata-safe import. In Unity,
 replace each generated empty `AnimationClip` and retain the `CSA|...` track and clip names, or compile

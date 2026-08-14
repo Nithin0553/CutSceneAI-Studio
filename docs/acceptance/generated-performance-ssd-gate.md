@@ -21,10 +21,13 @@ reported as generated-performance evidence.
 | Provider interfaces and canonical output normalization | Complete |
 | Package assembly, hash/provenance verification, and archive/path safety | Complete |
 | Unreal 5.8 and Unity 6 generated-artifact mappings | Complete |
-| Reliability, repeatability, portability, and native-realization harnesses | Pending |
+| Four-modality strict readback and parity evidence contract | Complete |
+| Reliability, repeatability, and portability experiment ledger and aggregator | Complete |
+| Native Unreal/Unity realization, restart/readback, and render harnesses | Pending |
 
-The SSD is not yet required. The experiment and native-realization harnesses remain repository-only
-work and must be completed before the mandatory trigger below is reached.
+The SSD is not yet required. The native-realization harness remains repository-only work and must
+be completed before the mandatory trigger below is reached. Synthetic experiment records validate
+the aggregator only and are permanently ineligible for paper evidence.
 
 ## Work that continues without the SSD
 

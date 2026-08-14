@@ -1,0 +1,194 @@
+{
+  "$defs": {
+    "ExperimentIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "repeat_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repeat Index"
+        },
+        "scene_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scene Id"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "ExperimentIssue",
+      "type": "object"
+    },
+    "ExperimentMetricSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum_rate": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Minimum Rate",
+          "type": "number"
+        },
+        "observed_count": {
+          "minimum": 0,
+          "title": "Observed Count",
+          "type": "integer"
+        },
+        "passed_count": {
+          "minimum": 0,
+          "title": "Passed Count",
+          "type": "integer"
+        },
+        "planned_count": {
+          "minimum": 0,
+          "title": "Planned Count",
+          "type": "integer"
+        },
+        "rate": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Rate",
+          "type": "number"
+        },
+        "target_met": {
+          "title": "Target Met",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "planned_count",
+        "observed_count",
+        "passed_count",
+        "rate",
+        "minimum_rate",
+        "target_met"
+      ],
+      "title": "ExperimentMetricSummary",
+      "type": "object"
+    },
+    "ExperimentMode": {
+      "enum": [
+        "harness",
+        "paper"
+      ],
+      "title": "ExperimentMode",
+      "type": "string"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.cutsceneai.dev/parity/v0.1/generated-performance-experiment-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "evidence_complete": {
+      "title": "Evidence Complete",
+      "type": "boolean"
+    },
+    "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "gate_passed": {
+      "title": "Gate Passed",
+      "type": "boolean"
+    },
+    "issue_count": {
+      "minimum": 0,
+      "title": "Issue Count",
+      "type": "integer"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ExperimentIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "mode": {
+      "$ref": "#/$defs/ExperimentMode"
+    },
+    "native_realization": {
+      "$ref": "#/$defs/ExperimentMetricSummary"
+    },
+    "portability": {
+      "$ref": "#/$defs/ExperimentMetricSummary"
+    },
+    "publishable": {
+      "title": "Publishable",
+      "type": "boolean"
+    },
+    "reliability": {
+      "$ref": "#/$defs/ExperimentMetricSummary"
+    },
+    "repeatability": {
+      "$ref": "#/$defs/ExperimentMetricSummary"
+    },
+    "report_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Report Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "mode",
+    "evidence_complete",
+    "gate_passed",
+    "publishable",
+    "reliability",
+    "repeatability",
+    "portability",
+    "native_realization",
+    "issue_count",
+    "issues"
+  ],
+  "title": "GeneratedPerformanceExperimentReport",
+  "type": "object"
+}

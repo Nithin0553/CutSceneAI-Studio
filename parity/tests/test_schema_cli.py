@@ -7,17 +7,26 @@ from jsonschema import Draft202012Validator
 
 from cutsceneai_cir import Project
 from cutsceneai_parity import (
+    ATTEMPT_EVIDENCE_SCHEMA_ID,
     EngineName,
     EngineTimelineReadback,
+    EXPERIMENT_PLAN_SCHEMA_ID,
+    EXPERIMENT_REPORT_SCHEMA_ID,
     JSON_SCHEMA_DIALECT,
     READBACK_SCHEMA_ID,
     REPORT_SCHEMA_ID,
     SEMANTICS_SCHEMA_ID,
     compile_semantics,
     engine_readback_json_schema,
+    generated_performance_attempt_evidence_json_schema,
+    generated_performance_experiment_plan_json_schema,
+    generated_performance_experiment_report_json_schema,
     parity_report_json_schema,
     render_engine_readback,
     render_engine_readback_json_schema,
+    render_generated_performance_attempt_evidence_json_schema,
+    render_generated_performance_experiment_plan_json_schema,
+    render_generated_performance_experiment_report_json_schema,
     render_parity_report_json_schema,
     render_timeline_semantics,
     render_timeline_semantics_json_schema,
@@ -35,6 +44,18 @@ def test_public_schemas_are_strict_and_valid() -> None:
         (timeline_semantics_json_schema(), SEMANTICS_SCHEMA_ID),
         (engine_readback_json_schema(), READBACK_SCHEMA_ID),
         (parity_report_json_schema(), REPORT_SCHEMA_ID),
+        (
+            generated_performance_experiment_plan_json_schema(),
+            EXPERIMENT_PLAN_SCHEMA_ID,
+        ),
+        (
+            generated_performance_attempt_evidence_json_schema(),
+            ATTEMPT_EVIDENCE_SCHEMA_ID,
+        ),
+        (
+            generated_performance_experiment_report_json_schema(),
+            EXPERIMENT_REPORT_SCHEMA_ID,
+        ),
     ]
     for schema, schema_id in contracts:
         assert schema["$schema"] == JSON_SCHEMA_DIALECT
@@ -53,6 +74,25 @@ def test_committed_artifacts_match_models(cir_project: Project) -> None:
     assert (PARITY_ROOT / "schemas" / "parity-report-v0.1.schema.json").read_text(
         encoding="utf-8"
     ) == render_parity_report_json_schema()
+    assert (
+        PARITY_ROOT
+        / "schemas"
+        / "generated-performance-experiment-plan-v0.1.schema.json"
+    ).read_text(
+        encoding="utf-8"
+    ) == render_generated_performance_experiment_plan_json_schema()
+    assert (
+        PARITY_ROOT / "schemas" / "generated-performance-attempt-v0.1.schema.json"
+    ).read_text(
+        encoding="utf-8"
+    ) == render_generated_performance_attempt_evidence_json_schema()
+    assert (
+        PARITY_ROOT
+        / "schemas"
+        / "generated-performance-experiment-report-v0.1.schema.json"
+    ).read_text(
+        encoding="utf-8"
+    ) == render_generated_performance_experiment_report_json_schema()
     expected = compile_semantics(cir_project)
     example = PARITY_ROOT / "examples" / "office-dialogue.semantics.json"
     assert example.read_text(encoding="utf-8") == render_timeline_semantics(expected)
