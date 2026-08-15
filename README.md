@@ -2,6 +2,9 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
+For the current project state, completed gates, operating constraints, and exact next steps, start
+with [`README_CONTINUATION.md`](README_CONTINUATION.md).
+
 The repository includes the CIR foundation, Director Agent v0.1, an engine-neutral Preview v0.1
 pipeline, an Unreal Adapter v0.6 that produces editable Sequencer imports and imports verified
 portable dialogue bundles, a Unity Timeline Adapter v0.1, an engine-neutral timeline parity
