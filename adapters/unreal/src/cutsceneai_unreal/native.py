@@ -188,7 +188,11 @@ def _animation_model(sequence):
     return model
 
 def _animation_frame_rate(sequence):
-    rate = _property(_animation_model(sequence), "frame_rate")
+    model = _animation_model(sequence)
+    get_frame_rate = getattr(model, "get_frame_rate", None)
+    if not callable(get_frame_rate):
+        raise RuntimeError("Generated AnimSequence data model does not expose get_frame_rate().")
+    rate = get_frame_rate()
     return int(_property(rate, "numerator")), int(_property(rate, "denominator"))
 
 def _set_compatible_frame_rate(sequence, controller, target_fps):
