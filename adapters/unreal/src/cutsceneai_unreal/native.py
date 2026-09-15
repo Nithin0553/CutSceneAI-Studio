@@ -136,6 +136,7 @@ Run only through run-unreal-native.ps1. Every destination is preflighted before 
 """
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 
@@ -179,6 +180,39 @@ def _property(value, name):
 
 def _component(value, name):
     return float(_property(value, name))
+
+def _animation_model(sequence):
+    model = _property(sequence, "data_model_interface")
+    if model is None:
+        raise RuntimeError("Generated AnimSequence has no animation data model.")
+    return model
+
+def _animation_frame_rate(sequence):
+    rate = _property(_animation_model(sequence), "frame_rate")
+    return int(_property(rate, "numerator")), int(_property(rate, "denominator"))
+
+def _set_compatible_frame_rate(sequence, controller, target_fps):
+    initial_numerator, initial_denominator = _animation_frame_rate(sequence)
+    target_numerator = int(target_fps)
+    if initial_numerator == target_numerator and initial_denominator == 1:
+        return
+    if initial_denominator != 1:
+        raise RuntimeError(
+            f"Unsupported initial AnimSequence frame rate: {initial_numerator}/{initial_denominator}."
+        )
+    bridge_numerator = math.lcm(initial_numerator, target_numerator)
+    if bridge_numerator != initial_numerator:
+        controller.set_frame_rate(unreal.FrameRate(bridge_numerator, 1), False)
+    controller.set_frame_rate(unreal.FrameRate(target_numerator, 1), False)
+    final_numerator, final_denominator = _animation_frame_rate(sequence)
+    if (final_numerator, final_denominator) != (target_numerator, 1):
+        raise RuntimeError(
+            f"Unable to initialize compatible AnimSequence frame rate: "
+            f"{final_numerator}/{final_denominator}."
+        )
+
+def _bone_track_names(sequence):
+    return {str(item) for item in _animation_model(sequence).get_bone_track_names()}
 
 def _vector(data):
     return unreal.Vector(float(data["x"]), float(data["y"]), float(data["z"]))
@@ -250,9 +284,12 @@ def _create_anim_sequence(path, mesh, frame_count):
     sequence = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, folder, unreal.AnimSequence, factory)
     if not isinstance(sequence, unreal.AnimSequence):
         raise RuntimeError(f"Unable to create AnimSequence: {path}")
+    # UE 5.8 AnimSequenceFactory creates the AnimationDataModel automatically.
+    # The Python controller does not expose initialize_model/update_with_skeleton.
+    _animation_model(sequence)
     controller = _property(sequence, "controller")
     controller.open_bracket("CutSceneAI generated performance", False)
-    controller.set_frame_rate(unreal.FrameRate(MAPPING["fps"], 1), False)
+    _set_compatible_frame_rate(sequence, controller, MAPPING["fps"])
     controller.set_number_of_frames(unreal.FrameNumber(frame_count), False)
     return sequence, controller
 
@@ -278,7 +315,11 @@ def _create_body(track):
                     positions.append(reference_location)
                 rotations.append(_quat_multiply(reference_rotation, _quat(frame["joint_rotations"][index])))
                 scales.append(reference_scale)
-            if not controller.add_bone_curve(bone, False):
+            bone_name = str(bone)
+            if bone_name in _bone_track_names(sequence):
+                raise RuntimeError(f"Generated bone track already exists before add: {bone}")
+            added = controller.add_bone_curve(bone, False)
+            if not added or bone_name not in _bone_track_names(sequence):
                 raise RuntimeError(f"Unable to add generated bone track: {bone}")
             if not controller.set_bone_track_keys(bone, positions, rotations, scales, False):
                 raise RuntimeError(f"Unable to set generated bone keys: {bone}")
@@ -709,6 +750,11 @@ param(
     [string]$Python = "python"
 )
 $ErrorActionPreference = "Stop"
+$editorCommand = $UnrealEditor
+if ((Split-Path -Leaf $editorCommand) -ieq "UnrealEditor.exe") {
+    $candidate = Join-Path (Split-Path -Parent $editorCommand) "UnrealEditor-Cmd.exe"
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { $editorCommand = $candidate }
+}
 $packageRoot = Split-Path -Parent $PSScriptRoot
 $bundlePath = Join-Path $packageRoot "performance.bundle.zip"
 $actualBundleHash = (Get-FileHash -Algorithm SHA256 $bundlePath).Hash.ToLowerInvariant()
@@ -719,7 +765,7 @@ $evidenceRoot = Join-Path $projectRoot "Saved\CutSceneAI\Native\Unreal"
 New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
 
 function Invoke-CutSceneAIUnreal([string]$Script, [string]$Log) {
-    & $UnrealEditor $projectFile "-ExecutePythonScript=$Script" -unattended -nop4 -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$Log"
+    & $editorCommand $projectFile "-ExecutePythonScript=$Script" -unattended -nop4 -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$Log"
     if ($LASTEXITCODE -ne 0) { throw "Unreal native phase failed with exit code $LASTEXITCODE. See $Log" }
 }
 
