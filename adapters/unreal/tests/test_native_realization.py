@@ -117,6 +117,10 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
         'version.startswith("5.8.0")',
         "AnimPoseExtensions.get_reference_pose",
         "AnimPoseExtensions.get_ref_bone_pose",
+        "data_model_interface",
+        "math.lcm(initial_numerator, target_numerator)",
+        "controller.add_bone_curve",
+        "_bone_track_names(sequence)",
         "_quat_multiply(reference_rotation",
         "mesh.get_all_morph_target_names()",
         "AnimationLibrary.add_float_curve_keys",
@@ -140,6 +144,8 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
     ):
         assert token in renderer
     assert runner.count("Invoke-CutSceneAIUnreal (Join-Path") == 3
+    assert "UnrealEditor-Cmd.exe" in runner
+    assert "& $editorCommand $projectFile" in runner
     assert "Get-Content -Raw -Path $importLog, $readbackLog, $renderLog" in runner
     assert (
         hashlib.sha256(render_performance_bundle(package.bundle)).hexdigest() in runner
