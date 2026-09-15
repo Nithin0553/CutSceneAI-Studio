@@ -118,6 +118,7 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
         "AnimPoseExtensions.get_reference_pose",
         "AnimPoseExtensions.get_ref_bone_pose",
         "data_model_interface",
+        "get_frame_rate()",
         "math.lcm(initial_numerator, target_numerator)",
         "controller.add_bone_curve",
         "_bone_track_names(sequence)",
