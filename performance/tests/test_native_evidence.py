@@ -31,7 +31,19 @@ def _payloads(engine: EngineName) -> dict[str, Any]:
         "source_scene_id": "fixture-scene",
         "fps": 24,
         "duration_frames": 4,
-        "body_tracks": [{"source_artifact": {"sha256": "a" * 64}}],
+        "body_tracks": [
+            {
+                "actor_binding_id": "actor:mina",
+                "source_artifact": {"sha256": "a" * 64},
+                "joint_bindings": [
+                    {
+                        "source_joint_name": "pelvis",
+                        "target_bone_name": "pelvis",
+                        "parent_index": -1,
+                    }
+                ],
+            }
+        ],
         "facial_tracks": [{"source_artifact": {"sha256": "b" * 64}}],
         "camera_tracks": [{"source_artifact": {"sha256": "c" * 64}}],
         "audio_tracks": [{"source_artifact": {"sha256": "d" * 64}}],
@@ -96,6 +108,8 @@ def _payloads(engine: EngineName) -> dict[str, Any]:
         "restarted": True,
         "readback_completed": True,
         "render_completed": True,
+        "retargeting_method": "parent-component-bind-conjugation-v1",
+        "retarget_profile": "retarget-profile.json",
         "errors": [],
     }
     if engine is EngineName.UNREAL:
@@ -114,11 +128,35 @@ def _payloads(engine: EngineName) -> dict[str, Any]:
             for frame in range(4)
         ],
     }
+    profile = {
+        "profile_version": "0.1.0",
+        "retargeting_method": "parent-component-bind-conjugation-v1",
+        "canonical_reference_frame": "axis-aligned-parent-frame-v1",
+        "engine": "Unreal Engine" if engine is EngineName.UNREAL else "Unity",
+        "engine_version": readback["engine_version"],
+        "source_mapping_sha256": hashlib.sha256(_data(mapping)).hexdigest(),
+        "actors": [
+            {
+                "actor_binding_id": "actor:mina",
+                "joints": [
+                    {
+                        "source_joint_name": "pelvis",
+                        "target_bone_name": "pelvis",
+                        "parent_index": -1,
+                        "reference_local": {},
+                        "reference_component": {},
+                        "target_parent_component_rotation": {},
+                    }
+                ],
+            }
+        ],
+    }
     return {
         "mapping": mapping,
         "readback": readback,
         "lifecycle": lifecycle,
         "render": render,
+        "profile": profile,
         "log": b"native editor log\n",
     }
 
@@ -130,6 +168,7 @@ def _collect(payloads: dict[str, Any], engine: EngineName):
         lifecycle_data=_data(payloads["lifecycle"]),
         readback_data=_data(payloads["readback"]),
         render_manifest_data=_data(payloads["render"]),
+        retarget_profile_data=_data(payloads["profile"]),
         editor_log_data=payloads["log"],
     )
 
@@ -145,6 +184,10 @@ def test_collects_strict_hash_anchored_native_evidence(engine: EngineName) -> No
         result.mapping_sha256 == hashlib.sha256(_data(payloads["mapping"])).hexdigest()
     )
     assert result.editor_log_sha256 == hashlib.sha256(payloads["log"]).hexdigest()
+    assert (
+        result.retarget_profile_sha256
+        == hashlib.sha256(_data(payloads["profile"])).hexdigest()
+    )
     assert result.rendered_frame_count == 4
     assert result.render_completed
     assert [item.modality for item in result.modalities] == list(PerformanceModality)
@@ -170,6 +213,7 @@ def test_incomplete_render_is_preserved_as_failed_evidence() -> None:
         ("lifecycle", [], TypeError, "one JSON object"),
         ("readback", [], TypeError, "one JSON object"),
         ("render", [], TypeError, "one JSON object"),
+        ("profile", [], TypeError, "one JSON object"),
     ],
 )
 def test_rejects_non_object_json_documents(
@@ -194,6 +238,7 @@ def test_rejects_malformed_json() -> None:
             lifecycle_data=_data(payloads["lifecycle"]),
             readback_data=_data(payloads["readback"]),
             render_manifest_data=_data(payloads["render"]),
+            retarget_profile_data=_data(payloads["profile"]),
             editor_log_data=payloads["log"],
         )
 
@@ -214,6 +259,9 @@ def test_rejects_malformed_json() -> None:
         ("expected_frames", ValueError, "frame accounting"),
         ("errors", ValueError, "array of strings"),
         ("lifecycle_bool", TypeError, "must be a boolean"),
+        ("lifecycle_retarget", ValueError, "required retarget profile"),
+        ("profile_identity", ValueError, "profile identity"),
+        ("profile_joint", ValueError, "joint context"),
     ],
 )
 def test_rejects_invalid_native_evidence(
@@ -248,6 +296,12 @@ def test_rejects_invalid_native_evidence(
         payloads["lifecycle"]["errors"] = [1]
     elif mutation == "lifecycle_bool":
         payloads["lifecycle"]["saved"] = "true"
+    elif mutation == "lifecycle_retarget":
+        payloads["lifecycle"]["retargeting_method"] = "legacy"
+    elif mutation == "profile_identity":
+        payloads["profile"]["source_mapping_sha256"] = "0" * 64
+    elif mutation == "profile_joint":
+        payloads["profile"]["actors"][0]["joints"][0]["parent_index"] = 0
 
     with pytest.raises(exception, match=message):
         _collect(payloads, EngineName.UNITY)
@@ -263,6 +317,7 @@ def test_generated_collector_is_self_contained_and_equivalent(
         "lifecycle": _data(payloads["lifecycle"]),
         "readback": _data(payloads["readback"]),
         "render": _data(payloads["render"]),
+        "profile": _data(payloads["profile"]),
         "log": payloads["log"],
     }
     paths = {}
@@ -289,6 +344,8 @@ def test_generated_collector_is_self_contained_and_equivalent(
             str(paths["readback"]),
             "--render-manifest",
             str(paths["render"]),
+            "--retarget-profile",
+            str(paths["profile"]),
             "--editor-log",
             str(paths["log"]),
             "--output",

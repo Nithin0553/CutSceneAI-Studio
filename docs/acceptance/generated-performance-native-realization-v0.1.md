@@ -102,10 +102,17 @@ half-open frame range to PNG.
 
 Evidence is written under `Saved\CutSceneAI\Native\Unreal` in the project.
 
+Both engine import stages must also retain `retarget-profile.json`. The required retarget method is
+`parent-component-bind-conjugation-v1`: canonical parent-local deltas are conjugated through the
+target parent's component-space bind rotation, then pre-multiplied with the target local bind pose.
+Root translation is converted through the same target-parent basis. A run that applies canonical
+quaternions directly to target local bones without this captured bind context is not accepted.
+
 ## Pass criteria
 
-Each evidence directory must contain `lifecycle.json`, `readback.json`, `render-manifest.json`, the
-combined editor log, and `engine-run.evidence.json`. The evidence collector rejects mismatched
+Each evidence directory must contain `lifecycle.json`, `retarget-profile.json`, `readback.json`,
+`render-manifest.json`, the combined editor log, and `engine-run.evidence.json`. The evidence
+collector rejects mismatched
 engine or bundle identities, mapping/readback semantic drift, non-boolean lifecycle states,
 non-distinct editor process IDs, invalid render accounting, missing or duplicate source artifact
 hashes, and malformed error lists.

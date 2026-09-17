@@ -150,7 +150,9 @@ public static class CutSceneAIGeneratedPerformance
     [Serializable] private sealed class VectorValue { public float x; public float y; public float z; }
     [Serializable] private sealed class QuaternionValue { public float x; public float y; public float z; public float w; }
     [Serializable] private sealed class Artifact { public string sha256; }
-    [Serializable] private sealed class JointBinding { public string target_human_bone; }
+    [Serializable] private sealed class JointBinding {
+        public string source_joint_name; public string target_human_bone; public int parent_index;
+    }
     [Serializable] private sealed class BodyKeyframe { public int timeline_frame; public VectorValue root_position_m; public QuaternionValue[] joint_rotations; }
     [Serializable] private sealed class BodyTrack {
         public string semantic_id; public string actor_binding_id; public int start_frame;
@@ -247,7 +249,24 @@ public static class CutSceneAIGeneratedPerformance
     [Serializable] private sealed class Lifecycle {
         public string lifecycle_version; public int import_process_id; public int readback_process_id;
         public bool import_completed; public bool saved; public bool restarted;
-        public bool readback_completed; public bool render_completed; public string[] errors;
+        public bool readback_completed; public bool render_completed; public string retargeting_method;
+        public string retarget_profile; public string[] errors;
+    }
+    [Serializable] private sealed class RetargetTransform {
+        public VectorValue translation; public QuaternionValue rotation; public VectorValue scale;
+    }
+    [Serializable] private sealed class RetargetJoint {
+        public string source_joint_name; public string target_human_bone; public int parent_index;
+        public RetargetTransform reference_local; public RetargetTransform reference_component;
+        public QuaternionValue target_parent_component_rotation;
+    }
+    [Serializable] private sealed class RetargetActor {
+        public string actor_binding_id; public string prefab_path; public RetargetJoint[] joints;
+    }
+    [Serializable] private sealed class RetargetProfile {
+        public string profile_version; public string retargeting_method; public string canonical_reference_frame;
+        public string engine; public string engine_version; public string source_mapping_sha256;
+        public RetargetActor[] actors;
     }
 
     private static Plan LoadPlan() => Load<Plan>(PlanBase64, "plan");
@@ -267,6 +286,28 @@ public static class CutSceneAIGeneratedPerformance
     private static int Frame(double seconds, int fps) => (int)Math.Round(seconds * fps, MidpointRounding.AwayFromZero);
     private static Vector3 Vector(VectorValue value) => new Vector3(value.x, value.y, value.z);
     private static Quaternion QuaternionValueOf(QuaternionValue value) => new Quaternion(value.x, value.y, value.z, value.w);
+    private static VectorValue VectorData(Vector3 value) => new VectorValue { x = value.x, y = value.y, z = value.z };
+    private static QuaternionValue QuaternionData(Quaternion value) => new QuaternionValue { x = value.x, y = value.y, z = value.z, w = value.w };
+
+    private static Quaternion ReferenceComponentRotation(Animator animator, Transform bone)
+        => Quaternion.Inverse(animator.transform.rotation) * bone.rotation;
+
+    private static Quaternion ParentComponentRotation(Quaternion referenceLocal, Quaternion referenceComponent)
+        => referenceComponent * Quaternion.Inverse(referenceLocal);
+
+    private static Quaternion RetargetRotation(Quaternion referenceLocal, Quaternion referenceComponent, Quaternion canonicalDelta)
+    {
+        Quaternion parentComponent = ParentComponentRotation(referenceLocal, referenceComponent);
+        Quaternion parentDelta = Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent;
+        return parentDelta * referenceLocal;
+    }
+
+    private static RetargetTransform RetargetTransformData(Transform bone)
+        => new RetargetTransform {
+            translation = VectorData(bone.localPosition),
+            rotation = QuaternionData(bone.localRotation),
+            scale = VectorData(bone.localScale),
+        };
 
     private static void ApplyActorTransform(GameObject instance, ActorPlan actor)
     {
@@ -391,7 +432,9 @@ public static class CutSceneAIGeneratedPerformance
             Transform transform = animator.GetBoneTransform(bone);
             string path = AnimationUtility.CalculateTransformPath(transform, animator.transform);
             Quaternion reference = transform.localRotation;
-            Quaternion[] rotations = track.keyframes.Select(frame => reference * QuaternionValueOf(frame.joint_rotations[jointIndex])).ToArray();
+            Quaternion referenceComponent = ReferenceComponentRotation(animator, transform);
+            Quaternion parentComponent = ParentComponentRotation(reference, referenceComponent);
+            Quaternion[] rotations = track.keyframes.Select(frame => RetargetRotation(reference, referenceComponent, QuaternionValueOf(frame.joint_rotations[jointIndex]))).ToArray();
             SetCurve(clip, path, typeof(Transform), "m_LocalRotation.x", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].x))));
             SetCurve(clip, path, typeof(Transform), "m_LocalRotation.y", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].y))));
             SetCurve(clip, path, typeof(Transform), "m_LocalRotation.z", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].z))));
@@ -399,15 +442,55 @@ public static class CutSceneAIGeneratedPerformance
             if (jointIndex == 0)
             {
                 Vector3 referencePosition = transform.localPosition;
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.x", Keys(track.start_frame, fps, track.keyframes.Select(frame => Tuple.Create(frame.timeline_frame, referencePosition.x + frame.root_position_m.x))));
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.y", Keys(track.start_frame, fps, track.keyframes.Select(frame => Tuple.Create(frame.timeline_frame, referencePosition.y + frame.root_position_m.y))));
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.z", Keys(track.start_frame, fps, track.keyframes.Select(frame => Tuple.Create(frame.timeline_frame, referencePosition.z + frame.root_position_m.z))));
+                Vector3[] positions = track.keyframes.Select(frame => referencePosition + Quaternion.Inverse(parentComponent) * Vector(frame.root_position_m)).ToArray();
+                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.x", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].x))));
+                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.y", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].y))));
+                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.z", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].z))));
             }
         }
         clip.EnsureQuaternionContinuity();
         EnsureFolder(track.target_animation_path);
         AssetDatabase.CreateAsset(clip, track.target_animation_path);
         return clip;
+    }
+
+    private static void CaptureRetargetProfile(Mapping mapping, Target target)
+    {
+        RetargetActor[] actors = mapping.body_tracks.Select(track => {
+            ActorTarget actorTarget = ActorTargetFor(target, track.actor_binding_id);
+            GameObject prefab = LoadPrefab(actorTarget);
+            Animator animator = AnimatorFor(prefab, actorTarget);
+            RetargetJoint[] joints = track.joint_bindings.Select(binding => {
+                HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone);
+                Transform transform = animator.GetBoneTransform(bone);
+                Quaternion local = transform.localRotation;
+                Quaternion component = ReferenceComponentRotation(animator, transform);
+                return new RetargetJoint {
+                    source_joint_name = binding.source_joint_name,
+                    target_human_bone = binding.target_human_bone,
+                    parent_index = binding.parent_index,
+                    reference_local = RetargetTransformData(transform),
+                    reference_component = new RetargetTransform {
+                        translation = VectorData(animator.transform.InverseTransformPoint(transform.position)),
+                        rotation = QuaternionData(component),
+                        scale = VectorData(transform.lossyScale),
+                    },
+                    target_parent_component_rotation = QuaternionData(ParentComponentRotation(local, component)),
+                };
+            }).ToArray();
+            return new RetargetActor { actor_binding_id = track.actor_binding_id, prefab_path = actorTarget.prefab_path, joints = joints };
+        }).ToArray();
+        RetargetProfile profile = new RetargetProfile {
+            profile_version = "0.1.0",
+            retargeting_method = "parent-component-bind-conjugation-v1",
+            canonical_reference_frame = "axis-aligned-parent-frame-v1",
+            engine = "Unity",
+            engine_version = Application.unityVersion,
+            source_mapping_sha256 = target.source_mapping_sha256,
+            actors = actors,
+        };
+        Directory.CreateDirectory(EvidenceRoot);
+        File.WriteAllText(Path.Combine(EvidenceRoot, "retarget-profile.json"), JsonUtility.ToJson(profile, true), new UTF8Encoding(false));
     }
 
     private static AnimationClip CreateFaceClip(FaceTrack track, GameObject prefab, ActorTarget target, int fps)
@@ -458,6 +541,7 @@ public static class CutSceneAIGeneratedPerformance
     {
         Plan plan = LoadPlan(); Mapping mapping = LoadMapping(); Target target = LoadTarget();
         Preflight(plan, mapping, target);
+        CaptureRetargetProfile(mapping, target);
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         GameObject root = new GameObject("CutSceneAI_" + mapping.source_scene_id);
         PlayableDirector director = root.AddComponent<PlayableDirector>();
@@ -532,7 +616,8 @@ public static class CutSceneAIGeneratedPerformance
         Directory.CreateDirectory(EvidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, errors = Array.Empty<string>() };
+            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1",
+            retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(EvidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
     }
@@ -698,7 +783,7 @@ $readbackLog = Join-Path $evidenceRoot "readback-render.log"
 if ($LASTEXITCODE -ne 0) { throw "Unity restart/readback/render failed with exit code $LASTEXITCODE. See $readbackLog" }
 $combinedLog = Join-Path $evidenceRoot "editor.log"
 Get-Content -Raw -Path $importLog, $readbackLog | Set-Content -NoNewline -Encoding UTF8 $combinedLog
-& $Python (Join-Path $PSScriptRoot "collect-native-evidence.py") --engine unity --mapping (Join-Path $packageRoot "mapping.json") --lifecycle (Join-Path $evidenceRoot "lifecycle.json") --readback (Join-Path $evidenceRoot "readback.json") --render-manifest (Join-Path $evidenceRoot "render-manifest.json") --editor-log $combinedLog --output (Join-Path $evidenceRoot "engine-run.evidence.json")
+& $Python (Join-Path $PSScriptRoot "collect-native-evidence.py") --engine unity --mapping (Join-Path $packageRoot "mapping.json") --lifecycle (Join-Path $evidenceRoot "lifecycle.json") --readback (Join-Path $evidenceRoot "readback.json") --render-manifest (Join-Path $evidenceRoot "render-manifest.json") --retarget-profile (Join-Path $evidenceRoot "retarget-profile.json") --editor-log $combinedLog --output (Join-Path $evidenceRoot "engine-run.evidence.json")
 if ($LASTEXITCODE -ne 0) { throw "Native evidence collection failed with exit code $LASTEXITCODE." }
 Write-Host "CutSceneAI Unity native gate completed: $evidenceRoot"
 """

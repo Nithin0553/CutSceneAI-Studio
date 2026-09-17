@@ -73,6 +73,12 @@ from .providers import (
     normalize_camera_output,
     normalize_facial_output,
 )
+from .retargeting import (
+    PARENT_COMPONENT_BIND_RETARGETING_METHOD,
+    invert_quaternion,
+    multiply_quaternions,
+    retarget_parent_local_rotation,
+)
 from .schema import (
     BODY_MOTION_SCHEMA_ID,
     CAMERA_CURVE_SCHEMA_ID,
@@ -124,6 +130,7 @@ __all__ = [
     "MAX_PERFORMANCE_BUNDLE_ENTRIES",
     "MAX_PERFORMANCE_BUNDLE_UNCOMPRESSED_BYTES",
     "MOTION_RESAMPLING_METHOD",
+    "PARENT_COMPONENT_BIND_RETARGETING_METHOD",
     "PERFORMANCE_MANIFEST_PATH",
     "PERFORMANCE_PACKAGE_SCHEMA_ID",
     "PERFORMANCE_PLAN_PATH",
@@ -176,7 +183,9 @@ __all__ = [
     "facial_curve_artifact_sha256",
     "facial_curve_json_schema",
     "generation_plan_json_schema",
+    "invert_quaternion",
     "load_performance_bundle",
+    "multiply_quaternions",
     "normalize_body_output",
     "normalize_camera_output",
     "normalize_facial_output",
@@ -197,6 +206,7 @@ __all__ = [
     "resample_body_motion",
     "resample_camera_curves",
     "resample_facial_curves",
+    "retarget_parent_local_rotation",
     "verify_performance_bundle",
     "verify_performance_bundle_semantics",
     "write_body_motion_json_schema",

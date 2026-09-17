@@ -130,6 +130,21 @@ canonical-timeline, and render-manifest hashes to lifecycle and modality evidenc
 distinct editor processes. Repository tests validate the harnesses; only retained editor output is
 native acceptance evidence.
 
+### Bind-basis retargeting
+
+Canonical body rotations are expressed in the axis-aligned parent frames of
+`cutsceneai-humanoid-v1`; engine skeleton bone frames are not assumed to share those axes. Before
+authoring keys, each native harness extracts the target joint's local and component-space bind
+transforms. It conjugates every canonical parent-local delta through the target parent's component
+bind rotation, pre-multiplies the target local bind rotation, and converts the root offset through
+the same parent basis. The versioned method identifier is
+`parent-component-bind-conjugation-v1`.
+
+Each engine writes `retarget-profile.json` beside its lifecycle evidence. The profile records the
+exact target asset, joint mapping, local/component bind transforms, parent bind rotations, engine
+version, and source mapping hash. This makes skeleton-context extraction part of the retained
+evidence rather than an implicit engine assumption.
+
 See
 [`generated-performance-native-realization-v0.1.md`](../docs/acceptance/generated-performance-native-realization-v0.1.md)
 for the exact Unity and Unreal commands and pass criteria.

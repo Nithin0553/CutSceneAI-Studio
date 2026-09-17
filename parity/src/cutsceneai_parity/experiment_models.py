@@ -150,6 +150,7 @@ class EngineRunEvidence(ParityModel):
     readback_sha256: Sha256 | None = None
     timeline_fingerprint_sha256: Sha256 | None = None
     render_manifest_sha256: Sha256 | None = None
+    retarget_profile_sha256: Sha256 | None = None
     rendered_frame_count: int = Field(default=0, ge=0)
     import_completed: bool = False
     saved: bool = False

@@ -122,7 +122,11 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
         "math.lcm(initial_numerator, target_numerator)",
         "controller.add_bone_curve",
         "_bone_track_names(sequence)",
-        "_quat_multiply(reference_rotation",
+        "unreal.AnimPoseSpaces.WORLD",
+        "_retarget_rotation(reference_rotation, reference_component_rotation",
+        "_quat_multiply(parent_delta, reference_local)",
+        '"retargeting_method": "parent-component-bind-conjugation-v1"',
+        '"retarget-profile.json"',
         "mesh.get_all_morph_target_names()",
         "AnimationLibrary.add_float_curve_keys",
         "MovieSceneSkeletalAnimationTrack",
@@ -130,6 +134,7 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
         "Refusing to replace existing Unreal assets",
     ):
         assert token in importer
+    assert "_quat_multiply(reference_rotation, _quat(" not in importer
     assert 'lifecycle["import_process_id"] == os.getpid()' in readback
     assert 'lifecycle["readback_process_id"] = os.getpid()' in readback
     for token in (

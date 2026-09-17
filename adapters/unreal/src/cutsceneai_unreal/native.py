@@ -234,6 +234,42 @@ def _quat_multiply(first, second):
         aw * bw - ax * bx - ay * by - az * bz,
     )
 
+def _quat_inverse(value):
+    x, y, z, w = (_component(value, key) for key in ("x", "y", "z", "w"))
+    norm_squared = x * x + y * y + z * z + w * w
+    if norm_squared <= 1.0e-12:
+        raise RuntimeError("Cannot invert a zero-length reference quaternion.")
+    return unreal.Quat(-x / norm_squared, -y / norm_squared, -z / norm_squared, w / norm_squared)
+
+def _quat_rotate(rotation, value):
+    pure = unreal.Quat(_component(value, "x"), _component(value, "y"), _component(value, "z"), 0.0)
+    rotated = _quat_multiply(_quat_multiply(rotation, pure), _quat_inverse(rotation))
+    return unreal.Vector(_component(rotated, "x"), _component(rotated, "y"), _component(rotated, "z"))
+
+def _parent_component_rotation(reference_local, reference_component):
+    return _quat_multiply(reference_component, _quat_inverse(reference_local))
+
+def _retarget_rotation(reference_local, reference_component, canonical_delta):
+    parent_component = _parent_component_rotation(reference_local, reference_component)
+    parent_delta = _quat_multiply(
+        _quat_multiply(_quat_inverse(parent_component), canonical_delta),
+        parent_component,
+    )
+    return _quat_multiply(parent_delta, reference_local)
+
+def _vector_data(value):
+    return {key: _component(value, key) for key in ("x", "y", "z")}
+
+def _quat_data(value):
+    return {key: _component(value, key) for key in ("x", "y", "z", "w")}
+
+def _transform_data(value):
+    return {
+        "translation": _vector_data(_property(value, "translation")),
+        "rotation": _quat_data(_property(value, "rotation")),
+        "scale": _vector_data(_property(value, "scale3d")),
+    }
+
 def _target(binding_id):
     return next(item for item in TARGET["actors"] if item["actor_binding_id"] == binding_id)
 
@@ -305,8 +341,11 @@ def _create_body(track):
         for index, binding in enumerate(track["joint_bindings"]):
             bone = unreal.Name(binding["target_bone_name"])
             reference_transform = unreal.AnimPoseExtensions.get_ref_bone_pose(reference, bone, unreal.AnimPoseSpaces.LOCAL)
+            reference_component_transform = unreal.AnimPoseExtensions.get_ref_bone_pose(reference, bone, unreal.AnimPoseSpaces.WORLD)
             reference_location = _property(reference_transform, "translation")
             reference_rotation = _property(reference_transform, "rotation")
+            reference_component_rotation = _property(reference_component_transform, "rotation")
+            parent_component_rotation = _parent_component_rotation(reference_rotation, reference_component_rotation)
             reference_scale = _property(reference_transform, "scale3d")
             positions = []
             rotations = []
@@ -314,10 +353,11 @@ def _create_body(track):
             for frame in track["keyframes"]:
                 if index == 0:
                     offset = frame["root_location_cm"]
-                    positions.append(unreal.Vector(_component(reference_location, "x") + offset["x"], _component(reference_location, "y") + offset["y"], _component(reference_location, "z") + offset["z"]))
+                    local_offset = _quat_rotate(_quat_inverse(parent_component_rotation), _vector(offset))
+                    positions.append(unreal.Vector(_component(reference_location, "x") + _component(local_offset, "x"), _component(reference_location, "y") + _component(local_offset, "y"), _component(reference_location, "z") + _component(local_offset, "z")))
                 else:
                     positions.append(reference_location)
-                rotations.append(_quat_multiply(reference_rotation, _quat(frame["joint_rotations"][index])))
+                rotations.append(_retarget_rotation(reference_rotation, reference_component_rotation, _quat(frame["joint_rotations"][index])))
                 scales.append(reference_scale)
             bone_name = str(bone)
             if bone_name in _bone_track_names(sequence):
@@ -331,6 +371,42 @@ def _create_body(track):
         controller.close_bracket(False)
     unreal.EditorAssetLibrary.save_loaded_asset(sequence, False)
     return sequence
+
+def _capture_retarget_profile():
+    actors = []
+    for track in MAPPING["body_tracks"]:
+        target = _target(track["actor_binding_id"])
+        mesh = _load(target["skeletal_mesh_path"], unreal.SkeletalMesh, "Target skeletal mesh")
+        reference = unreal.AnimPoseExtensions.get_reference_pose(_property(mesh, "skeleton"))
+        joints = []
+        for binding in track["joint_bindings"]:
+            bone = unreal.Name(binding["target_bone_name"])
+            local = unreal.AnimPoseExtensions.get_ref_bone_pose(reference, bone, unreal.AnimPoseSpaces.LOCAL)
+            component = unreal.AnimPoseExtensions.get_ref_bone_pose(reference, bone, unreal.AnimPoseSpaces.WORLD)
+            parent_component = _parent_component_rotation(_property(local, "rotation"), _property(component, "rotation"))
+            joints.append({
+                "source_joint_name": binding["source_joint_name"],
+                "target_bone_name": binding["target_bone_name"],
+                "parent_index": binding["parent_index"],
+                "reference_local": _transform_data(local),
+                "reference_component": _transform_data(component),
+                "target_parent_component_rotation": _quat_data(parent_component),
+            })
+        actors.append({
+            "actor_binding_id": track["actor_binding_id"],
+            "skeletal_mesh_path": target["skeletal_mesh_path"],
+            "joints": joints,
+        })
+    profile = {
+        "profile_version": "0.1.0",
+        "retargeting_method": "parent-component-bind-conjugation-v1",
+        "canonical_reference_frame": "axis-aligned-parent-frame-v1",
+        "engine": "Unreal Engine",
+        "engine_version": str(unreal.SystemLibrary.get_engine_version()),
+        "source_mapping_sha256": TARGET["source_mapping_sha256"],
+        "actors": actors,
+    }
+    (_saved_root() / "retarget-profile.json").write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def _create_face(track):
     mesh = _load(_target(track["actor_binding_id"])["skeletal_mesh_path"], unreal.SkeletalMesh, "Target skeletal mesh")
@@ -489,7 +565,8 @@ def _create_sequence():
 def _write_lifecycle():
     value = {"lifecycle_version": "0.1.0", "import_process_id": os.getpid(),
         "import_completed": True, "saved": True, "restarted": False, "readback_completed": False,
-        "render_completed": False, "errors": []}
+        "render_completed": False, "retargeting_method": "parent-component-bind-conjugation-v1",
+        "retarget_profile": "retarget-profile.json", "errors": []}
     (_saved_root() / "lifecycle.json").write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def _record_failure(phase, error):
@@ -510,6 +587,7 @@ def _record_failure(phase, error):
 
 def import_native():
     _preflight()
+    _capture_retarget_profile()
     for track in MAPPING["body_tracks"]: _create_body(track)
     for track in MAPPING["facial_tracks"]: _create_face(track)
     _import_audio(); _create_sequence(); _write_lifecycle()
@@ -781,7 +859,7 @@ Invoke-CutSceneAIUnreal (Join-Path $PSScriptRoot "cutsceneai-unreal-native-readb
 Invoke-CutSceneAIUnreal (Join-Path $PSScriptRoot "cutsceneai-unreal-native-render.py") $renderLog
 $combinedLog = Join-Path $evidenceRoot "editor.log"
 Get-Content -Raw -Path $importLog, $readbackLog, $renderLog | Set-Content -NoNewline -Encoding UTF8 $combinedLog
-& $Python (Join-Path $PSScriptRoot "collect-native-evidence.py") --engine unreal --mapping (Join-Path $packageRoot "mapping.json") --lifecycle (Join-Path $evidenceRoot "lifecycle.json") --readback (Join-Path $evidenceRoot "readback.json") --render-manifest (Join-Path $evidenceRoot "render-manifest.json") --editor-log $combinedLog --output (Join-Path $evidenceRoot "engine-run.evidence.json")
+& $Python (Join-Path $PSScriptRoot "collect-native-evidence.py") --engine unreal --mapping (Join-Path $packageRoot "mapping.json") --lifecycle (Join-Path $evidenceRoot "lifecycle.json") --readback (Join-Path $evidenceRoot "readback.json") --render-manifest (Join-Path $evidenceRoot "render-manifest.json") --retarget-profile (Join-Path $evidenceRoot "retarget-profile.json") --editor-log $combinedLog --output (Join-Path $evidenceRoot "engine-run.evidence.json")
 if ($LASTEXITCODE -ne 0) { throw "Native evidence collection failed with exit code $LASTEXITCODE." }
 Write-Host "CutSceneAI Unreal native gate completed: $evidenceRoot"
 """

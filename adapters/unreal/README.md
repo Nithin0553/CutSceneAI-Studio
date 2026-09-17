@@ -96,6 +96,14 @@ Cine Camera transform/focal tracks and cuts, and one saved Level Sequence. Separ
 and Movie Render Queue processes then produce four-modality readback, every expected PNG frame, and
 hash-anchored engine evidence.
 
+Body realization uses `parent-component-bind-conjugation-v1`. The importer reads each mapped
+bone's local and world reference transforms from the target Skeleton, derives the target-parent
+bind basis, converts canonical deltas and the root offset into that basis, and then authors the
+result against the local reference pose. It also writes `retarget-profile.json` to the Unreal
+native-evidence directory. The UE5 Mannequin spine mapping deliberately targets `spine_01`,
+`spine_03`, and `spine_05`, matching the three canonical spine joints while leaving the
+intermediate deformation bones to the native hierarchy.
+
 Compile one harness from explicit inputs with:
 
 ```powershell

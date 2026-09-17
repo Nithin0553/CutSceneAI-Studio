@@ -101,7 +101,11 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "animator.GetBoneTransform",
         "SetPositionAndRotation",
         "instance.transform.localScale",
-        "reference * QuaternionValueOf",
+        "ReferenceComponentRotation(animator, transform)",
+        "Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent",
+        "return parentDelta * referenceLocal",
+        'retargeting_method = "parent-component-bind-conjugation-v1"',
+        '"retarget-profile.json"',
         "frame.weights[curveIndex] * 100.0f",
         "timeline.CreateTrack<AnimationTrack>(animationRoots",
         "track.GetChildTracks()",
@@ -110,6 +114,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "Refusing to replace existing generated asset",
     ):
         assert token in script
+    assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
     assert "Get-Content -Raw -Path $importLog, $readbackLog" in runner
     assert "collect-native-evidence.py" in runner

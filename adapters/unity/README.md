@@ -40,6 +40,12 @@ and focal-length clips, audio tracks, a Timeline, and a Scene. A second editor p
 saved assets, emits four-modality readback, renders every frame, and produces hash-anchored engine
 evidence.
 
+Body realization uses `parent-component-bind-conjugation-v1`. The generated editor helper reads
+each Humanoid bone's local and Animator-relative component bind rotations, converts canonical
+parent-local deltas and the root offset through the target-parent bind basis, and authors the
+result against the local reference pose. It writes the exact extracted context to
+`CutSceneAIEvidence/Unity/retarget-profile.json` for retained engine evidence.
+
 Compile one harness from explicit inputs with:
 
 ```powershell
