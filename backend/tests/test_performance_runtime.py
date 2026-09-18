@@ -9,6 +9,7 @@ from cutsceneai_cir import Project
 from cutsceneai_dialogue import SpeechBackendResult
 from cutsceneai_performance import load_performance_bundle
 from fastapi.testclient import TestClient
+import pytest
 
 from app.api.performance_runtime import get_performance_executor
 from app.main import app
@@ -239,3 +240,78 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert bundle.status_code == 200
     assert bundle.headers["content-type"].startswith("application/zip")
     load_performance_bundle(bundle.content)
+
+
+def test_performance_runtime_api_maps_configuration_and_missing_run_errors(
+    tmp_path: Path, monkeypatch
+) -> None:
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    app.dependency_overrides[get_performance_executor] = lambda: executor
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS", "invalid")
+
+    try:
+        client = TestClient(app)
+        readiness = client.get("/api/v1/studio/performance/readiness")
+        missing = client.get("/api/v1/studio/performance/runs/not-a-uuid")
+        missing_bundle = client.get("/api/v1/studio/performance/runs/not-a-uuid/bundle")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert readiness.status_code == 422
+    assert "numeric" in readiness.json()["detail"]
+    assert missing.status_code == 422
+    assert missing_bundle.status_code == 422
+
+
+def test_executor_validates_run_limits_registry_and_bundle_hash(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    with pytest.raises(ValueError, match="between 1 and 200"):
+        executor.list_runs(0)
+    with pytest.raises(ValueError, match="Invalid performance run id"):
+        executor.get_run("invalid")
+
+    record = asyncio.run(
+        executor.generate(PerformanceGenerateRequest(project=_project_without_dialogue()))
+    )
+    assert record.status is PerformanceRunStatus.SUCCEEDED
+
+    bundle_path = tmp_path / "runs" / record.run_id / "performance.bundle.zip"
+    bundle_path.write_bytes(bundle_path.read_bytes() + b"tamper")
+    with pytest.raises(ValueError, match="SHA-256"):
+        executor.bundle_bytes(record.run_id)
+
+    unreadable_id = "00000000-0000-0000-0000-000000000001"
+    unreadable = tmp_path / "runs" / unreadable_id
+    unreadable.mkdir()
+    (unreadable / "run.json").write_text("{not-json", encoding="utf-8")
+    with pytest.raises(ValueError, match="unreadable"):
+        executor.get_run(unreadable_id)
+
+
+def test_dialogue_scene_fails_with_retained_evidence_without_tts_key(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    record = asyncio.run(executor.generate(PerformanceGenerateRequest(project=_project())))
+
+    assert record.status is PerformanceRunStatus.FAILED
+    assert "OPENAI_API_KEY" in (record.error or "")
+    run_dir = tmp_path / "runs" / record.run_id
+    assert (run_dir / "input.cir.json").exists()
+    assert (run_dir / "failure.txt").exists()
+
+
+def test_list_runs_skips_corrupt_records(tmp_path: Path) -> None:
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    corrupt = tmp_path / "runs" / "00000000-0000-0000-0000-000000000002"
+    corrupt.mkdir(parents=True)
+    (corrupt / "run.json").write_text("not-json", encoding="utf-8")
+
+    assert executor.list_runs() == []
