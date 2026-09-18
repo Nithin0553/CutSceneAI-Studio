@@ -273,37 +273,39 @@ class StudioService:
         assets = record.manifest.assets
         roles: list[StudioBindingRole] = []
 
-        for item in project.characters:
+        for character in project.characters:
             candidates = self._rank_candidates(
-                label=item.name,
-                description=" ".join(value for value in (item.role, item.description) if value),
+                label=character.name,
+                description=" ".join(
+                    value for value in (character.role, character.description) if value
+                ),
                 assets=assets,
                 character=True,
             )
             roles.append(
                 StudioBindingRole(
-                    cir_id=item.id,
-                    label=item.name,
+                    cir_id=character.id,
+                    label=character.name,
                     kind="character",
-                    description=item.description or item.role,
+                    description=character.description or character.role,
                     required=True,
                     candidates=candidates,
                 )
             )
 
-        for item in project.environment:
+        for environment_object in project.environment:
             candidates = self._rank_candidates(
-                label=item.name,
-                description=item.description,
+                label=environment_object.name,
+                description=environment_object.description,
                 assets=assets,
                 character=False,
             )
             roles.append(
                 StudioBindingRole(
-                    cir_id=item.id,
-                    label=item.name,
+                    cir_id=environment_object.id,
+                    label=environment_object.name,
                     kind="environment",
-                    description=item.description,
+                    description=environment_object.description,
                     required=False,
                     candidates=candidates,
                 )
@@ -447,7 +449,9 @@ class StudioService:
                     )
                 )
             asset_map = UnityAssetMap(project_id=project.id, entities=entity_assets)
-            plan = compile_unity_project(project, asset_map=asset_map)
+            unity_plan = compile_unity_project(project, asset_map=asset_map)
+            plan_json = unity_plan.model_dump(mode="json")
+            adapter_warnings = [warning.message for warning in unity_plan.warnings]
         else:
             bound_project = project.model_copy(deep=True)
             character_by_id = {item.id: item for item in bound_project.characters}
@@ -464,14 +468,15 @@ class StudioService:
                     character_by_id[cir_id].asset_uri = asset.engine_ref
                 elif cir_id in environment_by_id:
                     environment_by_id[cir_id].asset_uri = asset.engine_ref
-            plan = compile_unreal_project(bound_project)
+            unreal_plan = compile_unreal_project(bound_project)
+            plan_json = unreal_plan.model_dump(mode="json")
+            adapter_warnings = [warning.message for warning in unreal_plan.warnings]
 
-        adapter_warnings = [warning.message for warning in getattr(plan, "warnings", [])]
         return StudioRealizationResponse(
             project_id=project_id,
             engine=record.engine,
             ready=True,
-            plan=plan.model_dump(mode="json"),
+            plan=plan_json,
             warnings=[*warnings, *adapter_warnings],
         )
 
