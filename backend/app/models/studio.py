@@ -217,7 +217,6 @@ class StudioRealizationResponse(StudioModel):
     blocking_issues: list[str] = Field(default_factory=list)
 
 
-
 class StudioRevisionSource(str, Enum):
     GENERATION = "generation"
     EDIT = "edit"
