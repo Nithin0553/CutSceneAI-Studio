@@ -7,8 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.api.director import get_director_service
 from app.main import app
-from app.services.director import DirectorBackendResult, DirectorOutputError, DirectorService
-from app.services.director import DirectorProviderError
+from app.services.director import (\n    DirectorBackendResult,\n    DirectorConfigurationError,\n    DirectorOutputError,\n    DirectorService,\n)\nfrom app.services.director import DirectorProviderError
 from app.services.openai_director import OpenAIDirectorBackend
 from cutsceneai_cir import Project
 
@@ -159,3 +158,94 @@ def test_edit_endpoint_returns_validated_revised_cir() -> None:
     body = response.json()
     assert body["project"]["generation"]["prompt_version"] == "director-edit-v0.1"
     assert body["request_id"] == "req-edit"
+
+
+def test_service_rejects_domain_invalid_edit_output() -> None:
+    value = project()
+    value.scenes[0].shots = [
+        shot for shot in value.scenes[0].shots if shot.purpose.value != "establishing"
+    ]
+    with pytest.raises(DirectorOutputError, match="Edited CIR failed domain validation"):
+        asyncio.run(
+            DirectorService(FakeBackend(value)).edit(
+                project(),
+                "Remove the establishing shot.",
+            )
+        )
+
+
+class ConfigurationFailingService:
+    async def generate(self, prompt: str) -> DirectorBackendResult:
+        raise DirectorConfigurationError("director configuration missing")
+
+    async def edit(self, current: Project, instruction: str) -> DirectorBackendResult:
+        raise DirectorConfigurationError("director configuration missing")
+
+
+class OutputFailingService:
+    async def generate(self, prompt: str) -> DirectorBackendResult:
+        raise DirectorOutputError("invalid structured output")
+
+    async def edit(self, current: Project, instruction: str) -> DirectorBackendResult:
+        raise DirectorOutputError("invalid structured output")
+
+
+class ProviderFailingEditService:
+    async def edit(self, current: Project, instruction: str) -> DirectorBackendResult:
+        raise DirectorProviderError(
+            "edit provider unavailable",
+            retryable=False,
+            request_id="edit-failure",
+        )
+
+
+@pytest.mark.parametrize(
+    ("path", "service", "expected_code"),
+    [
+        ("/api/v1/director/generate", ConfigurationFailingService(), "director_not_configured"),
+        ("/api/v1/director/generate", OutputFailingService(), "invalid_provider_output"),
+        ("/api/v1/director/edit", ConfigurationFailingService(), "director_not_configured"),
+        ("/api/v1/director/edit", OutputFailingService(), "invalid_provider_output"),
+    ],
+)
+def test_director_endpoints_map_configuration_and_output_errors(
+    path: str, service, expected_code: str
+) -> None:
+    app.dependency_overrides[get_director_service] = lambda: service
+    payload = (
+        {"prompt": "Stage an office dialogue with two coworkers."}
+        if path.endswith("generate")
+        else {
+            "project": project().model_dump(mode="json"),
+            "instruction": "Hold the reaction longer.",
+        }
+    )
+    try:
+        response = TestClient(app).post(path, json=payload)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code in {502, 503}
+    assert response.json()["code"] == expected_code
+
+
+def test_edit_endpoint_maps_provider_error() -> None:
+    app.dependency_overrides[get_director_service] = lambda: ProviderFailingEditService()
+    try:
+        response = TestClient(app).post(
+            "/api/v1/director/edit",
+            json={
+                "project": project().model_dump(mode="json"),
+                "instruction": "Hold the reaction longer.",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "code": "provider_error",
+        "message": "edit provider unavailable",
+        "retryable": False,
+        "request_id": "edit-failure",
+    }
