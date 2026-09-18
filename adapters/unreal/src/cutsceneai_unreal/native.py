@@ -97,6 +97,7 @@ def compile_unreal_native_performance_package(
     expected_actor_ids = {item.actor_binding_id for item in mapping.body_tracks} | {
         item.actor_binding_id for item in mapping.facial_tracks
     }
+    facial_actor_ids = {item.actor_binding_id for item in mapping.facial_tracks}
     if set(actor_targets) != expected_actor_ids:
         raise ValueError(
             "Unreal native target actors do not exactly match generated body and face tracks."
@@ -105,6 +106,10 @@ def compile_unreal_native_performance_package(
     if set(actor_targets) - set(plan_actors):
         raise ValueError("Unreal native target references an unknown plan actor.")
     for binding_id, native_target in actor_targets.items():
+        if native_target.require_arkit_52_morph_targets != (binding_id in facial_actor_ids):
+            raise ValueError(
+                "Unreal native facial capability requirement must match generated facial tracks."
+            )
         actor = plan_actors[binding_id]
         if (
             actor.placeholder
@@ -308,11 +313,17 @@ def _preflight():
         reference = unreal.AnimPoseExtensions.get_reference_pose(skeleton)
         names = {str(item) for item in unreal.AnimPoseExtensions.get_bone_names(reference)}
         missing_bones = sorted(set(EXPECTED_BONES) - names)
-        missing_morphs = sorted(set(EXPECTED_MORPHS) - set(mesh.get_all_morph_target_names()))
         if missing_bones:
             raise RuntimeError("Target is missing UE5 Mannequin bones: " + ", ".join(missing_bones))
-        if missing_morphs:
-            raise RuntimeError("Target is missing ARKit-52 morph targets: " + ", ".join(missing_morphs))
+        if actor["require_arkit_52_morph_targets"]:
+            missing_morphs = sorted(
+                set(EXPECTED_MORPHS) - set(mesh.get_all_morph_target_names())
+            )
+            if missing_morphs:
+                raise RuntimeError(
+                    "Target is missing required ARKit-52 morph targets: "
+                    + ", ".join(missing_morphs)
+                )
     for track in MAPPING["audio_tracks"]:
         _source_audio(track)
 
