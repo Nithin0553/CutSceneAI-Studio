@@ -459,6 +459,17 @@ class StudioService:
         self.get_project(project_id)
         return self._load_bridge_commands(project_id)
 
+    def get_bridge_command(
+        self,
+        project_id: str,
+        command_id: str,
+    ) -> StudioBridgeCommand:
+        self.get_project(project_id)
+        for command in self._load_bridge_commands(project_id):
+            if command.command_id == command_id:
+                return command
+        raise ValueError(f"Unknown bridge command '{command_id}'.")
+
     def poll_bridge_command(
         self,
         project_id: str,
