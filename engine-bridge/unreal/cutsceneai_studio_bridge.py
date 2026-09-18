@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import socket
 import time
 import urllib.error
@@ -184,6 +185,22 @@ def _execute(command: dict[str, Any]) -> tuple[bool, dict[str, Any], str | None]
             result = _readback("Dirty Unreal packages saved.")
         elif name == "readback":
             result = _readback("Unreal editor readback captured.")
+        elif name == "run_importer":
+            payload = command.get("payload") or {}
+            relative = str(payload.get("importer_path") or "")
+            expected = "Saved/CutSceneAI/Generated/cutsceneai-unreal-import.py"
+            if relative.replace("\\", "/") != expected:
+                raise RuntimeError(
+                    "Bridge refused an importer outside the managed CutSceneAI path."
+                )
+            project_root = os.path.realpath(unreal.Paths.project_dir())
+            importer = os.path.realpath(os.path.join(project_root, relative))
+            if os.path.commonpath([project_root, importer]) != project_root:
+                raise RuntimeError("Managed importer escaped the Unreal project root.")
+            if not os.path.isfile(importer):
+                raise RuntimeError(f"Managed importer does not exist: {importer}")
+            runpy.run_path(importer, run_name="__main__")
+            result = _readback("CutSceneAI Unreal importer executed.")
         elif name in {"play_preview", "stop_preview"}:
             library = getattr(unreal, "LevelSequenceEditorBlueprintLibrary", None)
             if library is None:
