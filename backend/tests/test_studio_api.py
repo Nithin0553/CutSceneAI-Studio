@@ -28,6 +28,7 @@ def _service(tmp_path: Path, monkeypatch) -> StudioService:
     monkeypatch.setattr(studio_module, "_STATE_DIR", state)
     monkeypatch.setattr(studio_module, "_PROJECTS_FILE", state / "projects.json")
     monkeypatch.setattr(studio_module, "_COMMANDS_DIR", state / "bridge-commands")
+    monkeypatch.setattr(studio_module, "_REVISIONS_DIR", state / "cir-revisions")
     return StudioService()
 
 
@@ -930,3 +931,120 @@ def test_staged_importer_refuses_unmanaged_overwrite(tmp_path: Path, monkeypatch
         assert "unmanaged realization importer" in str(exc)
     else:
         raise AssertionError("Expected unmanaged realization importer collision to fail.")
+
+
+
+def test_cir_revision_ledger_persists_generation_and_edit_chain(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    project = _project()
+
+    root = service.create_revision(
+        studio_module.StudioRevisionCreateRequest(
+            project_id=record.project_id,
+            project=project,
+            source="generation",
+        )
+    )
+    edited_project = project.model_copy(
+        update={"name": project.name + " Revised"},
+        deep=True,
+    )
+    edited = service.create_revision(
+        studio_module.StudioRevisionCreateRequest(
+            project_id=record.project_id,
+            project=edited_project,
+            source="edit",
+            parent_revision_id=root.revision_id,
+            instruction="Rename the project for a revision fixture.",
+        )
+    )
+
+    revisions = service.list_revisions(record.project_id)
+    assert [item.revision_id for item in revisions] == [
+        root.revision_id,
+        edited.revision_id,
+    ]
+    assert edited.parent_revision_id == root.revision_id
+    assert edited.project_sha256 != root.project_sha256
+    assert service.get_revision(record.project_id, root.revision_id).project.name == project.name
+
+
+def test_cir_revision_ledger_rejects_unknown_parent_and_unparented_edit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    project = _project()
+
+    for request in (
+        studio_module.StudioRevisionCreateRequest(
+            project_id=record.project_id,
+            project=project,
+            source="edit",
+            instruction="Try an edit without a parent.",
+        ),
+        studio_module.StudioRevisionCreateRequest(
+            project_id=record.project_id,
+            project=project,
+            source="edit",
+            parent_revision_id="missing",
+            instruction="Try an edit with an unknown parent.",
+        ),
+    ):
+        try:
+            service.create_revision(request)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Expected invalid CIR revision ancestry to be rejected.")
+
+
+def test_cir_revision_api_create_list_and_get(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    root = _unity_project(tmp_path)
+    app.dependency_overrides[get_studio_service] = lambda: service
+
+    try:
+        client = TestClient(app)
+        connected = client.post(
+            "/api/v1/studio/projects/connect",
+            json={"engine": "unity", "project_path": str(root)},
+        ).json()
+        created = client.post(
+            "/api/v1/studio/revisions",
+            json={
+                "project_id": connected["project_id"],
+                "project": _project().model_dump(mode="json"),
+                "source": "generation",
+            },
+        )
+        revision_id = created.json()["revision_id"]
+        listed = client.get(
+            f"/api/v1/studio/projects/{connected['project_id']}/revisions"
+        )
+        fetched = client.get(
+            f"/api/v1/studio/projects/{connected['project_id']}/revisions/{revision_id}"
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert created.status_code == 200
+    assert listed.status_code == 200
+    assert listed.json()[0]["revision_id"] == revision_id
+    assert fetched.status_code == 200
+    assert fetched.json()["project_sha256"] == created.json()["project_sha256"]
