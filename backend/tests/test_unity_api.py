@@ -19,7 +19,7 @@ def test_export_unity_plan_returns_golden_timeline_contract() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["adapter_version"] == "0.1.0"
-    assert body["target_engine_version"] == "6000.0"
+    assert body["target_engine_version"] == "6000.3"
     assert body["timeline_package_version"] == "1.8.12"
     assert body["semantics"]["cir_fingerprint_sha256"]
     assert body["sequences"][0]["duration_frames"] == 432
