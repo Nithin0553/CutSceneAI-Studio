@@ -603,7 +603,10 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     )
     assert heartbeat.manifest.bridge_connected is True
     assert heartbeat.manifest.bridge_agent_id == "test-unity-agent"
-    verified = next(item for item in heartbeat.manifest.assets if item.object_id == "global:mina")\n    assert verified.verified is True
+    verified = next(
+        item for item in heartbeat.manifest.assets if item.object_id == "global:mina"
+    )
+    assert verified.verified is True
 
     queued = service.enqueue_bridge_command(
         record.project_id,
