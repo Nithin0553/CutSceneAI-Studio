@@ -24,7 +24,7 @@ class UnrealNativeActorTarget(UnrealModel):
         )
     )
     require_ue5_mannequin_bones: Literal[True] = True
-    require_arkit_52_morph_targets: Literal[True] = True
+    require_arkit_52_morph_targets: bool = True
 
 
 class UnrealNativeRenderSettings(UnrealModel):
