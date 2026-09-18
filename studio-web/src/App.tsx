@@ -1217,7 +1217,7 @@ function App() {
 
                     {performanceReadiness?.blocking_issues?.length > 0 && (
                       <div className="warning-stack">
-                        {performanceReadiness.blocking_issues.map((item: string) => (
+                        {(performanceReadiness?.blocking_issues || []).map((item: string) => (
                           <div className="mini-warning" key={item}>
                             <CircleAlert size={14} />
                             <span>{item}</span>
