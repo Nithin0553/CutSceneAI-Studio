@@ -1,0 +1,22 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "CutSceneAI Studio Bridge",
+  "Description": "Local research bridge between CutSceneAI Studio and Unreal Editor.",
+  "Category": "Cinematics",
+  "CreatedBy": "CutSceneAI",
+  "EnabledByDefault": true,
+  "CanContainContent": true,
+  "Modules": [],
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true
+    },
+    {
+      "Name": "SequencerScripting",
+      "Enabled": true
+    }
+  ]
+}
