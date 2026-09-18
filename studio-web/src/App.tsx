@@ -652,19 +652,31 @@ function App() {
   }
 
   async function executeRealizationInEngine() {
-    if (!cir || !selectedProject || !realizationReady) return;
+    if (
+      !cir ||
+      !selectedProject ||
+      !realizationReady ||
+      performanceRun?.status !== "succeeded"
+    ) {
+      return;
+    }
     setBusy("bridge");
     setError("");
     try {
-      const queued = await postJson("/api/v1/studio/realization/execute", {
-        project_id: selectedProject.project_id,
-        project: cir,
-        bindings: selectedBindings,
-      });
+      const queued = await postJson(
+        "/api/v1/studio/performance/runs/" +
+          performanceRun.run_id +
+          "/realize",
+        {
+          project_id: selectedProject.project_id,
+          project: cir,
+          bindings: selectedBindings,
+        },
+      );
       setNotice(
-        "Managed importer staged and queued for " +
+        "Verified Generated Performance Package staged and queued for native " +
           selectedProject.engine +
-          ": " +
+          " realization: " +
           queued.command_id,
       );
       window.setTimeout(refreshBridgeCommands, 1200);
@@ -698,6 +710,7 @@ function App() {
     setBindings({});
     setBindingManifest(null);
     setPerformancePlan(null);
+    setPerformanceRun(null);
     setRealization(null);
     setEditInstruction("");
     setCirHistory([]);
@@ -1305,11 +1318,10 @@ function App() {
                 <div className="stage-header">
                   <div className="stage-number">05</div>
                   <div>
-                    <h2>Compile semantic engine scaffold for {selectedProject.engine === "unity" ? "Unity" : "Unreal Engine"}</h2>
+                    <h2>Native realization for {selectedProject.engine === "unity" ? "Unity" : "Unreal Engine"}</h2>
                     <p>
-                      This builds the bound CIR structure. The generated-performance
-                      bundle is kept separate until the native performance realization
-                      gate is connected and verified.
+                      Compile the bound adapter plan, then realize the verified
+                      Generated Performance Package as editable native engine assets.
                     </p>
                   </div>
                   {realizationReady && <Pill tone="success"><Braces size={13} /> Adapter plan ready</Pill>}
@@ -1358,12 +1370,15 @@ function App() {
                         onClick={executeRealizationInEngine}
                         disabled={
                           busy === "bridge" ||
-                          !selectedProject.manifest.bridge_connected
+                          !selectedProject.manifest.bridge_connected ||
+                          !performanceGenerated
                         }
                         title={
-                          selectedProject.manifest.bridge_connected
-                            ? "Stage and execute the managed importer in the connected editor"
-                            : "Open the project and wait for the local bridge heartbeat"
+                          !selectedProject.manifest.bridge_connected
+                            ? "Open the project and wait for the local bridge heartbeat"
+                            : !performanceGenerated
+                              ? "Generate a verified performance package first"
+                              : "Stage and execute the verified native performance importer"
                         }
                       >
                         {busy === "bridge" ? (
@@ -1371,7 +1386,7 @@ function App() {
                         ) : (
                           <MonitorPlay size={15} />
                         )}
-                        Build CIR scaffold
+                        Build native performance
                       </button>
                     </div>
                   </>
