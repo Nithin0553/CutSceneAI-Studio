@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 .venv/
+.venv*/
 venv/
 .env
 .env.*
@@ -19,6 +20,16 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 
+# CutSceneAI local Studio state
+.cutsceneai-studio/
+
+# Frontend
+studio-web/node_modules/
+studio-web/dist/
+
+# Local generated/research outputs
+build/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -27,5 +38,5 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Docker
+# Docker / logs
 *.log
