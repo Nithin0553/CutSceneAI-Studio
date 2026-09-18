@@ -36,6 +36,7 @@ from app.models.studio import (
     StudioBindingSelection,
     StudioBridgeCommand,
     StudioBridgeCommandRequest,
+    StudioBridgeCommandType,
     StudioEngine,
 )
 from app.services.performance_executor import StudioPerformanceExecutor
@@ -150,7 +151,7 @@ class NativePerformanceRealizer:
         return self.studio.enqueue_bridge_command(
             project_id,
             StudioBridgeCommandRequest(
-                command="run_importer",
+                command=StudioBridgeCommandType.RUN_IMPORTER,
                 payload={
                     "importer_path": importer_path,
                     "entry_point": entry_point,
