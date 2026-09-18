@@ -53,7 +53,7 @@ def test_compile_golden_cir_into_editable_unity_timeline_plan(
 
     assert plan.adapter_version == "0.1.0"
     assert plan.target_engine == "Unity"
-    assert plan.target_engine_version == "6000.0"
+    assert plan.target_engine_version == "6000.3"
     assert plan.timeline_package_version == "1.8.12"
     assert plan.fps == 24
     assert plan.semantics == compile_semantics(cir_project)
