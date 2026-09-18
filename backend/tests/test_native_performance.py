@@ -304,7 +304,6 @@ def test_verified_performance_run_stages_native_unreal_importer(
     assert "Validated Unreal Engine line is 5.8.x" in source
 
 
-
 def test_native_realization_declares_facial_degradation_for_body_only_targets(
     tmp_path: Path,
     monkeypatch,
@@ -342,9 +341,7 @@ def test_native_realization_declares_facial_degradation_for_body_only_targets(
                 },
             }
         )
-        unity_bindings.append(
-            StudioBindingSelection(cir_id=source_id, project_object_id=object_id)
-        )
+        unity_bindings.append(StudioBindingSelection(cir_id=source_id, project_object_id=object_id))
     unity.bridge_heartbeat(
         unity_record.project_id,
         StudioBridgeHeartbeatRequest(
