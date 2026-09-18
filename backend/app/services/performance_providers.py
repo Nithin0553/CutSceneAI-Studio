@@ -71,10 +71,10 @@ def performance_compiler_config(experiment_seed: int) -> PerformanceCompilerConf
 
 
 def _fps_from_prompt(prompt: str) -> int:
-    match = re.search(r"\bat\s+(\d{1,3})\s+fps\b", prompt, re.IGNORECASE)
-    if match is None:
+    matches = re.findall(r"\bat\s+(\d{1,3})\s+fps\b", prompt, re.IGNORECASE)
+    if not matches:
         return 24
-    return max(1, min(240, int(match.group(1))))
+    return max(1, min(240, int(matches[-1])))
 
 
 def _provider_artifact(
