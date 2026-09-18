@@ -68,13 +68,16 @@ class StudioPerformanceExecutor:
     def readiness(self, experiment_seed: int = 20260812) -> PerformanceReadinessResponse:
         config = performance_compiler_config(experiment_seed)
         body = ExternalCanonicalBodyBackend.from_environment()
-        body_identity_configured = all(
-            value != "unconfigured"
-            for value in (
-                config.body.model,
-                config.body.model_revision,
+        body_identity_configured = (
+            all(
+                value != "unconfigured"
+                for value in (
+                    config.body.model,
+                    config.body.model_revision,
+                )
             )
-        ) and config.body.provider != "unconfigured-body"
+            and config.body.provider != "unconfigured-body"
+        )
         body_ready = body.configured and body_identity_configured
         tts_ready = bool(os.getenv("OPENAI_API_KEY"))
 
@@ -160,8 +163,7 @@ class StudioPerformanceExecutor:
             )
             if not readiness.ready:
                 raise RuntimeError(
-                    "Generated performance is not ready: "
-                    + "; ".join(readiness.blocking_issues)
+                    "Generated performance is not ready: " + "; ".join(readiness.blocking_issues)
                 )
 
             plan = compile_generation_plan(
@@ -180,12 +182,10 @@ class StudioPerformanceExecutor:
                     "provider_summary": {
                         "body": f"{plan.body_requests[0].provider}/{plan.body_requests[0].model}",
                         "facial": (
-                            f"{plan.facial_requests[0].provider}/"
-                            f"{plan.facial_requests[0].model}"
+                            f"{plan.facial_requests[0].provider}/{plan.facial_requests[0].model}"
                         ),
                         "camera": (
-                            f"{plan.camera_requests[0].provider}/"
-                            f"{plan.camera_requests[0].model}"
+                            f"{plan.camera_requests[0].provider}/{plan.camera_requests[0].model}"
                         ),
                     },
                 }
@@ -202,9 +202,7 @@ class StudioPerformanceExecutor:
                 async with semaphore:
                     return await body_backend.generate_body(item)
 
-            body_outputs = await asyncio.gather(
-                *(body_one(item) for item in plan.body_requests)
-            )
+            body_outputs = await asyncio.gather(*(body_one(item) for item in plan.body_requests))
             facial_outputs = await asyncio.gather(
                 *(facial_backend.generate_facial(item) for item in plan.facial_requests)
             )
@@ -339,9 +337,7 @@ class StudioPerformanceExecutor:
         if not path.exists():
             raise ValueError(f"Unknown performance run '{run_id}'.")
         try:
-            return PerformanceRunRecord.model_validate_json(
-                path.read_text(encoding="utf-8")
-            )
+            return PerformanceRunRecord.model_validate_json(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise ValueError(f"Performance run '{run_id}' is unreadable.") from exc
 
@@ -352,9 +348,7 @@ class StudioPerformanceExecutor:
         for path in self.run_root.glob("*/run.json"):
             try:
                 records.append(
-                    PerformanceRunRecord.model_validate_json(
-                        path.read_text(encoding="utf-8")
-                    )
+                    PerformanceRunRecord.model_validate_json(path.read_text(encoding="utf-8"))
                 )
             except (OSError, ValueError):
                 continue
