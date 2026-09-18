@@ -100,10 +100,11 @@ class StudioService:
                 StudioCapability(
                     id="engine-native-discovery",
                     label="Engine-native capability discovery",
-                    status="contract-ready",
+                    status="implemented-beta",
                     description=(
-                        "Bridge manifest ingestion is implemented; engine-side scanners still need "
-                        "to publish verified actors, rigs, cameras, props and scene state."
+                        "Local Unity and Unreal editor agents now publish verified project objects, "
+                        "rig/camera metadata, scene state and heartbeat liveness. Native editor "
+                        "acceptance runs are still required before this gate is frozen."
                     ),
                     blocking=True,
                 ),
@@ -137,12 +138,12 @@ class StudioService:
                 StudioCapability(
                     id="performance-inference",
                     label="General performance inference orchestration",
-                    status="missing",
+                    status="provider-ready",
                     description=(
-                        "The repository has provider contracts and one retained S02 motion result, "
-                        "but the web backend does not yet execute arbitrary body/facial/camera "
-                        "model "
-                        "providers and assemble a complete performance bundle."
+                        "The Studio now executes a strict external canonical body provider, "
+                        "deterministic facial/camera baselines, optional OpenAI WAV speech, and "
+                        "assembles hash-verified Generated Performance Packages. A production body "
+                        "provider must still be configured and benchmarked."
                     ),
                     blocking=True,
                 ),
@@ -159,22 +160,23 @@ class StudioService:
                 StudioCapability(
                     id="engine-runner",
                     label="Bidirectional engine runner",
-                    status="missing",
+                    status="implemented-beta",
                     description=(
-                        "A persistent Unity/Unreal bridge that executes realization, focuses the "
-                        "authoritative engine preview, streams status and returns readback "
-                        "evidence "
-                        "is still required."
+                        "A localhost-only Unity/Unreal bridge now installs into registered projects, "
+                        "heartbeats verified state, leases allowlisted commands, stages managed "
+                        "importers, executes realization, and returns editor readback. Native smoke "
+                        "acceptance is still required."
                     ),
                     blocking=True,
                 ),
                 StudioCapability(
                     id="natural-language-editing",
                     label="Natural-language incremental editing",
-                    status="missing",
+                    status="implemented-baseline",
                     description=(
-                        "CIR patch interpretation, revision history, dependency-local regeneration "
-                        "and engine incremental update are not yet implemented end to end."
+                        "Natural-language CIR revision, validation, in-session undo and safe "
+                        "downstream invalidation are implemented. Persistent revision history and "
+                        "dependency-local regeneration remain."
                     ),
                     blocking=True,
                 ),
