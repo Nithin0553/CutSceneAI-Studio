@@ -336,11 +336,36 @@ public static class CutSceneAIStudioBridge
 
     private static CommandResult RunManagedImporter(CommandPayload payload)
     {
-        const string ManagedImporterPath =
-            "Assets/Editor/CutSceneAI/Generated/CutSceneAISemanticMarker.cs";
-        if (payload == null || payload.importer_path != ManagedImporterPath)
+        if (payload == null)
+            throw new InvalidOperationException("Managed importer payload is missing.");
+
+        string typeName;
+        string methodName;
+        string message;
+        if (
+            payload.importer_path
+                == "Assets/Editor/CutSceneAI/Generated/CutSceneAISemanticMarker.cs"
+            && payload.entry_point
+                == "CutSceneAIGeneratedTimeline.ImportGeneratedTimeline")
+        {
+            typeName = "CutSceneAIGeneratedTimeline";
+            methodName = "ImportGeneratedTimeline";
+            message = "CutSceneAI semantic Timeline importer executed.";
+        }
+        else if (
+            payload.importer_path
+                == "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
+            && payload.entry_point == "CutSceneAIGeneratedPerformance.Import")
+        {
+            typeName = "CutSceneAIGeneratedPerformance";
+            methodName = "Import";
+            message = "CutSceneAI generated-performance importer executed.";
+        }
+        else
+        {
             throw new InvalidOperationException(
-                "Bridge refused an importer outside the managed CutSceneAI path.");
+                "Bridge refused an importer outside the managed CutSceneAI allowlist.");
+        }
 
         AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
         if (EditorApplication.isCompiling)
@@ -348,22 +373,24 @@ public static class CutSceneAIStudioBridge
                 "Unity is compiling the staged importer. Retry after compilation completes.");
 
         Type importerType = AppDomain.CurrentDomain.GetAssemblies()
-            .Select(assembly => assembly.GetType("CutSceneAIGeneratedTimeline"))
+            .Select(assembly => assembly.GetType(typeName))
             .FirstOrDefault(type => type != null);
         if (importerType == null)
             throw new InvalidOperationException(
-                "CutSceneAI generated importer is not compiled in the editor domain.");
+                "CutSceneAI generated importer is not compiled in the editor domain: "
+                + typeName);
 
         System.Reflection.MethodInfo method = importerType.GetMethod(
-            "ImportGeneratedTimeline",
+            methodName,
             System.Reflection.BindingFlags.Public
                 | System.Reflection.BindingFlags.Static);
         if (method == null)
             throw new InvalidOperationException(
-                "CutSceneAI generated importer entry point is missing.");
+                "CutSceneAI generated importer entry point is missing: "
+                + payload.entry_point);
 
         method.Invoke(null, null);
-        return BuildReadback("CutSceneAI generated Timeline importer executed.");
+        return BuildReadback(message);
     }
 
     private static CommandResult FocusPreview()
