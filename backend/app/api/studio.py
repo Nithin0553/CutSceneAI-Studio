@@ -23,6 +23,7 @@ from app.models.studio import (
     StudioBridgeCommand,
     StudioBridgeCommandRequest,
     StudioBridgeCommandResultRequest,
+    StudioBridgeCommandType,
     StudioBridgeHeartbeatRequest,
     StudioBridgeInstallResponse,
     StudioBridgeManifestRequest,
@@ -332,7 +333,7 @@ def execute_realization(
         return service.enqueue_bridge_command(
             request.project_id,
             StudioBridgeCommandRequest(
-                command="run_importer",
+                command=StudioBridgeCommandType.RUN_IMPORTER,
                 payload={
                     "importer_path": importer_path,
                     "entry_point": (
