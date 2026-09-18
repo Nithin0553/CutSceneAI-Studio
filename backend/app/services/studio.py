@@ -268,9 +268,7 @@ class StudioService:
         self._save_projects(records)
         return updated
 
-    def binding_options(
-        self, project_id: str, project: Project
-    ) -> StudioBindingOptionsResponse:
+    def binding_options(self, project_id: str, project: Project) -> StudioBindingOptionsResponse:
         record = self.get_project(project_id)
         assets = record.manifest.assets
         roles: list[StudioBindingRole] = []
@@ -327,9 +325,7 @@ class StudioService:
         asset_ids = {asset.object_id for asset in record.manifest.assets}
         selection_by_id = {item.cir_id: item for item in bindings}
         unknown_objects = [
-            item.project_object_id
-            for item in bindings
-            if item.project_object_id not in asset_ids
+            item.project_object_id for item in bindings if item.project_object_id not in asset_ids
         ]
         if unknown_objects:
             raise ValueError(
@@ -410,9 +406,8 @@ class StudioService:
             selection = selection_by_cir[cir_id]
             asset = asset_by_id[selection.project_object_id]
             if record.engine is StudioEngine.UNITY:
-                compatible = (
-                    asset.engine_ref.startswith("Assets/")
-                    and asset.engine_ref.endswith(".prefab")
+                compatible = asset.engine_ref.startswith("Assets/") and asset.engine_ref.endswith(
+                    ".prefab"
                 )
                 requirement = "a Unity prefab path under Assets/"
             else:
@@ -471,10 +466,7 @@ class StudioService:
                     environment_by_id[cir_id].asset_uri = asset.engine_ref
             plan = compile_unreal_project(bound_project)
 
-        adapter_warnings = [
-            warning.message
-            for warning in getattr(plan, "warnings", [])
-        ]
+        adapter_warnings = [warning.message for warning in getattr(plan, "warnings", [])]
         return StudioRealizationResponse(
             project_id=project_id,
             engine=record.engine,
@@ -582,9 +574,7 @@ class StudioService:
         if package_manifest.exists():
             try:
                 package_data = json.loads(package_manifest.read_text(encoding="utf-8"))
-                timeline_version = package_data.get("dependencies", {}).get(
-                    "com.unity.timeline"
-                )
+                timeline_version = package_data.get("dependencies", {}).get("com.unity.timeline")
             except (OSError, json.JSONDecodeError):
                 pass
 
@@ -756,9 +746,7 @@ class StudioService:
     def _validate_unreal_project(project_path: Path) -> Path:
         projects = sorted(project_path.glob("*.uproject"))
         if len(projects) != 1:
-            raise ValueError(
-                "Unreal project path must contain exactly one .uproject file."
-            )
+            raise ValueError("Unreal project path must contain exactly one .uproject file.")
         return projects[0]
 
     def _load_projects(self) -> dict[str, StudioProjectRecord]:
@@ -768,10 +756,7 @@ class StudioService:
             payload = json.loads(_PROJECTS_FILE.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {}
-        return {
-            item["project_id"]: StudioProjectRecord.model_validate(item)
-            for item in payload
-        }
+        return {item["project_id"]: StudioProjectRecord.model_validate(item) for item in payload}
 
     @staticmethod
     def _save_projects(records: dict[str, StudioProjectRecord]) -> None:
