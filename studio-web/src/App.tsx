@@ -728,11 +728,16 @@ function App() {
           bindings: selectedBindings,
         },
       );
+      const omissions = queued.payload?.omitted_facial_actor_binding_ids || [];
       setNotice(
         "Verified Generated Performance Package staged and queued for native " +
           selectedProject.engine +
           " realization: " +
-          queued.command_id,
+          queued.command_id +
+          (omissions.length
+            ? ". Facial tracks omitted for target-capability-unavailable actors: " +
+              omissions.join(", ")
+            : ". Full requested facial capability is available."),
       );
       window.setTimeout(refreshBridgeCommands, 1200);
       window.setTimeout(refreshBootstrap, 1800);
