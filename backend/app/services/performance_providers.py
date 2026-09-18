@@ -4,6 +4,7 @@ import asyncio
 import json
 import math
 import os
+import re
 import shlex
 from typing import Any, TypeVar
 import urllib.error
@@ -19,6 +20,8 @@ from cutsceneai_performance import (
     FacialCurveArtifact,
     FacialCurveSample,
     FacialGenerationRequest,
+    GenerationModelConfig,
+    PerformanceCompilerConfig,
     ProviderArtifact,
     Quaternion,
     Vector3,
@@ -37,6 +40,43 @@ class PerformanceProviderConfigurationError(RuntimeError):
 
 class PerformanceProviderExecutionError(RuntimeError):
     pass
+
+
+def performance_compiler_config(experiment_seed: int) -> PerformanceCompilerConfig:
+    return PerformanceCompilerConfig(
+        experiment_seed=experiment_seed,
+        body=GenerationModelConfig(
+            provider=os.getenv("CUTSCENEAI_BODY_PROVIDER", "unconfigured-body"),
+            model=os.getenv("CUTSCENEAI_BODY_MODEL", "unconfigured"),
+            model_revision=os.getenv("CUTSCENEAI_BODY_MODEL_REVISION", "unconfigured"),
+            prompt_version=os.getenv("CUTSCENEAI_BODY_PROMPT_VERSION", "body-v0.1"),
+            deterministic_algorithms=os.getenv(
+                "CUTSCENEAI_BODY_DETERMINISTIC", "true"
+            ).lower()
+            not in {"0", "false", "no"},
+        ),
+        facial=GenerationModelConfig(
+            provider="cutsceneai-procedural-facial",
+            model="arkit52-baseline-v0.1",
+            model_revision="0.1.0",
+            prompt_version="facial-v0.1",
+            deterministic_algorithms=True,
+        ),
+        camera=GenerationModelConfig(
+            provider="cutsceneai-procedural-camera",
+            model="cinematic-baseline-v0.1",
+            model_revision="0.1.0",
+            prompt_version="camera-v0.1",
+            deterministic_algorithms=True,
+        ),
+    )
+
+
+def _fps_from_prompt(prompt: str) -> int:
+    match = re.search(r"\bat\s+(\d{1,3})\s+fps\b", prompt, re.IGNORECASE)
+    if match is None:
+        return 24
+    return max(1, min(240, int(match.group(1))))
 
 
 def _provider_artifact(
@@ -337,7 +377,7 @@ class ProceduralFacialBackend:
             samples.append(FacialCurveSample(frame_index=frame, weights=values))
 
         artifact = FacialCurveArtifact(
-            fps=24,
+            fps=_fps_from_prompt(request.prompt),
             frame_count=frame_count,
             samples=samples,
         )
@@ -382,7 +422,7 @@ class ProceduralCameraBackend:
             )
 
         artifact = CameraCurveArtifact(
-            fps=24,
+            fps=_fps_from_prompt(request.prompt),
             frame_count=frame_count,
             samples=samples,
         )
