@@ -20,7 +20,13 @@ from app.models.studio import (
     StudioBindingOptionsRequest,
     StudioBindingOptionsResponse,
     StudioBindingValidateRequest,
+    StudioBridgeCommand,
+    StudioBridgeCommandRequest,
+    StudioBridgeCommandResultRequest,
+    StudioBridgeHeartbeatRequest,
+    StudioBridgeInstallResponse,
     StudioBridgeManifestRequest,
+    StudioBridgePollResponse,
     StudioCapabilityResponse,
     StudioPerformancePlanRequest,
     StudioProjectConnectRequest,
@@ -87,6 +93,95 @@ def update_bridge_manifest(
 ) -> StudioProjectRecord:
     try:
         return service.update_bridge_manifest(project_id, request)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/projects/{project_id}/bridge/install",
+    response_model=StudioBridgeInstallResponse,
+)
+def install_bridge(
+    project_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgeInstallResponse:
+    try:
+        return service.install_bridge(project_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/projects/{project_id}/bridge/heartbeat",
+    response_model=StudioProjectRecord,
+)
+def bridge_heartbeat(
+    project_id: str,
+    request: StudioBridgeHeartbeatRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioProjectRecord:
+    try:
+        return service.bridge_heartbeat(project_id, request)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/projects/{project_id}/bridge/commands",
+    response_model=StudioBridgeCommand,
+)
+def enqueue_bridge_command(
+    project_id: str,
+    request: StudioBridgeCommandRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgeCommand:
+    try:
+        return service.enqueue_bridge_command(project_id, request)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
+    "/projects/{project_id}/bridge/commands",
+    response_model=list[StudioBridgeCommand],
+)
+def list_bridge_commands(
+    project_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> list[StudioBridgeCommand]:
+    try:
+        return service.list_bridge_commands(project_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
+    "/projects/{project_id}/bridge/poll",
+    response_model=StudioBridgePollResponse,
+)
+def poll_bridge_command(
+    project_id: str,
+    agent_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgePollResponse:
+    try:
+        return service.poll_bridge_command(project_id, agent_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/projects/{project_id}/bridge/commands/{command_id}/complete",
+    response_model=StudioBridgeCommand,
+)
+def complete_bridge_command(
+    project_id: str,
+    command_id: str,
+    request: StudioBridgeCommandResultRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgeCommand:
+    try:
+        return service.complete_bridge_command(project_id, command_id, request)
     except ValueError as exc:
         raise _bad_request(exc) from exc
 
