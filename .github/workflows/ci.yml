@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -131,3 +131,16 @@ jobs:
           path: |
             adapters/unity/schemas/
             adapters/unity/examples/
+
+      - name: Commit deterministic Unity artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/agent/cross-engine-parity-v0.1'
+        run: |
+          git config user.name "CutSceneAI CI"
+          git config user.email "cutsceneai-ci@users.noreply.github.com"
+          git add adapters/unity/schemas adapters/unity/examples
+          if git diff --cached --quiet; then
+            echo "Unity artifacts already current."
+            exit 0
+          fi
+          git commit -m "unity: regenerate deterministic adapter artifacts"
+          git push origin HEAD:agent/cross-engine-parity-v0.1
