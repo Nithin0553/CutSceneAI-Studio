@@ -294,8 +294,8 @@ def _sequence_path():
 
 def _preflight():
     version = str(unreal.SystemLibrary.get_engine_version())
-    if not version.startswith("5.8.0"):
-        raise RuntimeError(f"Unreal Engine 5.8.0 is required, got {version}.")
+    if not version.startswith("5.8."):
+        raise RuntimeError(f"Validated Unreal Engine line is 5.8.x, got {version}.")
     targets = [_sequence_path()]
     targets.extend(item["target_animation_path"] for item in MAPPING["body_tracks"])
     targets.extend(item["target_animation_path"] for item in MAPPING["facial_tracks"])
