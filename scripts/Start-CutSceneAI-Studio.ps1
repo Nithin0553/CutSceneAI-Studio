@@ -13,10 +13,12 @@ $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 $EnvFile = Join-Path $RepoRoot ".env.local"
 $RuntimeDir = Join-Path $RepoRoot ".cutsceneai-studio"
 $LogDir = Join-Path $RuntimeDir "logs"
-$BackendOutLog = Join-Path $LogDir "backend.stdout.log"
-$BackendErrLog = Join-Path $LogDir "backend.stderr.log"
-$FrontendOutLog = Join-Path $LogDir "frontend.stdout.log"
-$FrontendErrLog = Join-Path $LogDir "frontend.stderr.log"
+$RunId = "$(Get-Date -Format 'yyyyMMdd-HHmmss')-$PID"
+$RunLogDir = Join-Path $LogDir $RunId
+$BackendOutLog = Join-Path $RunLogDir "backend.stdout.log"
+$BackendErrLog = Join-Path $RunLogDir "backend.stderr.log"
+$FrontendOutLog = Join-Path $RunLogDir "frontend.stdout.log"
+$FrontendErrLog = Join-Path $RunLogDir "frontend.stderr.log"
 
 function Show-LogTail {
     param([string]$Path, [int]$Lines = 80)
@@ -26,6 +28,96 @@ function Show-LogTail {
         Get-Content -LiteralPath $Path -Tail $Lines -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
         Write-Host "----- end log -----"
         Write-Host ""
+    }
+}
+
+function Test-CutSceneAIProcessOwnedByRepo {
+    param([int]$ProcessId)
+
+    try {
+        $ProcessInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop
+    } catch {
+        return $false
+    }
+
+    if ($null -eq $ProcessInfo -or [string]::IsNullOrWhiteSpace($ProcessInfo.CommandLine)) {
+        return $false
+    }
+
+    $CommandLine = $ProcessInfo.CommandLine.ToLowerInvariant()
+    $RepoNeedle = $RepoRoot.ToLowerInvariant()
+    if (-not $CommandLine.Contains($RepoNeedle)) {
+        return $false
+    }
+
+    return (
+        $CommandLine.Contains("uvicorn") -or
+        $CommandLine.Contains("studio-web") -or
+        $CommandLine.Contains("vite") -or
+        $CommandLine.Contains("npm")
+    )
+}
+
+function Stop-CutSceneAIProcessTree {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0 -or $ProcessId -eq $PID) {
+        return
+    }
+
+    if (Get-Command taskkill.exe -ErrorAction SilentlyContinue) {
+        & taskkill.exe /PID $ProcessId /T /F *> $null
+        return
+    }
+
+    Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+}
+
+function Get-CutSceneAIListeningProcessIds {
+    param([int]$Port)
+
+    try {
+        return @(
+            Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop |
+                Select-Object -ExpandProperty OwningProcess -Unique
+        )
+    } catch {
+        return @()
+    }
+}
+
+function Clear-CutSceneAIStaleListeners {
+    param([int[]]$Ports = @(8000, 5173))
+
+    foreach ($Port in $Ports) {
+        $Owners = @(Get-CutSceneAIListeningProcessIds -Port $Port)
+        foreach ($OwnerPid in $Owners) {
+            if (Test-CutSceneAIProcessOwnedByRepo -ProcessId $OwnerPid) {
+                Write-Host "Stopping stale CutSceneAI process on port $Port (PID $OwnerPid)..."
+                Stop-CutSceneAIProcessTree -ProcessId $OwnerPid
+                Start-Sleep -Milliseconds 500
+                continue
+            }
+
+            try {
+                $Info = Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerPid" -ErrorAction Stop
+                $Name = $Info.Name
+                $Command = $Info.CommandLine
+            } catch {
+                $Name = "unknown"
+                $Command = "unavailable"
+            }
+
+            throw @"
+Port $Port is already in use by a process that this launcher does not own.
+PID: $OwnerPid
+Process: $Name
+Command: $Command
+
+CutSceneAI will not terminate unrelated processes automatically.
+Close the process using port $Port and run the launcher again.
+"@
+        }
     }
 }
 
@@ -75,10 +167,11 @@ if (-not (Test-Path -LiteralPath $BackendDir)) { throw "Backend directory not fo
 if (-not (Test-Path -LiteralPath $WebDir)) { throw "Studio web directory not found: $WebDir" }
 if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw "npm is required for the Studio web UI." }
 
-New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-foreach ($LogFile in @($BackendOutLog, $BackendErrLog, $FrontendOutLog, $FrontendErrLog)) {
-    if (Test-Path -LiteralPath $LogFile) { Remove-Item -LiteralPath $LogFile -Force }
-}
+New-Item -ItemType Directory -Force -Path $RunLogDir | Out-Null
+
+# Previous launchers used fixed log filenames and could leave Vite/Uvicorn children alive.
+# Clean only listeners whose command line proves they belong to this repository.
+Clear-CutSceneAIStaleListeners
 
 # The launcher owns this repo-local generated environment. Rebuild it if pip is damaged.
 if (-not (Test-CutSceneAIPip)) {
@@ -239,7 +332,7 @@ try {
     Write-Host ""
     Write-Host "API: http://127.0.0.1:8000"
     Write-Host "Web: http://127.0.0.1:5173"
-    Write-Host "Logs: $LogDir"
+    Write-Host "Logs: $RunLogDir"
     Write-Host ""
 
     if (-not $NoBrowser) { Start-Process "http://127.0.0.1:5173" }
@@ -249,7 +342,7 @@ try {
 } finally {
     foreach ($Process in @($Frontend, $Backend)) {
         if ($null -ne $Process -and -not $Process.HasExited) {
-            Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+            Stop-CutSceneAIProcessTree -ProcessId $Process.Id
         }
     }
 }
