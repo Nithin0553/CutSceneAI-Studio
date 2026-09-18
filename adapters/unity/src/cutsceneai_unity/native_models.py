@@ -66,6 +66,7 @@ class UnityNativeRealizationTarget(UnityModel):
     timeline_asset_path: str = Field(pattern=r"^Assets(?:/[A-Za-z0-9_.-]+)+\.playable$")
     scene_asset_path: str = Field(pattern=r"^Assets(?:/[A-Za-z0-9_.-]+)+\.unity$")
     actors: list[UnityNativeActorTarget] = Field(min_length=1)
+    omitted_facial_actor_binding_ids: list[str] = Field(default_factory=list)
     render: UnityNativeRenderSettings = Field(default_factory=UnityNativeRenderSettings)
 
     @model_validator(mode="after")
@@ -77,4 +78,15 @@ class UnityNativeRealizationTarget(UnityModel):
         binding_ids = [item.actor_binding_id for item in self.actors]
         if len(binding_ids) != len(set(binding_ids)):
             raise ValueError("actors must contain unique actor_binding_id values")
+        omissions = self.omitted_facial_actor_binding_ids
+        if len(omissions) != len(set(omissions)):
+            raise ValueError(
+                "omitted_facial_actor_binding_ids must contain unique values"
+            )
+        unknown = sorted(set(omissions) - set(binding_ids))
+        if unknown:
+            raise ValueError(
+                "omitted_facial_actor_binding_ids references unknown actors: "
+                + ", ".join(unknown)
+            )
         return self
