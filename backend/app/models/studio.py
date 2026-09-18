@@ -47,7 +47,7 @@ class StudioAsset(StudioModel):
 
 
 class StudioProjectManifest(StudioModel):
-    manifest_version: str = "0.1.0"
+    manifest_version: str = "0.2.0"
     project_id: str
     engine: StudioEngine
     display_name: str
@@ -58,6 +58,8 @@ class StudioProjectManifest(StudioModel):
     fps: int | None = None
     discovery_mode: str
     bridge_connected: bool = False
+    bridge_agent_id: str | None = None
+    bridge_last_seen_utc: str | None = None
     capabilities: list[str] = Field(default_factory=list)
     assets: list[StudioAsset] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -73,6 +75,14 @@ class StudioProjectRecord(StudioModel):
     manifest: StudioProjectManifest
 
 
+class StudioBridgeInstallResponse(StudioModel):
+    project_id: str
+    engine: StudioEngine
+    installed_files: list[str]
+    restart_required: bool
+    message: str
+
+
 class StudioBridgeManifestRequest(StudioModel):
     engine_version: str | None = None
     adapter_version: str | None = None
@@ -81,6 +91,57 @@ class StudioBridgeManifestRequest(StudioModel):
     capabilities: list[str] = Field(default_factory=list)
     assets: list[StudioAsset] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class StudioBridgeHeartbeatRequest(StudioBridgeManifestRequest):
+    agent_id: str = Field(min_length=1, max_length=200)
+
+
+class StudioBridgeCommandType(str, Enum):
+    REFRESH_MANIFEST = "refresh_manifest"
+    FOCUS_PREVIEW = "focus_preview"
+    PLAY_PREVIEW = "play_preview"
+    STOP_PREVIEW = "stop_preview"
+    SAVE = "save"
+    READBACK = "readback"
+
+
+class StudioBridgeCommandStatus(str, Enum):
+    PENDING = "pending"
+    LEASED = "leased"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class StudioBridgeCommandRequest(StudioModel):
+    command: StudioBridgeCommandType
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class StudioBridgeCommand(StudioModel):
+    command_id: str
+    project_id: str
+    engine: StudioEngine
+    command: StudioBridgeCommandType
+    payload: dict[str, Any] = Field(default_factory=dict)
+    status: StudioBridgeCommandStatus
+    created_at_utc: str
+    leased_at_utc: str | None = None
+    leased_to_agent_id: str | None = None
+    completed_at_utc: str | None = None
+    result: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class StudioBridgePollResponse(StudioModel):
+    command: StudioBridgeCommand | None = None
+
+
+class StudioBridgeCommandResultRequest(StudioModel):
+    agent_id: str = Field(min_length=1, max_length=200)
+    succeeded: bool
+    result: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
 
 
 class StudioBindingOptionsRequest(StudioModel):
