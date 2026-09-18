@@ -170,9 +170,7 @@ def test_executor_keeps_failed_run_evidence(tmp_path: Path, monkeypatch) -> None
     executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
 
     record = asyncio.run(
-        executor.generate(
-            PerformanceGenerateRequest(project=_project_without_dialogue())
-        )
+        executor.generate(PerformanceGenerateRequest(project=_project_without_dialogue()))
     )
 
     assert record.status is PerformanceRunStatus.FAILED
@@ -187,9 +185,7 @@ def test_executor_keeps_failed_run_evidence(tmp_path: Path, monkeypatch) -> None
         raise AssertionError("Expected failed runs to refuse bundle download.")
 
 
-def test_executor_synthesizes_dialogue_and_preserves_manifest(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_executor_synthesizes_dialogue_and_preserves_manifest(tmp_path: Path, monkeypatch) -> None:
     _configure_body_provider(tmp_path, monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(
@@ -199,11 +195,7 @@ def test_executor_synthesizes_dialogue_and_preserves_manifest(
     )
     executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
 
-    record = asyncio.run(
-        executor.generate(
-            PerformanceGenerateRequest(project=_project())
-        )
-    )
+    record = asyncio.run(executor.generate(PerformanceGenerateRequest(project=_project())))
 
     assert record.status is PerformanceRunStatus.SUCCEEDED
     assert record.audio_track_count > 0
