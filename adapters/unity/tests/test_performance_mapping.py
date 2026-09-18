@@ -100,7 +100,7 @@ def test_compile_maps_exact_bundle_into_unity_native_contract(
 ) -> None:
     package = generated_fixture.bundle.package
 
-    assert mapping.target_engine_version == "6000.0"
+    assert mapping.target_engine_version == "6000.3"
     assert mapping.timeline_package_version == "1.8.12"
     assert (
         mapping.source_bundle_sha256
