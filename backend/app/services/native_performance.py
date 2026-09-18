@@ -156,9 +156,7 @@ class NativePerformanceRealizer:
                     "entry_point": entry_point,
                     "performance_run_id": run_id,
                     "bundle_sha256": run.bundle_sha256,
-                    "realization_policy": (
-                        "strict-body-camera-audio_degrade-facial-by-capability"
-                    ),
+                    "realization_policy": ("strict-body-camera-audio_degrade-facial-by-capability"),
                     "omitted_facial_actor_binding_ids": omissions,
                 },
             ),
@@ -203,9 +201,7 @@ class NativePerformanceRealizer:
             target_path=f"{root}/GeneratedPerformance",
         )
 
-        requested_facial_actor_ids = {
-            item.actor_binding_id for item in full_mapping.facial_tracks
-        }
+        requested_facial_actor_ids = {item.actor_binding_id for item in full_mapping.facial_tracks}
         omitted_facial_actor_ids: set[str] = set()
         actors: list[UnityNativeActorTarget] = []
         for plan_actor in plan.sequences[0].actors:
