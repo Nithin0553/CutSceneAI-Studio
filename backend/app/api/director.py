@@ -3,7 +3,12 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.models.director import DirectorFailure, DirectorGenerateRequest, DirectorGenerateResponse
+from app.models.director import (
+    DirectorEditRequest,
+    DirectorFailure,
+    DirectorGenerateRequest,
+    DirectorGenerateResponse,
+)
 from app.services.director import DirectorConfigurationError, DirectorOutputError
 from app.services.director import DirectorProviderError, DirectorService
 from app.services.openai_director import OpenAIDirectorBackend
@@ -30,6 +35,28 @@ async def generate_cir(
 ) -> DirectorGenerateResponse | JSONResponse:
     try:
         result = await service.generate(request.prompt)
+    except DirectorConfigurationError as exc:
+        return _failure(503, "director_not_configured", str(exc))
+    except DirectorProviderError as exc:
+        return _failure(502, "provider_error", str(exc), exc.retryable, exc.request_id)
+    except DirectorOutputError as exc:
+        return _failure(502, "invalid_provider_output", str(exc))
+    return DirectorGenerateResponse(
+        project=result.project,
+        provider=result.provider,
+        model=result.model,
+        request_id=result.request_id,
+    )
+
+
+
+@router.post("/edit", response_model=DirectorGenerateResponse)
+async def edit_cir(
+    request: DirectorEditRequest,
+    service: DirectorService = Depends(get_director_service),
+) -> DirectorGenerateResponse | JSONResponse:
+    try:
+        result = await service.edit(request.project, request.instruction)
     except DirectorConfigurationError as exc:
         return _failure(503, "director_not_configured", str(exc))
     except DirectorProviderError as exc:
