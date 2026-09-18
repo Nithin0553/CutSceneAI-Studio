@@ -26,6 +26,7 @@ def _service(tmp_path: Path, monkeypatch) -> StudioService:
     state = tmp_path / "state"
     monkeypatch.setattr(studio_module, "_STATE_DIR", state)
     monkeypatch.setattr(studio_module, "_PROJECTS_FILE", state / "projects.json")
+    monkeypatch.setattr(studio_module, "_COMMANDS_DIR", state / "bridge-commands")
     return StudioService()
 
 
@@ -553,3 +554,126 @@ def test_api_maps_unknown_project_errors_to_422(tmp_path: Path, monkeypatch) -> 
     assert scanned.status_code == 422
     assert options.status_code == 422
     assert importer.status_code == 422
+
+
+
+def test_unity_bridge_install_heartbeat_and_command_round_trip(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    installed = service.install_bridge(record.project_id)
+    project_root = Path(record.project_path)
+    assert installed.engine is StudioEngine.UNITY
+    assert (
+        project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs"
+    ).exists()
+    config_path = project_root / "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    assert config["project_id"] == record.project_id
+
+    heartbeat = service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="test-unity-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.1.0",
+            current_scene="Assets/Scenes/Main.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "humanoid-scan"],
+            assets=[
+                {
+                    "object_id": "global:mina",
+                    "kind": "scene_actor",
+                    "display_name": "Mina",
+                    "engine_ref": "global:mina",
+                    "relative_path": "Assets/Scenes/Main.unity",
+                    "verified": True,
+                    "metadata": {"humanoid": True, "humanoid_bone_count": 53},
+                }
+            ],
+            warnings=[],
+        ),
+    )
+    assert heartbeat.manifest.bridge_connected is True
+    assert heartbeat.manifest.bridge_agent_id == "test-unity-agent"
+    assert heartbeat.manifest.assets[0].verified is True
+
+    queued = service.enqueue_bridge_command(
+        record.project_id,
+        studio_module.StudioBridgeCommandRequest(command="readback"),
+    )
+    polled = service.poll_bridge_command(record.project_id, "test-unity-agent")
+    assert polled.command is not None
+    assert polled.command.command_id == queued.command_id
+    assert polled.command.status.value == "leased"
+
+    completed = service.complete_bridge_command(
+        record.project_id,
+        queued.command_id,
+        studio_module.StudioBridgeCommandResultRequest(
+            agent_id="test-unity-agent",
+            succeeded=True,
+            result={"current_scene": "Assets/Scenes/Main.unity"},
+        ),
+    )
+    assert completed.status.value == "succeeded"
+    assert service.list_bridge_commands(record.project_id)[0].result["current_scene"].endswith(
+        "Main.unity"
+    )
+
+
+def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNREAL,
+            project_path=str(_unreal_project(tmp_path)),
+        )
+    )
+
+    installed = service.install_bridge(record.project_id)
+    root = Path(record.project_path) / "Plugins" / "CutSceneAIStudioBridge"
+    assert installed.engine is StudioEngine.UNREAL
+    assert (root / "CutSceneAIStudioBridge.uplugin").exists()
+    assert (root / "Content/Python/init_unreal.py").exists()
+    assert (root / "Content/Python/cutsceneai_studio_bridge.py").exists()
+    config = json.loads(
+        (root / "Content/Python/cutsceneai-bridge.json").read_text(encoding="utf-8")
+    )
+    assert config["project_id"] == record.project_id
+
+
+def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    queued = service.enqueue_bridge_command(
+        record.project_id,
+        studio_module.StudioBridgeCommandRequest(command="save"),
+    )
+    service.poll_bridge_command(record.project_id, "agent-a")
+
+    try:
+        service.complete_bridge_command(
+            record.project_id,
+            queued.command_id,
+            studio_module.StudioBridgeCommandResultRequest(
+                agent_id="agent-b",
+                succeeded=True,
+            ),
+        )
+    except ValueError as exc:
+        assert "different engine agent" in str(exc)
+    else:
+        raise AssertionError("Expected bridge lease ownership to be enforced.")
