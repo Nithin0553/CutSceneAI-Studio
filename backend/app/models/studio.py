@@ -104,6 +104,7 @@ class StudioBridgeCommandType(str, Enum):
     STOP_PREVIEW = "stop_preview"
     SAVE = "save"
     READBACK = "readback"
+    RUN_IMPORTER = "run_importer"
 
 
 class StudioBridgeCommandStatus(str, Enum):
