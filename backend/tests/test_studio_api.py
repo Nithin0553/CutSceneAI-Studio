@@ -556,10 +556,7 @@ def test_api_maps_unknown_project_errors_to_422(tmp_path: Path, monkeypatch) -> 
     assert importer.status_code == 422
 
 
-
-def test_unity_bridge_install_heartbeat_and_command_round_trip(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
         StudioProjectConnectRequest(
@@ -571,9 +568,7 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(
     installed = service.install_bridge(record.project_id)
     project_root = Path(record.project_path)
     assert installed.engine is StudioEngine.UNITY
-    assert (
-        project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs"
-    ).exists()
+    assert (project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs").exists()
     config_path = project_root / "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["project_id"] == record.project_id
@@ -624,8 +619,10 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(
         ),
     )
     assert completed.status.value == "succeeded"
-    assert service.list_bridge_commands(record.project_id)[0].result["current_scene"].endswith(
-        "Main.unity"
+    assert (
+        service.list_bridge_commands(record.project_id)[0]
+        .result["current_scene"]
+        .endswith("Main.unity")
     )
 
 
