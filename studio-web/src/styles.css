@@ -1360,3 +1360,65 @@ button:disabled {
     border-bottom: 1px solid #253040;
   }
 }
+
+
+.project-action-stack {
+  display: grid;
+  gap: 7px;
+}
+
+.bridge-controls {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.bridge-last-seen {
+  color: #5f718c;
+  font-size: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.edit-stage {
+  margin-top: 15px;
+}
+
+.edit-box {
+  width: 100%;
+  min-height: 96px;
+  margin-top: 16px;
+  padding: 13px 14px;
+  resize: vertical;
+  border: 1px solid #293548;
+  border-radius: 10px;
+  color: #dce4ef;
+  background: #090e15;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.edit-box:focus {
+  border-color: #516b9c;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(79, 108, 168, 0.08);
+}
+
+@media (max-width: 760px) {
+  .project-action-stack {
+    grid-column: 1 / -1;
+  }
+
+  .project-action-stack .secondary-button {
+    width: 100%;
+  }
+
+  .bridge-controls {
+    width: 100%;
+  }
+
+  .bridge-controls .secondary-button {
+    flex: 1 1 120px;
+  }
+}
