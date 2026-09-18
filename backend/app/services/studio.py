@@ -28,7 +28,14 @@ from app.models.studio import (
     StudioBindingOptionsResponse,
     StudioBindingRole,
     StudioBindingSelection,
+    StudioBridgeCommand,
+    StudioBridgeCommandRequest,
+    StudioBridgeCommandResultRequest,
+    StudioBridgeCommandStatus,
+    StudioBridgeHeartbeatRequest,
+    StudioBridgeInstallResponse,
     StudioBridgeManifestRequest,
+    StudioBridgePollResponse,
     StudioCapability,
     StudioCapabilityResponse,
     StudioEngine,
@@ -42,7 +49,9 @@ from app.models.studio import (
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _STATE_DIR = _REPO_ROOT / ".cutsceneai-studio" / "state"
 _PROJECTS_FILE = _STATE_DIR / "projects.json"
+_COMMANDS_DIR = _STATE_DIR / "bridge-commands"
 _MAX_DISCOVERED_ASSETS = 5000
+_BRIDGE_LEASE_TIMEOUT_SECONDS = 120
 
 
 def _utc_now() -> str:
@@ -267,6 +276,277 @@ class StudioService:
         records[project_id] = updated
         self._save_projects(records)
         return updated
+
+    def install_bridge(self, project_id: str) -> StudioBridgeInstallResponse:
+        record = self.get_project(project_id)
+        project_root = Path(record.project_path)
+        source_root = _REPO_ROOT / "engine-bridge"
+        installed: list[str] = []
+
+        config = {
+            "bridge_version": "0.1.0",
+            "project_id": project_id,
+            "backend_url": "http://127.0.0.1:8000",
+            "poll_interval_seconds": 2.0,
+        }
+
+        if record.engine is StudioEngine.UNITY:
+            source = source_root / "unity" / "CutSceneAIStudioBridge.cs"
+            if not source.exists():
+                raise ValueError("Unity bridge source is missing from the CutSceneAI repository.")
+            script_target = (
+                project_root
+                / "Assets"
+                / "Editor"
+                / "CutSceneAI"
+                / "CutSceneAIStudioBridge.cs"
+            )
+            config_target = (
+                project_root
+                / "Assets"
+                / "CutSceneAI"
+                / "Bridge"
+                / "cutsceneai-bridge.json"
+            )
+            self._write_managed_bridge_file(source.read_text(encoding="utf-8"), script_target)
+            self._write_managed_bridge_file(
+                json.dumps(config, indent=2, sort_keys=True) + "\n",
+                config_target,
+            )
+            installed.extend(
+                [
+                    script_target.relative_to(project_root).as_posix(),
+                    config_target.relative_to(project_root).as_posix(),
+                ]
+            )
+            message = (
+                "Unity bridge installed. Unity will compile it automatically when the project is "
+                "open; otherwise open the project once to start the local bridge."
+            )
+        else:
+            source = source_root / "unreal" / "cutsceneai_studio_bridge.py"
+            plugin_source = source_root / "unreal" / "CutSceneAIStudioBridge.uplugin"
+            if not source.exists() or not plugin_source.exists():
+                raise ValueError("Unreal bridge source is missing from the CutSceneAI repository.")
+            plugin_root = project_root / "Plugins" / "CutSceneAIStudioBridge"
+            script_target = (
+                plugin_root
+                / "Content"
+                / "Python"
+                / "cutsceneai_studio_bridge.py"
+            )
+            init_target = plugin_root / "Content" / "Python" / "init_unreal.py"
+            plugin_target = plugin_root / "CutSceneAIStudioBridge.uplugin"
+            config_target = plugin_root / "Content" / "Python" / "cutsceneai-bridge.json"
+            self._write_managed_bridge_file(source.read_text(encoding="utf-8"), script_target)
+            self._write_managed_bridge_file(
+                "import cutsceneai_studio_bridge\n"
+                "cutsceneai_studio_bridge.start_bridge()\n",
+                init_target,
+            )
+            self._write_managed_bridge_file(
+                plugin_source.read_text(encoding="utf-8"),
+                plugin_target,
+            )
+            self._write_managed_bridge_file(
+                json.dumps(config, indent=2, sort_keys=True) + "\n",
+                config_target,
+            )
+            installed.extend(
+                [
+                    script_target.relative_to(project_root).as_posix(),
+                    init_target.relative_to(project_root).as_posix(),
+                    plugin_target.relative_to(project_root).as_posix(),
+                    config_target.relative_to(project_root).as_posix(),
+                ]
+            )
+            message = (
+                "Unreal bridge plugin installed. Restart/open the project so Unreal discovers the "
+                "project plugin and its Python startup script."
+            )
+
+        return StudioBridgeInstallResponse(
+            project_id=project_id,
+            engine=record.engine,
+            installed_files=installed,
+            restart_required=True,
+            message=message,
+        )
+
+    def bridge_heartbeat(
+        self,
+        project_id: str,
+        request: StudioBridgeHeartbeatRequest,
+    ) -> StudioProjectRecord:
+        record = self.get_project(project_id)
+        manifest = record.manifest.model_copy(
+            update={
+                "engine_version": request.engine_version or record.manifest.engine_version,
+                "adapter_version": request.adapter_version or record.manifest.adapter_version,
+                "current_scene": request.current_scene,
+                "fps": request.fps,
+                "discovery_mode": "engine_bridge",
+                "bridge_connected": True,
+                "bridge_agent_id": request.agent_id,
+                "bridge_last_seen_utc": _utc_now(),
+                "capabilities": request.capabilities,
+                "assets": request.assets,
+                "warnings": request.warnings,
+            }
+        )
+        updated = record.model_copy(update={"manifest": manifest})
+        records = self._load_projects()
+        records[project_id] = updated
+        self._save_projects(records)
+        return updated
+
+    def enqueue_bridge_command(
+        self,
+        project_id: str,
+        request: StudioBridgeCommandRequest,
+    ) -> StudioBridgeCommand:
+        record = self.get_project(project_id)
+        command = StudioBridgeCommand(
+            command_id=_stable_id(
+                "bridge-command",
+                f"{project_id}:{request.command.value}:{_utc_now()}",
+            ),
+            project_id=project_id,
+            engine=record.engine,
+            command=request.command,
+            payload=request.payload,
+            status=StudioBridgeCommandStatus.PENDING,
+            created_at_utc=_utc_now(),
+        )
+        commands = self._load_bridge_commands(project_id)
+        commands.append(command)
+        self._save_bridge_commands(project_id, commands[-200:])
+        return command
+
+    def list_bridge_commands(self, project_id: str) -> list[StudioBridgeCommand]:
+        self.get_project(project_id)
+        return self._load_bridge_commands(project_id)
+
+    def poll_bridge_command(
+        self,
+        project_id: str,
+        agent_id: str,
+    ) -> StudioBridgePollResponse:
+        self.get_project(project_id)
+        commands = self._load_bridge_commands(project_id)
+        now = datetime.now(UTC)
+        changed = False
+
+        for index, command in enumerate(commands):
+            if (
+                command.status is StudioBridgeCommandStatus.LEASED
+                and command.leased_at_utc is not None
+            ):
+                leased_at = datetime.fromisoformat(command.leased_at_utc)
+                if (now - leased_at).total_seconds() > _BRIDGE_LEASE_TIMEOUT_SECONDS:
+                    commands[index] = command.model_copy(
+                        update={
+                            "status": StudioBridgeCommandStatus.PENDING,
+                            "leased_at_utc": None,
+                            "leased_to_agent_id": None,
+                        }
+                    )
+                    changed = True
+
+        for index, command in enumerate(commands):
+            if command.status is not StudioBridgeCommandStatus.PENDING:
+                continue
+            leased = command.model_copy(
+                update={
+                    "status": StudioBridgeCommandStatus.LEASED,
+                    "leased_at_utc": _utc_now(),
+                    "leased_to_agent_id": agent_id,
+                }
+            )
+            commands[index] = leased
+            self._save_bridge_commands(project_id, commands)
+            return StudioBridgePollResponse(command=leased)
+
+        if changed:
+            self._save_bridge_commands(project_id, commands)
+        return StudioBridgePollResponse(command=None)
+
+    def complete_bridge_command(
+        self,
+        project_id: str,
+        command_id: str,
+        request: StudioBridgeCommandResultRequest,
+    ) -> StudioBridgeCommand:
+        self.get_project(project_id)
+        commands = self._load_bridge_commands(project_id)
+        for index, command in enumerate(commands):
+            if command.command_id != command_id:
+                continue
+            if command.status is not StudioBridgeCommandStatus.LEASED:
+                raise ValueError("Bridge command is not currently leased.")
+            if command.leased_to_agent_id != request.agent_id:
+                raise ValueError("Bridge command lease belongs to a different engine agent.")
+            completed = command.model_copy(
+                update={
+                    "status": (
+                        StudioBridgeCommandStatus.SUCCEEDED
+                        if request.succeeded
+                        else StudioBridgeCommandStatus.FAILED
+                    ),
+                    "completed_at_utc": _utc_now(),
+                    "result": request.result,
+                    "error": request.error,
+                }
+            )
+            commands[index] = completed
+            self._save_bridge_commands(project_id, commands)
+            return completed
+        raise ValueError(f"Unknown bridge command '{command_id}'.")
+
+    @staticmethod
+    def _write_managed_bridge_file(content: str, target: Path) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            existing = target.read_text(encoding="utf-8", errors="ignore")
+            if existing == content:
+                return
+            if "CutSceneAI Studio Bridge" not in existing and "cutsceneai_studio_bridge" not in str(
+                target
+            ):
+                raise ValueError(f"Refusing to replace unmanaged bridge file: {target}")
+        target.write_text(content, encoding="utf-8", newline="\n")
+
+    @staticmethod
+    def _bridge_commands_file(project_id: str) -> Path:
+        return _COMMANDS_DIR / f"{project_id}.json"
+
+    def _load_bridge_commands(self, project_id: str) -> list[StudioBridgeCommand]:
+        path = self._bridge_commands_file(project_id)
+        if not path.exists():
+            return []
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        return [StudioBridgeCommand.model_validate(item) for item in payload]
+
+    def _save_bridge_commands(
+        self,
+        project_id: str,
+        commands: list[StudioBridgeCommand],
+    ) -> None:
+        _COMMANDS_DIR.mkdir(parents=True, exist_ok=True)
+        path = self._bridge_commands_file(project_id)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(
+            json.dumps(
+                [item.model_dump(mode="json") for item in commands],
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        temp.replace(path)
 
     def binding_options(self, project_id: str, project: Project) -> StudioBindingOptionsResponse:
         record = self.get_project(project_id)
