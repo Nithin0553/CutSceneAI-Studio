@@ -933,7 +933,6 @@ def test_staged_importer_refuses_unmanaged_overwrite(tmp_path: Path, monkeypatch
         raise AssertionError("Expected unmanaged realization importer collision to fail.")
 
 
-
 def test_cir_revision_ledger_persists_generation_and_edit_chain(
     tmp_path: Path,
     monkeypatch,
@@ -1034,9 +1033,7 @@ def test_cir_revision_api_create_list_and_get(tmp_path: Path, monkeypatch) -> No
             },
         )
         revision_id = created.json()["revision_id"]
-        listed = client.get(
-            f"/api/v1/studio/projects/{connected['project_id']}/revisions"
-        )
+        listed = client.get(f"/api/v1/studio/projects/{connected['project_id']}/revisions")
         fetched = client.get(
             f"/api/v1/studio/projects/{connected['project_id']}/revisions/{revision_id}"
         )
