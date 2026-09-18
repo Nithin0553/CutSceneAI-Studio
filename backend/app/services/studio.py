@@ -612,9 +612,7 @@ class StudioService:
                     f"Unknown parent revision '{request.parent_revision_id}'."
                 ) from exc
             if parent.cir_project_id != request.project.id:
-                raise ValueError(
-                    "CIR revision parent belongs to a different CIR project identity."
-                )
+                raise ValueError("CIR revision parent belongs to a different CIR project identity.")
         elif request.source.value not in {"generation", "import"}:
             raise ValueError(
                 "Edited or restored CIR revisions require an explicit parent revision."
