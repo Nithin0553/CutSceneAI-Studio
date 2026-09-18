@@ -4,6 +4,7 @@ from .cir import router as cir_router
 from .dialogue import router as dialogue_router
 from .director import router as director_router
 from .preview import router as preview_router
+from .performance_runtime import router as performance_runtime_router
 from .research import router as research_router
 from .studio import router as studio_router
 from .unreal import router as unreal_router
@@ -14,6 +15,7 @@ __all__ = [
     "dialogue_router",
     "director_router",
     "preview_router",
+    "performance_runtime_router",
     "research_router",
     "studio_router",
     "unreal_router",
