@@ -743,7 +743,11 @@ function App() {
                 <button
                   className="primary-button"
                   onClick={generateScene}
-                  disabled={busy === "generate" || prompt.trim().length < 20}
+                  disabled={
+                    busy === "generate" ||
+                    prompt.trim().length < 20 ||
+                    !projectConnected
+                  }
                 >
                   {busy === "generate" ? (
                     <LoaderCircle className="spin" size={16} />
@@ -753,6 +757,20 @@ function App() {
                   Generate CIR
                 </button>
               </div>
+
+              {!projectConnected && (
+                <div className="gate-note">
+                  <Link2 size={16} />
+                  <div>
+                    <strong>Connect a target project first</strong>
+                    <span>
+                      V3 begins with project connection and capability discovery so
+                      generated roles can be resolved against the selected Unity or
+                      Unreal project.
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {directorMeta && (
                 <div className="meta-line">
@@ -931,7 +949,7 @@ function App() {
                     <button
                       className="primary-button"
                       onClick={preparePerformance}
-                      disabled={busy === "performance"}
+                      disabled={busy === "performance" || !bindingsReady}
                     >
                       {busy === "performance" ? (
                         <LoaderCircle className="spin" size={15} />
