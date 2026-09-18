@@ -29,6 +29,42 @@ function Show-LogTail {
     }
 }
 
+function New-CutSceneAIVenv {
+    Write-Host "Creating clean repository Python 3.12 virtual environment..."
+    Write-Host ""
+
+    if (-not (Get-Command py.exe -ErrorAction SilentlyContinue)) {
+        throw "Python launcher py.exe was not found. Python 3.12 is required."
+    }
+
+    if (Test-Path -LiteralPath $VenvDir) {
+        Write-Host "Removing broken/generated environment:"
+        Write-Host $VenvDir
+        Remove-Item -LiteralPath $VenvDir -Recurse -Force
+    }
+
+    & py.exe -3.12 -m venv $VenvDir
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $VenvPython)) {
+        throw "Failed to create Python 3.12 virtual environment: $VenvDir"
+    }
+
+    & $VenvPython -m ensurepip --upgrade
+    if ($LASTEXITCODE -ne 0) {
+        throw "Python ensurepip failed while rebuilding the Studio environment."
+    }
+
+    & $VenvPython -m pip --version
+    if ($LASTEXITCODE -ne 0) {
+        throw "pip is still unavailable after rebuilding the Studio environment."
+    }
+}
+
+function Test-CutSceneAIPip {
+    if (-not (Test-Path -LiteralPath $VenvPython)) { return $false }
+    & $VenvPython -m pip --version *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
 Write-Host ""
 Write-Host "============================================================"
 Write-Host " CutSceneAI Studio Launcher"
@@ -44,61 +80,71 @@ foreach ($LogFile in @($BackendOutLog, $BackendErrLog, $FrontendOutLog, $Fronten
     if (Test-Path -LiteralPath $LogFile) { Remove-Item -LiteralPath $LogFile -Force }
 }
 
-# Use one repository-local Python environment so launcher behavior is deterministic.
-if (-not (Test-Path -LiteralPath $VenvPython)) {
-    Write-Host "Creating repository Python 3.12 virtual environment..."
-    if (-not (Get-Command py.exe -ErrorAction SilentlyContinue)) {
-        throw "Python launcher py.exe was not found. Python 3.12 is required."
-    }
-    & py.exe -3.12 -m venv $VenvDir
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $VenvPython)) {
-        throw "Failed to create Python 3.12 virtual environment: $VenvDir"
-    }
+# The launcher owns this repo-local generated environment. Rebuild it if pip is damaged.
+if (-not (Test-CutSceneAIPip)) {
+    Write-Host "Repository Python environment is missing or damaged."
+    New-CutSceneAIVenv
 }
 
 Write-Host "Python:"
 Write-Host $VenvPython
 Write-Host ""
 
-# Verify that the existing backend environment can import the complete app.
+# Verify all imports needed by the HTTP Studio layer.
 Push-Location $BackendDir
 try {
-    & $VenvPython -c "import fastapi, uvicorn, app.main, cutsceneai_cir, cutsceneai_preview, cutsceneai_unity, cutsceneai_unreal"
+    & $VenvPython -c "import fastapi, uvicorn, app.main, cutsceneai_cir, cutsceneai_dialogue, cutsceneai_parity, cutsceneai_preview, cutsceneai_unity, cutsceneai_unreal"
     $BackendImportOk = ($LASTEXITCODE -eq 0)
 } finally {
     Pop-Location
 }
 
 if (-not $BackendImportOk) {
-    Write-Host "Backend environment is incomplete. Installing local CutSceneAI packages..."
-    & $VenvPython -m pip install --upgrade pip
-    if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip." }
+    Write-Host ""
+    Write-Host "Backend runtime packages are incomplete."
+    Write-Host "Installing local CutSceneAI packages..."
+    Write-Host ""
+
+    # Upgrade the freshly seeded packaging tools. If this fails, rebuild once and retry.
+    & $VenvPython -m pip install --disable-pip-version-check --upgrade pip setuptools wheel
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Packaging-tool upgrade failed. Rebuilding environment once..."
+        New-CutSceneAIVenv
+    }
 
     $EditablePackages = @(
-        (Join-Path $RepoRoot "cir[dev]"),
-        (Join-Path $RepoRoot "preview[dev]"),
-        (Join-Path $RepoRoot "dialogue[dev]"),
-        (Join-Path $RepoRoot "performance[dev]"),
-        (Join-Path $RepoRoot "parity[dev]"),
-        (Join-Path $RepoRoot "adapters\unreal[dev]"),
-        (Join-Path $RepoRoot "adapters\unity[dev]"),
-        (Join-Path $RepoRoot "backend[dev]")
+        (Join-Path $RepoRoot "cir"),
+        (Join-Path $RepoRoot "preview"),
+        (Join-Path $RepoRoot "dialogue"),
+        (Join-Path $RepoRoot "performance"),
+        (Join-Path $RepoRoot "parity"),
+        (Join-Path $RepoRoot "adapters\unreal"),
+        (Join-Path $RepoRoot "adapters\unity"),
+        (Join-Path $RepoRoot "backend")
     )
 
-    $PipArgs = @("-m", "pip", "install")
-    foreach ($Package in $EditablePackages) { $PipArgs += @("-e", $Package) }
+    $PipArgs = @("-m", "pip", "install", "--disable-pip-version-check")
+    foreach ($Package in $EditablePackages) {
+        $PipArgs += @("-e", $Package)
+    }
+
     & $VenvPython @PipArgs
-    if ($LASTEXITCODE -ne 0) { throw "CutSceneAI backend dependency installation failed." }
+    if ($LASTEXITCODE -ne 0) {
+        throw "CutSceneAI backend dependency installation failed."
+    }
 
     Push-Location $BackendDir
     try {
-        & $VenvPython -c "import fastapi, uvicorn, app.main, cutsceneai_cir, cutsceneai_preview, cutsceneai_unity, cutsceneai_unreal"
-        if ($LASTEXITCODE -ne 0) { throw "Backend import preflight still fails after installation." }
+        & $VenvPython -c "import fastapi, uvicorn, app.main, cutsceneai_cir, cutsceneai_dialogue, cutsceneai_parity, cutsceneai_preview, cutsceneai_unity, cutsceneai_unreal"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Backend import preflight still fails after dependency installation."
+        }
     } finally {
         Pop-Location
     }
 }
 
+Write-Host ""
 Write-Host "CUTSCENEAI_BACKEND_IMPORTS=PASS"
 Write-Host ""
 
@@ -116,7 +162,6 @@ if (-not (Test-Path -LiteralPath $NodeModules)) {
 
 $BackendArgs = @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000")
 if (Test-Path -LiteralPath $EnvFile) {
-    # Start-Process flattens ArgumentList. Embed quotes because the repository path contains spaces.
     $QuotedEnvFile = [char]34 + $EnvFile + [char]34
     $BackendArgs += @("--env-file", $QuotedEnvFile)
     Write-Host "Environment file:"
@@ -136,7 +181,7 @@ $Backend = Start-Process -FilePath $VenvPython -ArgumentList $BackendArgs -Worki
 $Frontend = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev") -WorkingDirectory $WebDir -RedirectStandardOutput $FrontendOutLog -RedirectStandardError $FrontendErrLog -PassThru
 
 try {
-    $Deadline = (Get-Date).AddSeconds(45)
+    $Deadline = (Get-Date).AddSeconds(60)
     $ApiReady = $false
     $WebReady = $false
 
