@@ -72,6 +72,31 @@ def _words(value: str) -> set[str]:
     }
 
 
+def _character_capability_rank(candidate: StudioAsset) -> int:
+    metadata = candidate.metadata
+    if (
+        candidate.verified
+        and candidate.engine_ref.startswith("Assets/")
+        and candidate.engine_ref.endswith(".prefab")
+        and metadata.get("humanoid") is True
+    ):
+        return 5
+    if (
+        candidate.verified
+        and candidate.kind == "character_asset"
+        and candidate.engine_ref.startswith("/Game/")
+        and metadata.get("asset_type") == "skeletal_mesh"
+    ):
+        return 5
+    if candidate.engine_ref.startswith("Assets/") and candidate.engine_ref.endswith(".prefab"):
+        return 3
+    if candidate.kind == "character_asset" and candidate.engine_ref.startswith("/Game/"):
+        return 3
+    if candidate.kind == "model":
+        return 2
+    return 1
+
+
 def _candidate_score(label: str, description: str | None, candidate: StudioAsset) -> float:
     role_words = _words(" ".join(item for item in (label, description) if item))
     candidate_words = _words(
@@ -939,6 +964,7 @@ class StudioService:
             candidates,
             key=lambda item: (
                 _candidate_score(label, description, item),
+                _character_capability_rank(item) if character else int(item.verified),
                 item.verified,
                 item.display_name.lower(),
             ),
