@@ -615,9 +615,9 @@ class StudioService:
                 raise ValueError(
                     "CIR revision parent belongs to a different CIR project identity."
                 )
-        elif existing and request.source.value != "generation":
+        elif request.source.value not in {"generation", "import"}:
             raise ValueError(
-                "Non-generation CIR revisions require an explicit parent revision."
+                "Edited or restored CIR revisions require an explicit parent revision."
             )
 
         if request.source.value == "edit" and not request.instruction:
