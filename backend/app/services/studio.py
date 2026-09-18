@@ -40,6 +40,8 @@ from app.models.studio import (
     StudioProjectManifest,
     StudioProjectRecord,
     StudioRealizationResponse,
+    StudioCIRRevision,
+    StudioRevisionCreateRequest,
 )
 
 
@@ -47,6 +49,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _STATE_DIR = _REPO_ROOT / ".cutsceneai-studio" / "state"
 _PROJECTS_FILE = _STATE_DIR / "projects.json"
 _COMMANDS_DIR = _STATE_DIR / "bridge-commands"
+_REVISIONS_DIR = _STATE_DIR / "cir-revisions"
 _MAX_DISCOVERED_ASSETS = 5000
 _BRIDGE_LEASE_TIMEOUT_SECONDS = 120
 _BRIDGE_SAME_AGENT_REDELIVERY_SECONDS = 3
@@ -578,6 +581,109 @@ class StudioService:
         temp.write_text(
             json.dumps(
                 [item.model_dump(mode="json") for item in commands],
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        temp.replace(path)
+
+    def create_revision(
+        self,
+        request: StudioRevisionCreateRequest,
+    ) -> StudioCIRRevision:
+        self.get_project(request.project_id)
+        project_payload = request.project.model_dump(mode="json")
+        project_bytes = json.dumps(
+            project_payload,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        project_sha256 = hashlib.sha256(project_bytes).hexdigest()
+
+        existing = self.list_revisions(request.project_id)
+        by_id = {item.revision_id: item for item in existing}
+        parent = None
+        if request.parent_revision_id is not None:
+            try:
+                parent = by_id[request.parent_revision_id]
+            except KeyError as exc:
+                raise ValueError(
+                    f"Unknown parent revision '{request.parent_revision_id}'."
+                ) from exc
+            if parent.cir_project_id != request.project.id:
+                raise ValueError(
+                    "CIR revision parent belongs to a different CIR project identity."
+                )
+        elif existing and request.source.value != "generation":
+            raise ValueError(
+                "Non-generation CIR revisions require an explicit parent revision."
+            )
+
+        if request.source.value == "edit" and not request.instruction:
+            raise ValueError("Edited CIR revisions require the edit instruction.")
+
+        created = _utc_now()
+        revision_id = _stable_id(
+            "cir-revision",
+            (
+                f"{request.project_id}:{request.project.id}:{project_sha256}:"
+                f"{request.parent_revision_id or 'root'}:{created}"
+            ),
+        )
+        revision = StudioCIRRevision(
+            revision_id=revision_id,
+            project_id=request.project_id,
+            cir_project_id=request.project.id,
+            source=request.source,
+            parent_revision_id=request.parent_revision_id,
+            instruction=request.instruction,
+            created_at_utc=created,
+            project_sha256=project_sha256,
+            project=request.project.model_copy(deep=True),
+        )
+        revisions = [*existing, revision]
+        self._save_revisions(request.project_id, revisions[-500:])
+        return revision
+
+    def list_revisions(self, project_id: str) -> list[StudioCIRRevision]:
+        self.get_project(project_id)
+        path = self._revisions_file(project_id)
+        if not path.exists():
+            return []
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        revisions = [StudioCIRRevision.model_validate(item) for item in payload]
+        revisions.sort(key=lambda item: item.created_at_utc)
+        return revisions
+
+    def get_revision(
+        self,
+        project_id: str,
+        revision_id: str,
+    ) -> StudioCIRRevision:
+        for revision in self.list_revisions(project_id):
+            if revision.revision_id == revision_id:
+                return revision
+        raise ValueError(f"Unknown CIR revision '{revision_id}'.")
+
+    @staticmethod
+    def _revisions_file(project_id: str) -> Path:
+        return _REVISIONS_DIR / f"{project_id}.json"
+
+    def _save_revisions(
+        self,
+        project_id: str,
+        revisions: list[StudioCIRRevision],
+    ) -> None:
+        _REVISIONS_DIR.mkdir(parents=True, exist_ok=True)
+        path = self._revisions_file(project_id)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(
+            json.dumps(
+                [item.model_dump(mode="json") for item in revisions],
                 indent=2,
                 sort_keys=True,
             ),
