@@ -1,7 +1,6 @@
 from functools import lru_cache
 from typing import Any
 
-from cutsceneai_cir import Project
 from cutsceneai_parity import compile_semantics
 from cutsceneai_unity import (
     UnityAssetMap,
@@ -45,12 +44,16 @@ def _bad_request(exc: ValueError) -> HTTPException:
 
 
 @router.get("/capabilities", response_model=StudioCapabilityResponse)
-def capabilities(service: StudioService = Depends(get_studio_service)) -> StudioCapabilityResponse:
+def capabilities(
+    service: StudioService = Depends(get_studio_service),
+) -> StudioCapabilityResponse:
     return service.capabilities()
 
 
 @router.get("/projects", response_model=list[StudioProjectRecord])
-def list_projects(service: StudioService = Depends(get_studio_service)) -> list[StudioProjectRecord]:
+def list_projects(
+    service: StudioService = Depends(get_studio_service),
+) -> list[StudioProjectRecord]:
     return service.list_projects()
 
 
