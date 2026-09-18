@@ -8,6 +8,11 @@ class DirectorGenerateRequest(APIModel):
     prompt: str = Field(min_length=20, max_length=8000)
 
 
+class DirectorEditRequest(APIModel):
+    project: Project
+    instruction: str = Field(min_length=5, max_length=4000)
+
+
 class DirectorGenerateResponse(APIModel):
     project: Project
     provider: str
