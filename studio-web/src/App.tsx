@@ -143,6 +143,8 @@ function App() {
   const [bindingManifest, setBindingManifest] = useState<Json | null>(null);
 
   const [performancePlan, setPerformancePlan] = useState<Json | null>(null);
+  const [performanceReadiness, setPerformanceReadiness] = useState<Json | null>(null);
+  const [performanceRun, setPerformanceRun] = useState<Json | null>(null);
   const [realization, setRealization] = useState<Json | null>(null);
   const [editInstruction, setEditInstruction] = useState("");
   const [cirHistory, setCirHistory] = useState<Json[]>([]);
@@ -195,6 +197,9 @@ function App() {
       setCapabilities(capabilityResult.capabilities || []);
       setProjects(projectResult || []);
       setResearch(researchResult);
+      apiJson("/api/v1/studio/performance/readiness")
+        .then((value) => setPerformanceReadiness(value))
+        .catch(() => setPerformanceReadiness(null));
       if (!selectedProjectId && projectResult?.length) {
         setSelectedProjectId(projectResult[0].project_id);
       }
@@ -272,6 +277,7 @@ function App() {
     setBindings({});
     setBindingManifest(null);
     setPerformancePlan(null);
+    setPerformanceRun(null);
     setRealization(null);
 
     try {
@@ -349,6 +355,7 @@ function App() {
       setEditInstruction("");
       setBindingManifest(null);
       setPerformancePlan(null);
+      setPerformanceRun(null);
       setRealization(null);
       if (selectedProjectId) {
         await loadBindingOptions(nextCir, selectedProjectId);
@@ -386,6 +393,7 @@ function App() {
       setCirHistory((items) => items.slice(0, -1));
       setBindingManifest(null);
       setPerformancePlan(null);
+      setPerformanceRun(null);
       setRealization(null);
       if (selectedProjectId) {
         await loadBindingOptions(previous, selectedProjectId);
@@ -506,14 +514,75 @@ function App() {
     setBusy("performance");
     setError("");
     try {
-      const result = await postJson("/api/v1/studio/performance/plan", {
+      const [plan, readiness] = await Promise.all([
+        postJson("/api/v1/studio/performance/plan", {
+          project: cir,
+          experiment_seed: 20260812,
+        }),
+        apiJson("/api/v1/studio/performance/readiness"),
+      ]);
+      setPerformancePlan(plan);
+      setPerformanceReadiness(readiness);
+      setPerformanceRun(null);
+      setNotice(
+        readiness.ready
+          ? "Generation plan is ready and all required providers are configured."
+          : "Generation plan is ready, but at least one required provider still needs configuration.",
+      );
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function generatePerformance() {
+    if (!cir || !performanceReadiness?.ready) return;
+    setBusy("performance");
+    setError("");
+    setNotice("Generating and packaging performance evidence…");
+    try {
+      const run = await postJson("/api/v1/studio/performance/generate", {
         project: cir,
         experiment_seed: 20260812,
+        voices: {},
       });
-      setPerformancePlan(result);
-      setNotice(
-        "Deterministic body, facial and camera generation requests are prepared. Model execution is a remaining integration gate.",
+      setPerformanceRun(run);
+      if (run.status === "succeeded") {
+        setNotice(
+          "Generated Performance Package completed and its bundle hash was recorded.",
+        );
+      } else {
+        setError(run.error || "Generated performance failed.");
+      }
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function downloadPerformanceBundle() {
+    if (!performanceRun?.run_id || performanceRun.status !== "succeeded") return;
+    setBusy("export");
+    setError("");
+    try {
+      const response = await fetch(
+        "/api/v1/studio/performance/runs/" +
+          performanceRun.run_id +
+          "/bundle",
       );
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download =
+        "cutsceneai-performance-" + performanceRun.run_id + ".zip";
+      anchor.click();
+      URL.revokeObjectURL(url);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
@@ -640,7 +709,8 @@ function App() {
   const projectConnected = Boolean(selectedProject);
   const cirReady = Boolean(cir && validation);
   const bindingsReady = Boolean(bindingManifest?.valid || requiredBound);
-  const performanceReady = Boolean(performancePlan);
+  const performancePlanReady = Boolean(performancePlan);
+  const performanceGenerated = performanceRun?.status === "succeeded";
   const realizationReady = Boolean(realization?.ready);
 
   return (
@@ -727,7 +797,7 @@ function App() {
                 title="Plan performance"
                 detail="Body + face + camera requests"
                 state={
-                  performanceReady
+                  performanceGenerated
                     ? "done"
                     : bindingsReady
                       ? "active"
@@ -741,7 +811,7 @@ function App() {
                 state={
                   realizationReady
                     ? "done"
-                    : performanceReady
+                    : performanceGenerated
                       ? "active"
                       : "pending"
                 }
@@ -1103,40 +1173,114 @@ function App() {
                       before any engine-specific realization.
                     </p>
                   </div>
-                  {performanceReady && <Pill tone="success"><PackageCheck size={13} /> Plan prepared</Pill>}
+                  {performancePlanReady && <Pill tone="success"><PackageCheck size={13} /> Plan prepared</Pill>}
                 </div>
 
                 {performancePlan ? (
-                  <div className="modality-grid">
-                    <div className="modality">
-                      <Blocks size={18} />
-                      <span>Body motion</span>
-                      <strong>{performancePlan.body_requests?.length || 0} requests</strong>
+                  <>
+                    <div className="modality-grid">
+                      <div className="modality">
+                        <Blocks size={18} />
+                        <span>Body motion</span>
+                        <strong>{performancePlan.body_requests?.length || 0} requests</strong>
+                      </div>
+                      <div className="modality">
+                        <Activity size={18} />
+                        <span>Facial</span>
+                        <strong>{performancePlan.facial_requests?.length || 0} requests</strong>
+                      </div>
+                      <div className="modality">
+                        <Film size={18} />
+                        <span>Camera</span>
+                        <strong>{performancePlan.camera_requests?.length || 0} requests</strong>
+                      </div>
+                      <div className="modality">
+                        <Gauge size={18} />
+                        <span>Timebase</span>
+                        <strong>{performancePlan.fps} fps</strong>
+                      </div>
                     </div>
-                    <div className="modality">
-                      <Activity size={18} />
-                      <span>Facial</span>
-                      <strong>{performancePlan.facial_requests?.length || 0} requests</strong>
+
+                    <div className="provider-grid">
+                      {(performanceReadiness?.providers || []).map((provider: Json) => (
+                        <div className="provider-row" key={provider.modality}>
+                          <div>
+                            <strong>{provider.modality}</strong>
+                            <span>{provider.provider} · {provider.model}</span>
+                          </div>
+                          <Pill tone={provider.configured ? "success" : "danger"}>
+                            {provider.configured ? "ready" : "not configured"}
+                          </Pill>
+                        </div>
+                      ))}
                     </div>
-                    <div className="modality">
-                      <Film size={18} />
-                      <span>Camera</span>
-                      <strong>{performancePlan.camera_requests?.length || 0} requests</strong>
+
+                    {performanceReadiness?.blocking_issues?.length > 0 && (
+                      <div className="warning-stack">
+                        {performanceReadiness.blocking_issues.map((item: string) => (
+                          <div className="mini-warning" key={item}>
+                            <CircleAlert size={14} />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="stage-actions">
+                      {performanceRun?.status === "succeeded" && (
+                        <button
+                          className="secondary-button"
+                          onClick={downloadPerformanceBundle}
+                          disabled={busy === "export"}
+                        >
+                          <Download size={15} /> Performance bundle
+                        </button>
+                      )}
+                      <button
+                        className="primary-button"
+                        onClick={generatePerformance}
+                        disabled={
+                          busy === "performance" ||
+                          !performanceReadiness?.ready ||
+                          performanceRun?.status === "succeeded"
+                        }
+                      >
+                        {busy === "performance" ? (
+                          <LoaderCircle className="spin" size={15} />
+                        ) : (
+                          <Sparkles size={15} />
+                        )}
+                        {performanceRun?.status === "succeeded"
+                          ? "Performance generated"
+                          : "Generate performance"}
+                      </button>
                     </div>
-                    <div className="modality">
-                      <Gauge size={18} />
-                      <span>Timebase</span>
-                      <strong>{performancePlan.fps} fps</strong>
-                    </div>
-                  </div>
+
+                    {performanceRun && (
+                      <div className="run-evidence">
+                        <div>
+                          <span>Run</span>
+                          <code>{performanceRun.run_id}</code>
+                        </div>
+                        <div>
+                          <span>Status</span>
+                          <strong>{performanceRun.status}</strong>
+                        </div>
+                        <div>
+                          <span>Bundle SHA-256</span>
+                          <code>{performanceRun.bundle_sha256 || "not produced"}</code>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="empty-inline">
                     <Waypoints size={20} />
                     <div>
                       <strong>No generation plan prepared yet</strong>
                       <span>
-                        This step creates deterministic model requests, hashes and
-                        seeds. It does not falsely claim that model inference ran.
+                        This step creates deterministic provider requests, hashes and
+                        seeds before inference begins.
                       </span>
                     </div>
                     <button
@@ -1153,22 +1297,6 @@ function App() {
                     </button>
                   </div>
                 )}
-
-                {performanceReady && (
-                  <div className="gate-note">
-                    <Wrench size={16} />
-                    <div>
-                      <strong>Remaining integration gate</strong>
-                      <span>
-                        Arbitrary motion/facial/camera provider execution and
-                        deterministic performance-bundle assembly are not yet
-                        connected to the Studio backend. S02 proves one retained
-                        generated motion path; this button does not generalize that
-                        result.
-                      </span>
-                    </div>
-                  </div>
-                )}
               </section>
             )}
 
@@ -1177,10 +1305,11 @@ function App() {
                 <div className="stage-header">
                   <div className="stage-number">05</div>
                   <div>
-                    <h2>Compile for {selectedProject.engine === "unity" ? "Unity" : "Unreal Engine"}</h2>
+                    <h2>Compile semantic engine scaffold for {selectedProject.engine === "unity" ? "Unity" : "Unreal Engine"}</h2>
                     <p>
-                      The adapter receives validated CIR plus project bindings;
-                      narrative decisions remain upstream.
+                      This builds the bound CIR structure. The generated-performance
+                      bundle is kept separate until the native performance realization
+                      gate is connected and verified.
                     </p>
                   </div>
                   {realizationReady && <Pill tone="success"><Braces size={13} /> Adapter plan ready</Pill>}
@@ -1242,7 +1371,7 @@ function App() {
                         ) : (
                           <MonitorPlay size={15} />
                         )}
-                        Build in engine
+                        Build CIR scaffold
                       </button>
                     </div>
                   </>
