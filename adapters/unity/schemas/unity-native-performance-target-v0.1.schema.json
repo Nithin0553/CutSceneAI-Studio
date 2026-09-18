@@ -13,9 +13,9 @@
           "type": "string"
         },
         "facial_renderer_path": {
+          "default": "",
           "title": "Facial Renderer Path",
-          "type": "string",
-          "default": ""
+          "type": "string"
         },
         "prefab_path": {
           "pattern": "^Assets(?:/[A-Za-z0-9_.-]+)+\\.prefab$",
@@ -75,6 +75,13 @@
       "title": "Actors",
       "type": "array"
     },
+    "omitted_facial_actor_binding_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Omitted Facial Actor Binding Ids",
+      "type": "array"
+    },
     "project_id": {
       "title": "Project Id",
       "type": "string"
@@ -120,13 +127,6 @@
       "default": "1.8.12",
       "title": "Timeline Package Version",
       "type": "string"
-    },
-    "omitted_facial_actor_binding_ids": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Omitted Facial Actor Binding Ids",
-      "type": "array"
     }
   },
   "required": [
