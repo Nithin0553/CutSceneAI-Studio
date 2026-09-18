@@ -871,9 +871,7 @@ def test_bridge_api_maps_unknown_project_failures_to_422(tmp_path: Path, monkeyp
                 json={"command": "readback", "payload": {}},
             ),
             client.get("/api/v1/studio/projects/missing/bridge/commands"),
-            client.get(
-                "/api/v1/studio/projects/missing/bridge/commands/missing-command"
-            ),
+            client.get("/api/v1/studio/projects/missing/bridge/commands/missing-command"),
             client.get(
                 "/api/v1/studio/projects/missing/bridge/poll",
                 params={"agent_id": "agent"},
