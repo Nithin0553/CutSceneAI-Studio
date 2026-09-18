@@ -5,6 +5,7 @@ from .dialogue import router as dialogue_router
 from .director import router as director_router
 from .preview import router as preview_router
 from .research import router as research_router
+from .studio import router as studio_router
 from .unreal import router as unreal_router
 from .unity import router as unity_router
 
@@ -14,6 +15,7 @@ __all__ = [
     "director_router",
     "preview_router",
     "research_router",
+    "studio_router",
     "unreal_router",
     "unity_router",
 ]
