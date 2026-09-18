@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 
@@ -568,7 +569,11 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     installed = service.install_bridge(record.project_id)
     project_root = Path(record.project_path)
     assert installed.engine is StudioEngine.UNITY
-    assert (project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs").exists()
+    bridge_path = project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs"
+    assert bridge_path.exists()
+    bridge_source = bridge_path.read_text(encoding="utf-8")
+    assert "RetryLaterException" in bridge_source
+    assert "blendshape_names" in bridge_source
     config_path = project_root / "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["project_id"] == record.project_id
@@ -853,7 +858,18 @@ def test_bridge_command_lease_expiry_and_completion_state_guards(
 
     leased = service.poll_bridge_command(record.project_id, "agent-a").command
     assert leased is not None
+    assert service.poll_bridge_command(record.project_id, "agent-a").command is None
+
     commands_path = studio_module._COMMANDS_DIR / f"{record.project_id}.json"
+    commands = json.loads(commands_path.read_text(encoding="utf-8"))
+    commands[0]["leased_at_utc"] = (datetime.now(UTC) - timedelta(seconds=4)).isoformat()
+    commands_path.write_text(json.dumps(commands), encoding="utf-8")
+
+    resumed = service.poll_bridge_command(record.project_id, "agent-a").command
+    assert resumed is not None
+    assert resumed.command_id == leased.command_id
+    assert resumed.leased_to_agent_id == "agent-a"
+
     commands = json.loads(commands_path.read_text(encoding="utf-8"))
     commands[0]["leased_at_utc"] = "2000-01-01T00:00:00+00:00"
     commands_path.write_text(json.dumps(commands), encoding="utf-8")
