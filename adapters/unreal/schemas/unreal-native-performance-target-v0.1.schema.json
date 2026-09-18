@@ -84,6 +84,13 @@
       "title": "Actors",
       "type": "array"
     },
+    "omitted_facial_actor_binding_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Omitted Facial Actor Binding Ids",
+      "type": "array"
+    },
     "project_id": {
       "title": "Project Id",
       "type": "string"
@@ -123,13 +130,6 @@
       "default": "0.1.0",
       "title": "Target Version",
       "type": "string"
-    },
-    "omitted_facial_actor_binding_ids": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Omitted Facial Actor Binding Ids",
-      "type": "array"
     }
   },
   "required": [
