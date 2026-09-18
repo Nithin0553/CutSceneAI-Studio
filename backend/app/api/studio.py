@@ -159,6 +159,21 @@ def list_bridge_commands(
 
 
 @router.get(
+    "/projects/{project_id}/bridge/commands/{command_id}",
+    response_model=StudioBridgeCommand,
+)
+def get_bridge_command(
+    project_id: str,
+    command_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgeCommand:
+    try:
+        return service.get_bridge_command(project_id, command_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
     "/projects/{project_id}/bridge/poll",
     response_model=StudioBridgePollResponse,
 )
