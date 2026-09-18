@@ -116,12 +116,22 @@ function App() {
     "checking",
   );
   const [exportBusy, setExportBusy] = useState("");
+  const [research, setResearch] = useState<Json | null>(null);
 
   useEffect(() => {
     apiJson("/health")
       .then(() => setHealth("online"))
       .catch(() => setHealth("offline"));
+    apiJson("/api/v1/research/s02")
+      .then((value) => setResearch(value))
+      .catch(() => setResearch(null));
   }, []);
+
+  const researchSha = research?.canonical?.sha256 || S02_SHA;
+  const researchIntent = research?.intent || "WALK_FORWARD_STOP_AND_LOOK_DOWN";
+  const researchFrames = String(research?.canonical?.frame_count || 96);
+  const researchFps = String(research?.canonical?.fps || 24);
+  const researchJoints = String(research?.canonical?.joint_count || 22);
 
   const summary = useMemo(() => {
     if (!validation?.summary) return null;
@@ -281,7 +291,7 @@ function App() {
                 <strong className="ok">Runtime realized</strong>
               </div>
             </div>
-            <code>{S02_SHA}</code>
+            <code>{researchSha}</code>
             <small className="proof-note">
               Same hash-locked source; no engine-specific AI re-inference.
             </small>
@@ -378,11 +388,11 @@ function App() {
               <Activity size={18} />
               Locked evidence
             </div>
-            <Stat label="Motion" value="WALK → STOP → LOOK DOWN" />
+            <Stat label="Motion" value={researchIntent.replaceAll("_", " → ")} />
             <div className="mini-grid">
-              <Stat label="Frames" value="96" />
-              <Stat label="FPS" value="24" />
-              <Stat label="Joints" value="22" />
+              <Stat label="Frames" value={researchFrames} />
+              <Stat label="FPS" value={researchFps} />
+              <Stat label="Joints" value={researchJoints} />
             </div>
             <div className="research-row">
               <span>Unreal</span>
