@@ -8,7 +8,6 @@
           "type": "string"
         },
         "require_arkit_52_morph_targets": {
-          "const": true,
           "default": true,
           "title": "Require Arkit 52 Morph Targets",
           "type": "boolean"
@@ -114,8 +113,8 @@
       "type": "string"
     },
     "target_engine_version": {
-      "const": "5.8.0",
-      "default": "5.8.0",
+      "default": "5.8",
+      "pattern": "^5\\.8(?:\\.\\d+)?$",
       "title": "Target Engine Version",
       "type": "string"
     },
