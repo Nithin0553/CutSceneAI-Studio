@@ -106,7 +106,9 @@ def compile_unreal_native_performance_package(
     if set(actor_targets) - set(plan_actors):
         raise ValueError("Unreal native target references an unknown plan actor.")
     for binding_id, native_target in actor_targets.items():
-        if native_target.require_arkit_52_morph_targets != (binding_id in facial_actor_ids):
+        if native_target.require_arkit_52_morph_targets != (
+            binding_id in facial_actor_ids
+        ):
             raise ValueError(
                 "Unreal native facial capability requirement must match generated facial tracks."
             )
