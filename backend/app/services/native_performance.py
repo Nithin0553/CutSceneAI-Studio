@@ -206,7 +206,7 @@ class NativePerformanceRealizer:
         omitted_facial_actor_ids: set[str] = set()
         actors: list[UnityNativeActorTarget] = []
         for plan_actor in plan.sequences[0].actors:
-            if not plan_actor.binding_id.startswith("actor:"):
+            if plan_actor.kind.value != "character":
                 continue
             source_id = plan_actor.source_entity_id
             selected_asset = selected[source_id]
