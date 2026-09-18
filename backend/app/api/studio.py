@@ -174,7 +174,7 @@ def realization_importer(
                             prefab_path=asset.engine_ref,
                         )
                     )
-            plan = compile_unity_project(
+            unity_plan = compile_unity_project(
                 request.project,
                 asset_map=UnityAssetMap(
                     project_id=request.project.id,
@@ -182,7 +182,7 @@ def realization_importer(
                 ),
             )
             return Response(
-                content=render_unity_editor_script(plan),
+                content=render_unity_editor_script(unity_plan),
                 media_type="text/x-csharp",
                 headers={
                     "Content-Disposition": 'attachment; filename="CutSceneAI-Unity-Importer.cs"'
@@ -194,8 +194,11 @@ def realization_importer(
             request.project,
             request.bindings,
         )
-        plan = compile_unreal_project(bound_project)
-        content = render_unreal_import_script(plan, compile_semantics(bound_project))
+        unreal_plan = compile_unreal_project(bound_project)
+        content = render_unreal_import_script(
+            unreal_plan,
+            compile_semantics(bound_project),
+        )
         return Response(
             content=content,
             media_type="text/x-python",
