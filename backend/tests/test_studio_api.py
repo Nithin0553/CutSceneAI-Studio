@@ -654,6 +654,30 @@ def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -
     assert config["project_id"] == record.project_id
 
 
+def test_unreal_bridge_keeps_interactive_editor_open(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNREAL,
+            project_path=str(_unreal_project(tmp_path)),
+        )
+    )
+
+    service.install_bridge(record.project_id)
+    bridge = (
+        Path(record.project_path)
+        / "Plugins"
+        / "CutSceneAIStudioBridge"
+        / "Content"
+        / "Python"
+        / "cutsceneai_studio_bridge.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'run_name="cutsceneai_studio_bridge_import"' in bridge
+    assert 'entry_name = "import_plan" if relative == semantic_importer else "import_native"' in bridge
+    assert 'run_name="__main__"' not in bridge
+
+
 def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
