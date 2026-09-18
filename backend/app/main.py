@@ -5,6 +5,7 @@ from app.api import (
     dialogue_router,
     director_router,
     preview_router,
+    research_router,
     unity_router,
     unreal_router,
 )
@@ -15,6 +16,7 @@ app.include_router(cir_router)
 app.include_router(dialogue_router)
 app.include_router(director_router)
 app.include_router(preview_router)
+app.include_router(research_router)
 app.include_router(unreal_router)
 app.include_router(unity_router)
 
