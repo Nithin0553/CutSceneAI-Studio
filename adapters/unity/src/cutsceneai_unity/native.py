@@ -436,6 +436,120 @@ public static class CutSceneAIGeneratedPerformance
     private static IEnumerable<Keyframe> Keys(int startFrame, int fps, IEnumerable<Tuple<int, float>> values)
         => values.Select(item => new Keyframe((float)(item.Item1 - startFrame) / fps, item.Item2));
 
+    private static bool BodyTrackHasSourceMotion(BodyTrack track)
+    {
+        if (track.keyframes.Length < 2) return false;
+        BodyKeyframe first = track.keyframes[0];
+        foreach (BodyKeyframe frame in track.keyframes.Skip(1))
+        {
+            Vector3 rootDelta = Vector(frame.root_position_m) - Vector(first.root_position_m);
+            if (rootDelta.sqrMagnitude > 1e-10f) return true;
+            for (int jointIndex = 0; jointIndex < frame.joint_rotations.Length; jointIndex++)
+            {
+                Quaternion a = QuaternionValueOf(first.joint_rotations[jointIndex]);
+                Quaternion b = QuaternionValueOf(frame.joint_rotations[jointIndex]);
+                if (Quaternion.Angle(a, b) > 0.001f) return true;
+            }
+        }
+        return false;
+    }
+
+    private static void ValidateClipBindingPaths(
+        AnimationClip clip,
+        GameObject prefab,
+        ActorTarget target)
+    {
+        GameObject instance = UnityEngine.Object.Instantiate(prefab);
+        instance.hideFlags = HideFlags.HideAndDontSave;
+        try
+        {
+            Animator animator = AnimatorFor(instance, target);
+            foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(clip))
+            {
+                Transform transform = string.IsNullOrEmpty(binding.path)
+                    ? animator.transform
+                    : animator.transform.Find(binding.path);
+                if (transform == null)
+                    throw new InvalidOperationException(
+                        "Generated animation curve path does not resolve from Animator '"
+                        + animator.name + "': " + binding.path + " / " + binding.propertyName);
+                if (binding.type == typeof(SkinnedMeshRenderer)
+                    && transform.GetComponent<SkinnedMeshRenderer>() == null)
+                    throw new InvalidOperationException(
+                        "Generated facial curve path does not resolve to a SkinnedMeshRenderer: "
+                        + binding.path);
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+    }
+
+    private static void ValidateBodyClipSampling(
+        AnimationClip clip,
+        BodyTrack track,
+        GameObject prefab,
+        ActorTarget target,
+        int fps)
+    {
+        if (!BodyTrackHasSourceMotion(track)) return;
+
+        GameObject instance = UnityEngine.Object.Instantiate(prefab);
+        instance.hideFlags = HideFlags.HideAndDontSave;
+        try
+        {
+            Animator animator = AnimatorFor(instance, target);
+            animator.enabled = false;
+            Transform[] bones = track.joint_bindings.Select(binding =>
+            {
+                HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
+                    typeof(HumanBodyBones), binding.target_human_bone);
+                Transform transform = animator.GetBoneTransform(bone);
+                if (transform == null)
+                    throw new InvalidOperationException(
+                        "Generated clip sampling is missing Humanoid bone: "
+                        + binding.target_human_bone);
+                return transform;
+            }).ToArray();
+
+            float[] times = new[] {
+                0.0f,
+                Mathf.Max(0.0f, clip.length / 3.0f),
+                Mathf.Max(0.0f, clip.length * 2.0f / 3.0f),
+                Mathf.Max(0.0f, clip.length),
+            };
+            clip.SampleAnimation(animator.gameObject, times[0]);
+            Vector3 rootReference = bones[0].localPosition;
+            Quaternion[] rotationReference = bones
+                .Select(item => item.localRotation).ToArray();
+            float maxPositionDelta = 0.0f;
+            float maxRotationDelta = 0.0f;
+
+            foreach (float time in times.Skip(1))
+            {
+                clip.SampleAnimation(animator.gameObject, time);
+                maxPositionDelta = Mathf.Max(
+                    maxPositionDelta,
+                    Vector3.Distance(rootReference, bones[0].localPosition));
+                for (int index = 0; index < bones.Length; index++)
+                    maxRotationDelta = Mathf.Max(
+                        maxRotationDelta,
+                        Quaternion.Angle(rotationReference[index], bones[index].localRotation));
+            }
+
+            if (maxPositionDelta <= 1e-6f && maxRotationDelta <= 0.001f)
+                throw new InvalidOperationException(
+                    "Generated body clip contains source motion but direct Unity sampling "
+                    + "produced no target pose change. Refusing to save a structurally valid "
+                    + "but non-playing AnimationClip.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+    }
+
     private static AnimationClip CreateBodyClip(BodyTrack track, GameObject prefab, ActorTarget target, int fps)
     {
         Animator animator = AnimatorFor(prefab, target);
@@ -463,6 +577,8 @@ public static class CutSceneAIGeneratedPerformance
             }
         }
         clip.EnsureQuaternionContinuity();
+        ValidateClipBindingPaths(clip, prefab, target);
+        ValidateBodyClipSampling(clip, track, prefab, target, fps);
         EnsureFolder(track.target_animation_path);
         AssetDatabase.CreateAsset(clip, track.target_animation_path);
         return clip;
@@ -519,6 +635,7 @@ public static class CutSceneAIGeneratedPerformance
             SetCurve(clip, path, typeof(SkinnedMeshRenderer), property,
                 Keys(track.start_frame, fps, track.keyframes.Select(frame => Tuple.Create(frame.timeline_frame, frame.weights[curveIndex] * 100.0f))));
         }
+        ValidateClipBindingPaths(clip, prefab, target);
         EnsureFolder(track.target_animation_path);
         AssetDatabase.CreateAsset(clip, track.target_animation_path);
         return clip;
@@ -587,6 +704,7 @@ public static class CutSceneAIGeneratedPerformance
             ActorTarget actorTarget = ActorTargetFor(target, body.actor_binding_id);
             AnimationClip animation = CreateBodyClip(body, LoadPrefab(actorTarget), actorTarget, mapping.fps);
             AnimationTrack track = timeline.CreateTrack<AnimationTrack>(animationRoots[body.actor_binding_id], BodyPrefix + body.actor_binding_id + "|" + body.semantic_id);
+            director.SetGenericBinding(track, AnimatorFor(actors[body.actor_binding_id], actorTarget));
             AddAnimationClip(track, track.name, animation, body.start_frame, body.end_frame, mapping.fps);
         }
         foreach (FaceTrack face in mapping.facial_tracks)
@@ -594,6 +712,7 @@ public static class CutSceneAIGeneratedPerformance
             ActorTarget actorTarget = ActorTargetFor(target, face.actor_binding_id);
             AnimationClip animation = CreateFaceClip(face, LoadPrefab(actorTarget), actorTarget, mapping.fps);
             AnimationTrack track = timeline.CreateTrack<AnimationTrack>(animationRoots[face.actor_binding_id], FacePrefix + face.actor_binding_id + "|" + face.semantic_id);
+            director.SetGenericBinding(track, AnimatorFor(actors[face.actor_binding_id], actorTarget));
             AddAnimationClip(track, track.name, animation, face.start_frame, face.end_frame, mapping.fps);
         }
         foreach (AudioTrack audio in mapping.audio_tracks)
