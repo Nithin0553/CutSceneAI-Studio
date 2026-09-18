@@ -100,6 +100,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         'version.StartsWith("6000.3"',
         'timelinePackage.version != "1.8.12"',
         "animator.GetBoneTransform",
+        "EvidenceRoot(Target target)",
         "ValidateClipBindingPaths",
         "ValidateBodyClipSampling",
         "BodyTrackHasSourceMotion",
@@ -125,6 +126,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         assert token in script
     assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
+    assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
     assert "Get-Content -Raw -Path $importLog, $readbackLog" in runner
     assert "collect-native-evidence.py" in runner
     assert (
