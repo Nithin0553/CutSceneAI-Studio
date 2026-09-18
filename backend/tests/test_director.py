@@ -7,7 +7,13 @@ from fastapi.testclient import TestClient
 
 from app.api.director import get_director_service
 from app.main import app
-from app.services.director import (\n    DirectorBackendResult,\n    DirectorConfigurationError,\n    DirectorOutputError,\n    DirectorService,\n)\nfrom app.services.director import DirectorProviderError
+from app.services.director import (
+    DirectorBackendResult,
+    DirectorConfigurationError,
+    DirectorOutputError,
+    DirectorProviderError,
+    DirectorService,
+)
 from app.services.openai_director import OpenAIDirectorBackend
 from cutsceneai_cir import Project
 
