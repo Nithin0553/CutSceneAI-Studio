@@ -2,24 +2,21 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from cutsceneai_cir import Project
-from cutsceneai_performance import (
-    GenerationModelConfig,
-    PerformanceCompilerConfig,
-    compile_generation_plan,
-)
+from cutsceneai_performance import compile_generation_plan
 from cutsceneai_unity import (
     UnityAssetMap,
     UnityEntityAsset,
     compile_project as compile_unity_project,
 )
 from cutsceneai_unreal import compile_project as compile_unreal_project
+
+from app.services.performance_providers import performance_compiler_config
 
 from app.models.studio import (
     StudioAsset,
@@ -674,34 +671,10 @@ class StudioService:
         )
 
     def performance_plan(self, project: Project, experiment_seed: int) -> dict[str, Any]:
-        config = PerformanceCompilerConfig(
-            experiment_seed=experiment_seed,
-            body=GenerationModelConfig(
-                provider=os.getenv("CUTSCENEAI_BODY_PROVIDER", "mdm-local"),
-                model=os.getenv(
-                    "CUTSCENEAI_BODY_MODEL",
-                    "humanml-encoder-512-50steps",
-                ),
-                model_revision=os.getenv("CUTSCENEAI_BODY_MODEL_REVISION", "research-runtime"),
-                prompt_version="body-v0.1",
-                deterministic_algorithms=True,
-            ),
-            facial=GenerationModelConfig(
-                provider=os.getenv("CUTSCENEAI_FACIAL_PROVIDER", "unconfigured-facial"),
-                model=os.getenv("CUTSCENEAI_FACIAL_MODEL", "unconfigured"),
-                model_revision=os.getenv("CUTSCENEAI_FACIAL_MODEL_REVISION", "unconfigured"),
-                prompt_version="facial-v0.1",
-                deterministic_algorithms=True,
-            ),
-            camera=GenerationModelConfig(
-                provider=os.getenv("CUTSCENEAI_CAMERA_PROVIDER", "cutsceneai-camera"),
-                model=os.getenv("CUTSCENEAI_CAMERA_MODEL", "procedural-v0.1"),
-                model_revision=os.getenv("CUTSCENEAI_CAMERA_MODEL_REVISION", "0.1.0"),
-                prompt_version="camera-v0.1",
-                deterministic_algorithms=True,
-            ),
+        plan = compile_generation_plan(
+            project,
+            config=performance_compiler_config(experiment_seed),
         )
-        plan = compile_generation_plan(project, config=config)
         return plan.model_dump(mode="json")
 
     def compile_realization(
