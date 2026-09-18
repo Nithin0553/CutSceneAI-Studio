@@ -280,7 +280,16 @@ public static class CutSceneAIGeneratedPerformance
         return value;
     }
     private static string ProjectRoot => Directory.GetParent(Application.dataPath).FullName;
-    private static string EvidenceRoot => Path.Combine(ProjectRoot, "CutSceneAIEvidence", "Unity");
+    private static string EvidenceRoot(Target target)
+    {
+        string renderPath = Path.Combine(
+            ProjectRoot,
+            target.render.output_directory.Replace('/', Path.DirectorySeparatorChar));
+        string parent = Path.GetDirectoryName(renderPath);
+        if (string.IsNullOrEmpty(parent))
+            throw new InvalidOperationException("Native render output requires a parent evidence directory.");
+        return parent;
+    }
     private static int ProcessId => System.Diagnostics.Process.GetCurrentProcess().Id;
     private static string AbsoluteAssetPath(string path) => Path.Combine(ProjectRoot, path.Replace('/', Path.DirectorySeparatorChar));
     private static int Frame(double seconds, int fps) => (int)Math.Round(seconds * fps, MidpointRounding.AwayFromZero);
@@ -619,8 +628,9 @@ public static class CutSceneAIGeneratedPerformance
             source_mapping_sha256 = target.source_mapping_sha256,
             actors = actors,
         };
-        Directory.CreateDirectory(EvidenceRoot);
-        File.WriteAllText(Path.Combine(EvidenceRoot, "retarget-profile.json"), JsonUtility.ToJson(profile, true), new UTF8Encoding(false));
+        string evidenceRoot = EvidenceRoot(target);
+        Directory.CreateDirectory(evidenceRoot);
+        File.WriteAllText(Path.Combine(evidenceRoot, "retarget-profile.json"), JsonUtility.ToJson(profile, true), new UTF8Encoding(false));
     }
 
     private static AnimationClip CreateFaceClip(FaceTrack track, GameObject prefab, ActorTarget target, int fps)
@@ -746,12 +756,13 @@ public static class CutSceneAIGeneratedPerformance
         }
         EditorUtility.SetDirty(timeline); AssetDatabase.SaveAssets();
         EnsureFolder(target.scene_asset_path); EditorSceneManager.SaveScene(scene, target.scene_asset_path);
-        Directory.CreateDirectory(EvidenceRoot);
+        string evidenceRoot = EvidenceRoot(target);
+        Directory.CreateDirectory(evidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
             render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
-        File.WriteAllText(Path.Combine(EvidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
     }
 
@@ -837,7 +848,8 @@ public static class CutSceneAIGeneratedPerformance
     public static void ReadbackAndRender()
     {
         Plan plan = LoadPlan(); Mapping mapping = LoadMapping(); Target target = LoadTarget();
-        string lifecyclePath = Path.Combine(EvidenceRoot, "lifecycle.json");
+        string evidenceRoot = EvidenceRoot(target);
+        string lifecyclePath = Path.Combine(evidenceRoot, "lifecycle.json");
         if (!File.Exists(lifecyclePath)) throw new InvalidOperationException("Native import receipt is missing.");
         Lifecycle lifecycle = JsonUtility.FromJson<Lifecycle>(File.ReadAllText(lifecyclePath));
         if (!lifecycle.import_completed || !lifecycle.saved || lifecycle.import_process_id == ProcessId)
@@ -847,10 +859,10 @@ public static class CutSceneAIGeneratedPerformance
         if (timeline == null) throw new InvalidOperationException("Saved Timeline is missing after restart.");
         PlayableDirector director = UnityEngine.Object.FindObjectsByType<PlayableDirector>(FindObjectsSortMode.None).Single(item => item.playableAsset == timeline);
         EngineReadback readback = Readback(plan, mapping, target, timeline);
-        Directory.CreateDirectory(EvidenceRoot);
-        File.WriteAllText(Path.Combine(EvidenceRoot, "readback.json"), JsonUtility.ToJson(readback, true), new UTF8Encoding(false));
+        Directory.CreateDirectory(evidenceRoot);
+        File.WriteAllText(Path.Combine(evidenceRoot, "readback.json"), JsonUtility.ToJson(readback, true), new UTF8Encoding(false));
         RenderManifest manifest = Render(mapping, target, director);
-        File.WriteAllText(Path.Combine(EvidenceRoot, "render-manifest.json"), JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(evidenceRoot, "render-manifest.json"), JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
         lifecycle.readback_process_id = ProcessId; lifecycle.restarted = true; lifecycle.readback_completed = true;
         lifecycle.render_completed = manifest.rendered_frame_count == manifest.expected_frame_count;
         File.WriteAllText(lifecyclePath, JsonUtility.ToJson(lifecycle, true), new UTF8Encoding(false));
@@ -906,7 +918,7 @@ foreach ($audio in $audioTargets) {
     if ($hash -ne $audio.sha256) { throw "Copied WAV checksum mismatch: $destination" }
 }
 
-$evidenceRoot = Join-Path $projectRoot "CutSceneAIEvidence\Unity"
+$evidenceRoot = Join-Path $projectRoot "__EVIDENCE_ROOT_RELATIVE__"
 New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
 $importLog = Join-Path $evidenceRoot "import.log"
 & $UnityEditor -batchmode -quit -projectPath $projectRoot -logFile $importLog -executeMethod CutSceneAIGeneratedPerformance.Import
@@ -940,11 +952,14 @@ def render_unity_native_runner_script(
             }
         )
     bundle_data = render_performance_bundle(package.bundle)
-    return _UNITY_RUNNER_TEMPLATE.replace(
-        "__BUNDLE_SHA256__", _sha256(bundle_data)
-    ).replace(
-        "__AUDIO_TARGETS_JSON__",
-        json.dumps(audio_targets, indent=2, sort_keys=True),
+    evidence_root = PurePosixPath(package.target.render.output_directory).parent.as_posix()
+    return (
+        _UNITY_RUNNER_TEMPLATE.replace("__BUNDLE_SHA256__", _sha256(bundle_data))
+        .replace("__EVIDENCE_ROOT_RELATIVE__", _windows_relative(evidence_root))
+        .replace(
+            "__AUDIO_TARGETS_JSON__",
+            json.dumps(audio_targets, indent=2, sort_keys=True),
+        )
     )
 
 
