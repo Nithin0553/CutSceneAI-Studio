@@ -108,6 +108,28 @@ def _manifest() -> dict[str, Any]:
     world = _current_world()
     actors = _actors()
     world_path = world.get_path_name() if world is not None else ""
+    records = [_actor_record(actor) for actor in actors[:500]]
+
+    meshes: dict[str, dict[str, Any]] = {}
+    for record in records:
+        mesh_path = str(record.get("metadata", {}).get("skeletal_mesh") or "")
+        if not mesh_path or mesh_path in meshes:
+            continue
+        meshes[mesh_path] = {
+            "object_id": "skeletal-mesh:" + mesh_path,
+            "kind": "character_asset",
+            "display_name": mesh_path.rsplit("/", 1)[-1].split(".", 1)[0],
+            "engine_ref": mesh_path,
+            "relative_path": mesh_path,
+            "verified": True,
+            "metadata": {
+                "source": "engine_bridge",
+                "asset_type": "skeletal_mesh",
+                "skeletal_mesh": mesh_path,
+                "skeleton": record.get("metadata", {}).get("skeleton", ""),
+            },
+        }
+
     return {
         "agent_id": _state["agent_id"],
         "engine_version": unreal.SystemLibrary.get_engine_version(),
@@ -118,11 +140,12 @@ def _manifest() -> dict[str, Any]:
             "bridge:v0.1",
             "verified-project-objects",
             "level-actors",
+            "skeletal-mesh-assets",
             "sequencer",
             "editor-command-queue",
             "readback",
         ],
-        "assets": [_actor_record(actor) for actor in actors[:500]],
+        "assets": records + list(meshes.values()),
         "warnings": [],
     }
 
