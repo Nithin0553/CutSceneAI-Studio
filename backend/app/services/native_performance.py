@@ -131,7 +131,7 @@ class NativePerformanceRealizer:
 
         token = _run_token(run_id)
         if record.engine is StudioEngine.UNITY:
-            importer_path, entry_point = self._stage_unity(
+            importer_path, entry_point, omissions = self._stage_unity(
                 record=record,
                 project=project,
                 bindings=bindings,
@@ -139,7 +139,7 @@ class NativePerformanceRealizer:
                 token=token,
             )
         else:
-            importer_path, entry_point = self._stage_unreal(
+            importer_path, entry_point, omissions = self._stage_unreal(
                 record=record,
                 project=project,
                 bindings=bindings,
@@ -156,7 +156,10 @@ class NativePerformanceRealizer:
                     "entry_point": entry_point,
                     "performance_run_id": run_id,
                     "bundle_sha256": run.bundle_sha256,
-                    "realization_policy": "strict-body-camera-audio_degrade-facial-by-capability",
+                    "realization_policy": (
+                        "strict-body-camera-audio_degrade-facial-by-capability"
+                    ),
+                    "omitted_facial_actor_binding_ids": omissions,
                 },
             ),
         )
@@ -169,7 +172,7 @@ class NativePerformanceRealizer:
         bindings: list[StudioBindingSelection],
         bundle,
         token: str,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, list[str]]:
         selected = _selected_assets(record, bindings)
         entities: list[UnityEntityAsset] = []
         for character in project.characters:
@@ -285,7 +288,11 @@ class NativePerformanceRealizer:
                 Path(record.project_path) / mapped.target_audio_path,
                 data,
             )
-        return importer_relative, "CutSceneAIGeneratedPerformance.Import"
+        return (
+            importer_relative,
+            "CutSceneAIGeneratedPerformance.Import",
+            sorted(omitted_facial_actor_ids),
+        )
 
     def _stage_unreal(
         self,
@@ -295,7 +302,7 @@ class NativePerformanceRealizer:
         bindings: list[StudioBindingSelection],
         bundle,
         token: str,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, list[str]]:
         selected = _selected_assets(record, bindings)
         package_path = f"/Game/CutSceneAI/Studio/{token}/Sequences"
         base_plan = compile_unreal_project(project, package_path=package_path)
@@ -425,7 +432,7 @@ class NativePerformanceRealizer:
                 root / "Audio" / track.artifact.relative_path,
                 data,
             )
-        return importer_relative, "import"
+        return importer_relative, "import", sorted(omitted_facial_actor_ids)
 
     @staticmethod
     def _write_new_binary(path: Path, data: bytes) -> None:
