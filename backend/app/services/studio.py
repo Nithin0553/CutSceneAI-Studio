@@ -49,6 +49,7 @@ _PROJECTS_FILE = _STATE_DIR / "projects.json"
 _COMMANDS_DIR = _STATE_DIR / "bridge-commands"
 _MAX_DISCOVERED_ASSETS = 5000
 _BRIDGE_LEASE_TIMEOUT_SECONDS = 120
+_BRIDGE_SAME_AGENT_REDELIVERY_SECONDS = 3
 
 
 def _utc_now() -> str:
@@ -471,7 +472,8 @@ class StudioService:
                 and command.leased_at_utc is not None
             ):
                 leased_at = datetime.fromisoformat(command.leased_at_utc)
-                if (now - leased_at).total_seconds() > _BRIDGE_LEASE_TIMEOUT_SECONDS:
+                lease_age = (now - leased_at).total_seconds()
+                if lease_age > _BRIDGE_LEASE_TIMEOUT_SECONDS:
                     commands[index] = command.model_copy(
                         update={
                             "status": StudioBridgeCommandStatus.PENDING,
@@ -480,6 +482,13 @@ class StudioService:
                         }
                     )
                     changed = True
+                    continue
+                if command.leased_to_agent_id == agent_id:
+                    if changed:
+                        self._save_bridge_commands(project_id, commands)
+                    if lease_age >= _BRIDGE_SAME_AGENT_REDELIVERY_SECONDS:
+                        return StudioBridgePollResponse(command=command)
+                    return StudioBridgePollResponse(command=None)
 
         for index, command in enumerate(commands):
             if command.status is not StudioBridgeCommandStatus.PENDING:
