@@ -707,7 +707,7 @@ function App() {
 
               {selectedProject?.manifest?.warnings?.length > 0 && (
                 <div className="warning-stack">
-                  {selectedProject.manifest.warnings.slice(0, 2).map((warning: string) => (
+                  {selectedProject?.manifest?.warnings.slice(0, 2).map((warning: string) => (
                     <div className="mini-warning" key={warning}>
                       <CircleAlert size={14} />
                       <span>{warning}</span>
@@ -785,10 +785,10 @@ function App() {
               {cirReady && (
                 <div className="cir-result">
                   <div className="cir-stats">
-                    <div><span>Scenes</span><strong>{validation.summary.scene_count}</strong></div>
-                    <div><span>Beats</span><strong>{validation.summary.beat_count}</strong></div>
-                    <div><span>Shots</span><strong>{validation.summary.shot_count}</strong></div>
-                    <div><span>Schema</span><strong>{validation.schema_version}</strong></div>
+                    <div><span>Scenes</span><strong>{validation?.summary?.scene_count ?? 0}</strong></div>
+                    <div><span>Beats</span><strong>{validation?.summary?.beat_count ?? 0}</strong></div>
+                    <div><span>Shots</span><strong>{validation?.summary?.shot_count ?? 0}</strong></div>
+                    <div><span>Schema</span><strong>{validation?.schema_version ?? "—"}</strong></div>
                   </div>
                   <button className="secondary-button" onClick={downloadCir}>
                     <Download size={15} /> CIR JSON
@@ -995,7 +995,7 @@ function App() {
 
                 {realization?.blocking_issues?.length > 0 && (
                   <div className="warning-stack">
-                    {realization.blocking_issues.map((item: string) => (
+                    {realization?.blocking_issues.map((item: string) => (
                       <div className="mini-warning" key={item}>
                         <CircleAlert size={14} /> <span>{item}</span>
                       </div>
@@ -1012,7 +1012,7 @@ function App() {
                       </div>
                       <div>
                         <span>Adapter warnings</span>
-                        <strong>{realization.warnings?.length || 0}</strong>
+                        <strong>{realization?.warnings?.length || 0}</strong>
                       </div>
                       <div>
                         <span>Bridge</span>
