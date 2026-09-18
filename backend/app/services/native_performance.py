@@ -341,9 +341,7 @@ class NativePerformanceRealizer:
             target_path=f"/Game/CutSceneAI/Studio/{token}/GeneratedPerformance",
         )
 
-        requested_facial_actor_ids = {
-            item.actor_binding_id for item in full_mapping.facial_tracks
-        }
+        requested_facial_actor_ids = {item.actor_binding_id for item in full_mapping.facial_tracks}
         omitted_facial_actor_ids: set[str] = set()
         native_actors: list[UnrealNativeActorTarget] = []
         plan_actor_by_binding = {actor.binding_id: actor for actor in plan.sequences[0].actors}
