@@ -245,11 +245,11 @@ class StudioPerformanceExecutor:
 
             warnings: list[str] = []
             if dialogue_manifest is not None:
-                warnings.extend(
-                    str(item.get("message", ""))
-                    for item in dialogue_manifest.get("warnings", [])
-                    if item.get("message")
-                )
+                raw_warnings = dialogue_manifest.get("warnings")
+                if isinstance(raw_warnings, list):
+                    for item in raw_warnings:
+                        if isinstance(item, dict) and item.get("message"):
+                            warnings.append(str(item["message"]))
 
             record = record.model_copy(
                 update={
@@ -264,16 +264,17 @@ class StudioPerformanceExecutor:
             self._write_record(run_dir, record)
             return record
         except Exception as exc:
+            failure_message = f"{type(exc).__name__}: {exc}"
             failed = record.model_copy(
                 update={
                     "status": PerformanceRunStatus.FAILED,
                     "completed_at_utc": _utc_now(),
-                    "error": f"{type(exc).__name__}: {exc}",
+                    "error": failure_message,
                 }
             )
             self._write_record(run_dir, failed)
             (run_dir / "failure.txt").write_text(
-                failed.error + "\n",
+                failure_message + "\n",
                 encoding="utf-8",
                 newline="\n",
             )
@@ -306,9 +307,16 @@ class StudioPerformanceExecutor:
         }
         outputs: list[DialogueAudioArtifact] = []
         for facial_request in dialogue_requests:
+            dialogue_cue_id = facial_request.source_dialogue_cue_id
+            dialogue_start_frame = facial_request.dialogue_start_frame
+            if dialogue_cue_id is None or dialogue_start_frame is None:
+                raise RuntimeError(
+                    "Dialogue-linked facial request is missing its cue or start frame: "
+                    f"{facial_request.semantic_id}"
+                )
             key = (
                 facial_request.actor_binding_id,
-                facial_request.dialogue_start_frame,
+                dialogue_start_frame,
             )
             clip = clips.get(key)
             if clip is None:
@@ -323,7 +331,7 @@ class StudioPerformanceExecutor:
                 )
             outputs.append(
                 DialogueAudioArtifact(
-                    dialogue_cue_id=facial_request.source_dialogue_cue_id,
+                    dialogue_cue_id=dialogue_cue_id,
                     actor_binding_id=facial_request.actor_binding_id,
                     start_frame=clip.start_frame,
                     end_frame=clip.end_frame,
