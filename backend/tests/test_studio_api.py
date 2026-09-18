@@ -197,3 +197,368 @@ def test_studio_api_connects_and_lists_project(tmp_path: Path, monkeypatch) -> N
     assert listed.status_code == 200
     assert len(listed.json()) == 1
     assert listed.json()[0]["engine"] == "unity"
+
+
+
+def _client_with_service(service: StudioService) -> TestClient:
+    app.dependency_overrides[get_studio_service] = lambda: service
+    return TestClient(app)
+
+
+def _project_payload() -> dict[str, object]:
+    return _project().model_dump(mode="json")
+
+
+def _required_bindings(record: dict[str, object]) -> list[dict[str, str]]:
+    manifest = record["manifest"]
+    assert isinstance(manifest, dict)
+    assets = manifest["assets"]
+    assert isinstance(assets, list)
+
+    by_name = {
+        item["display_name"]: item
+        for item in assets
+        if isinstance(item, dict)
+    }
+    return [
+        {
+            "cir_id": "mina",
+            "project_object_id": str(by_name["Mina"]["object_id"]),
+        },
+        {
+            "cir_id": "arjun",
+            "project_object_id": str(by_name["Arjun"]["object_id"]),
+        },
+    ]
+
+
+def test_api_exposes_capabilities_and_project_scan(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    client = _client_with_service(service)
+
+    try:
+        capabilities = client.get("/api/v1/studio/capabilities")
+        connected = client.post(
+            "/api/v1/studio/projects/connect",
+            json={
+                "engine": "unity",
+                "project_path": str(_unity_project(tmp_path)),
+                "display_name": "Demo Unity",
+            },
+        )
+        project_id = connected.json()["project_id"]
+        scanned = client.post(f"/api/v1/studio/projects/{project_id}/scan")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert capabilities.status_code == 200
+    ids = {item["id"] for item in capabilities.json()["capabilities"]}
+    assert {"project-connection", "engine-runner", "natural-language-editing"} <= ids
+    assert connected.status_code == 200
+    assert connected.json()["display_name"] == "Demo Unity"
+    assert scanned.status_code == 200
+    assert scanned.json()["manifest"]["discovery_mode"] == "filesystem_preflight"
+
+
+def test_api_accepts_verified_engine_bridge_manifest(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    root = _unity_project(tmp_path)
+    client = _client_with_service(service)
+
+    try:
+        connected = client.post(
+            "/api/v1/studio/projects/connect",
+            json={"engine": "unity", "project_path": str(root)},
+        ).json()
+        project_id = connected["project_id"]
+        bridged = client.post(
+            f"/api/v1/studio/projects/{project_id}/bridge-manifest",
+            json={
+                "engine_version": "6000.3.8f1",
+                "adapter_version": "0.1.0",
+                "current_scene": "Assets/Scenes/Main.unity",
+                "fps": 24,
+                "capabilities": ["humanoid", "timeline", "readback"],
+                "assets": [
+                    {
+                        "object_id": "unity-global:mina",
+                        "kind": "scene_actor",
+                        "display_name": "Mina",
+                        "engine_ref": "GlobalObjectId:minA",
+                        "relative_path": "Assets/Scenes/Main.unity",
+                        "verified": True,
+                        "metadata": {"humanoid": True},
+                    }
+                ],
+                "warnings": [],
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert bridged.status_code == 200
+    body = bridged.json()
+    assert body["manifest"]["bridge_connected"] is True
+    assert body["manifest"]["discovery_mode"] == "engine_bridge"
+    assert body["manifest"]["fps"] == 24
+    assert body["manifest"]["assets"][0]["verified"] is True
+
+
+def test_api_runs_unity_binding_plan_realization_and_importer(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    client = _client_with_service(service)
+    project = _project_payload()
+
+    try:
+        connected_response = client.post(
+            "/api/v1/studio/projects/connect",
+            json={"engine": "unity", "project_path": str(_unity_project(tmp_path))},
+        )
+        assert connected_response.status_code == 200
+        connected = connected_response.json()
+        project_id = connected["project_id"]
+        bindings = _required_bindings(connected)
+
+        options = client.post(
+            "/api/v1/studio/bindings/options",
+            json={"project_id": project_id, "project": project},
+        )
+        validated = client.post(
+            "/api/v1/studio/bindings/validate",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+        performance = client.post(
+            "/api/v1/studio/performance/plan",
+            json={"project": project, "experiment_seed": 20260812},
+        )
+        realization = client.post(
+            "/api/v1/studio/realization/plan",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+        importer = client.post(
+            "/api/v1/studio/realization/importer",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert options.status_code == 200
+    assert len(options.json()["roles"]) >= 4
+    assert validated.status_code == 200
+    assert validated.json()["valid"] is True
+    assert performance.status_code == 200
+    assert performance.json()["fps"] == 24
+    assert realization.status_code == 200
+    assert realization.json()["ready"] is True
+    assert realization.json()["engine"] == "unity"
+    assert importer.status_code == 200
+    assert importer.headers["content-type"].startswith("text/x-csharp")
+    assert "CutSceneAI" in importer.text
+
+
+def test_api_runs_unreal_binding_realization_and_importer(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    client = _client_with_service(service)
+    project = _project_payload()
+
+    try:
+        connected_response = client.post(
+            "/api/v1/studio/projects/connect",
+            json={"engine": "unreal", "project_path": str(_unreal_project(tmp_path))},
+        )
+        assert connected_response.status_code == 200
+        connected = connected_response.json()
+        project_id = connected["project_id"]
+        bindings = _required_bindings(connected)
+
+        realization = client.post(
+            "/api/v1/studio/realization/plan",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+        importer = client.post(
+            "/api/v1/studio/realization/importer",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert realization.status_code == 200
+    assert realization.json()["ready"] is True
+    assert realization.json()["engine"] == "unreal"
+    assert importer.status_code == 200
+    assert importer.headers["content-type"].startswith("text/x-python")
+    assert "unreal" in importer.text.lower()
+
+
+def test_realization_blocks_missing_and_incompatible_required_bindings(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    root = _unity_project(tmp_path)
+    (root / "Assets" / "Characters" / "NotAPrefab.fbx").write_bytes(b"fixture")
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(root),
+        )
+    )
+    project = _project()
+
+    missing = service.compile_realization(record.project_id, project, [])
+    assert missing.ready is False
+    assert "mina" in missing.blocking_issues[0]
+
+    model = next(
+        item for item in record.manifest.assets if item.engine_ref.endswith("/NotAPrefab.fbx")
+    )
+    arjun = next(
+        item for item in record.manifest.assets if item.engine_ref.endswith("/Arjun.prefab")
+    )
+    incompatible = service.compile_realization(
+        record.project_id,
+        project,
+        [
+            StudioBindingSelection(cir_id="mina", project_object_id=model.object_id),
+            StudioBindingSelection(cir_id="arjun", project_object_id=arjun.object_id),
+        ],
+    )
+    assert incompatible.ready is False
+    assert "Unity prefab" in incompatible.blocking_issues[0]
+
+
+def test_binding_validation_rejects_unknown_project_object(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    try:
+        service.validate_bindings(
+            record.project_id,
+            _project(),
+            [
+                StudioBindingSelection(
+                    cir_id="mina",
+                    project_object_id="does-not-exist",
+                )
+            ],
+        )
+    except ValueError as exc:
+        assert "unknown project objects" in str(exc)
+    else:
+        raise AssertionError("Expected an unknown binding object to be rejected.")
+
+
+def test_service_reports_unknown_and_invalid_projects(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+
+    try:
+        service.get_project("missing")
+    except ValueError as exc:
+        assert "Unknown Studio project" in str(exc)
+    else:
+        raise AssertionError("Expected unknown Studio project failure.")
+
+    missing_path = tmp_path / "missing"
+    try:
+        service.connect_project(
+            StudioProjectConnectRequest(
+                engine=StudioEngine.UNITY,
+                project_path=str(missing_path),
+            )
+        )
+    except ValueError as exc:
+        assert "does not exist" in str(exc)
+    else:
+        raise AssertionError("Expected missing project path failure.")
+
+    invalid_unity = tmp_path / "InvalidUnity"
+    invalid_unity.mkdir()
+    try:
+        service.connect_project(
+            StudioProjectConnectRequest(
+                engine=StudioEngine.UNITY,
+                project_path=str(invalid_unity),
+            )
+        )
+    except ValueError as exc:
+        assert "not a Unity project" in str(exc)
+    else:
+        raise AssertionError("Expected invalid Unity project failure.")
+
+    invalid_unreal = tmp_path / "InvalidUnreal"
+    invalid_unreal.mkdir()
+    try:
+        service.connect_project(
+            StudioProjectConnectRequest(
+                engine=StudioEngine.UNREAL,
+                project_path=str(invalid_unreal),
+            )
+        )
+    except ValueError as exc:
+        assert "exactly one .uproject" in str(exc)
+    else:
+        raise AssertionError("Expected invalid Unreal project failure.")
+
+
+def test_corrupt_local_project_registry_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    studio_module._PROJECTS_FILE.write_text("{not-json", encoding="utf-8")
+
+    assert service.list_projects() == []
+
+
+def test_api_maps_unknown_project_errors_to_422(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    client = _client_with_service(service)
+    project = _project_payload()
+
+    try:
+        scanned = client.post("/api/v1/studio/projects/missing/scan")
+        options = client.post(
+            "/api/v1/studio/bindings/options",
+            json={"project_id": "missing", "project": project},
+        )
+        importer = client.post(
+            "/api/v1/studio/realization/importer",
+            json={
+                "project_id": "missing",
+                "project": project,
+                "bindings": [],
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert scanned.status_code == 422
+    assert options.status_code == 422
+    assert importer.status_code == 422
