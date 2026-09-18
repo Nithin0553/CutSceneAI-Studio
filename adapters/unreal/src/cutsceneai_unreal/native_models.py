@@ -48,7 +48,7 @@ class UnrealNativeRenderSettings(UnrealModel):
 class UnrealNativeRealizationTarget(UnrealModel):
     target_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unreal Engine"] = "Unreal Engine"
-    target_engine_version: Literal["5.8.0"] = "5.8.0"
+    target_engine_version: str = Field(default="5.8", pattern=r"^5\.8(?:\.\d+)?$")
     project_id: str
     source_mapping_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     sequence_package_path: str = Field(pattern=r"^/Game(?:/[A-Za-z][A-Za-z0-9_]*)+$")
