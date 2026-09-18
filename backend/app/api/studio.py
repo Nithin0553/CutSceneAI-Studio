@@ -150,15 +150,15 @@ def realization_importer(
 ) -> Response:
     try:
         record = service.get_project(request.project_id)
-        binding_manifest = service.validate_bindings(
+        realization = service.compile_realization(
             request.project_id,
             request.project,
             request.bindings,
         )
-        if not binding_manifest.valid:
+        if not realization.ready:
             raise ValueError(
-                "Required roles are not fully bound: "
-                + ", ".join(binding_manifest.unresolved_required_ids)
+                "Engine realization is not ready: "
+                + "; ".join(realization.blocking_issues)
             )
 
         asset_by_id = {item.object_id: item for item in record.manifest.assets}
