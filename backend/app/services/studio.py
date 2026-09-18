@@ -105,14 +105,17 @@ class StudioService:
                     id="director-cir",
                     label="Natural language to CIR",
                     status="implemented",
-                    description="Director API, CIR validation and deterministic storyboard preview.",
+                    description=(
+                        "Director API, CIR validation and deterministic storyboard preview."
+                    ),
                 ),
                 StudioCapability(
                     id="binding",
                     label="Role and asset binding",
                     status="implemented-baseline",
                     description=(
-                        "Manual binding and deterministic suggestions are available from discovered "
+                        "Manual binding and deterministic suggestions are available from "
+                        "discovered "
                         "project objects; verified rig compatibility depends on the engine bridge."
                     ),
                 ),
@@ -121,7 +124,8 @@ class StudioService:
                     label="Generated performance planning",
                     status="implemented",
                     description=(
-                        "CIR compiles into deterministic body, facial and camera generation requests."
+                        "CIR compiles into deterministic body, facial and camera generation "
+                        "requests."
                     ),
                 ),
                 StudioCapability(
@@ -130,7 +134,8 @@ class StudioService:
                     status="missing",
                     description=(
                         "The repository has provider contracts and one retained S02 motion result, "
-                        "but the web backend does not yet execute arbitrary body/facial/camera model "
+                        "but the web backend does not yet execute arbitrary body/facial/camera "
+                        "model "
                         "providers and assemble a complete performance bundle."
                     ),
                     blocking=True,
@@ -140,7 +145,8 @@ class StudioService:
                     label="Bound engine realization plan",
                     status="implemented",
                     description=(
-                        "Validated CIR plus project bindings compiles to the existing Unity or Unreal "
+                        "Validated CIR plus project bindings compiles to the existing Unity or "
+                        "Unreal "
                         "adapter plan and importer."
                     ),
                 ),
@@ -150,7 +156,8 @@ class StudioService:
                     status="missing",
                     description=(
                         "A persistent Unity/Unreal bridge that executes realization, focuses the "
-                        "authoritative engine preview, streams status and returns readback evidence "
+                        "authoritative engine preview, streams status and returns readback "
+                        "evidence "
                         "is still required."
                     ),
                     blocking=True,
@@ -696,8 +703,10 @@ class StudioService:
 
         warnings = [
             (
-                "Filesystem preflight cannot inspect loaded-level actor GUIDs, SkeletalMesh skeleton "
-                "compatibility, morph targets or camera instances. Connect the Unreal engine bridge "
+                "Filesystem preflight cannot inspect loaded-level actor GUIDs, SkeletalMesh "
+                "skeleton "
+                "compatibility, morph targets or camera instances. Connect the Unreal engine "
+                "bridge "
                 "for verified capability discovery."
             )
         ]
