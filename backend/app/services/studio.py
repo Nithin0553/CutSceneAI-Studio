@@ -195,14 +195,34 @@ class StudioService:
         )
 
     def list_projects(self) -> list[StudioProjectRecord]:
-        return list(self._load_projects().values())
+        return [self._with_bridge_liveness(item) for item in self._load_projects().values()]
 
     def get_project(self, project_id: str) -> StudioProjectRecord:
         records = self._load_projects()
         try:
-            return records[project_id]
+            return self._with_bridge_liveness(records[project_id])
         except KeyError as exc:
             raise ValueError(f"Unknown Studio project '{project_id}'.") from exc
+
+    @staticmethod
+    def _with_bridge_liveness(record: StudioProjectRecord) -> StudioProjectRecord:
+        last_seen = record.manifest.bridge_last_seen_utc
+        live = False
+        if last_seen is not None:
+            try:
+                age = datetime.now(UTC) - datetime.fromisoformat(last_seen)
+                live = 0 <= age.total_seconds() <= 30
+            except ValueError:
+                live = False
+        if record.manifest.bridge_connected == live:
+            return record
+        return record.model_copy(
+            update={
+                "manifest": record.manifest.model_copy(
+                    update={"bridge_connected": live}
+                )
+            }
+        )
 
     def connect_project(self, request: StudioProjectConnectRequest) -> StudioProjectRecord:
         project_path = Path(request.project_path).expanduser().resolve()
