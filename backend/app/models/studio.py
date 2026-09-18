@@ -215,3 +215,32 @@ class StudioRealizationResponse(StudioModel):
     plan: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
     blocking_issues: list[str] = Field(default_factory=list)
+
+
+
+class StudioRevisionSource(str, Enum):
+    GENERATION = "generation"
+    EDIT = "edit"
+    RESTORE = "restore"
+    IMPORT = "import"
+
+
+class StudioRevisionCreateRequest(StudioModel):
+    project_id: str
+    project: Project
+    source: StudioRevisionSource
+    parent_revision_id: str | None = None
+    instruction: str | None = Field(default=None, max_length=4000)
+
+
+class StudioCIRRevision(StudioModel):
+    revision_version: str = "0.1.0"
+    revision_id: str
+    project_id: str
+    cir_project_id: str
+    source: StudioRevisionSource
+    parent_revision_id: str | None = None
+    instruction: str | None = None
+    created_at_utc: str
+    project_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    project: Project
