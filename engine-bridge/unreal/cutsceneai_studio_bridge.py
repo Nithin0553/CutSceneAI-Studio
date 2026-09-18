@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import runpy
 import socket
 import time
@@ -210,11 +211,15 @@ def _execute(command: dict[str, Any]) -> tuple[bool, dict[str, Any], str | None]
             result = _readback("Unreal editor readback captured.")
         elif name == "run_importer":
             payload = command.get("payload") or {}
-            relative = str(payload.get("importer_path") or "")
-            expected = "Saved/CutSceneAI/Generated/cutsceneai-unreal-import.py"
-            if relative.replace("\\", "/") != expected:
+            relative = str(payload.get("importer_path") or "").replace("\\", "/")
+            semantic_importer = "Saved/CutSceneAI/Generated/cutsceneai-unreal-import.py"
+            native_pattern = (
+                r"^Saved/CutSceneAI/NativeBridge/Run_[0-9A-Fa-f]{16}/Scripts/"
+                r"cutsceneai-unreal-native-import\.py$"
+            )
+            if relative != semantic_importer and re.fullmatch(native_pattern, relative) is None:
                 raise RuntimeError(
-                    "Bridge refused an importer outside the managed CutSceneAI path."
+                    "Bridge refused an importer outside the managed CutSceneAI allowlist."
                 )
             project_root = os.path.realpath(unreal.Paths.project_dir())
             importer = os.path.realpath(os.path.join(project_root, relative))
