@@ -34,6 +34,8 @@ from app.models.studio import (
     StudioProjectRecord,
     StudioRealizationRequest,
     StudioRealizationResponse,
+    StudioCIRRevision,
+    StudioRevisionCreateRequest,
 )
 from app.services.studio import StudioService
 
@@ -183,6 +185,46 @@ def complete_bridge_command(
 ) -> StudioBridgeCommand:
     try:
         return service.complete_bridge_command(project_id, command_id, request)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post("/revisions", response_model=StudioCIRRevision)
+def create_revision(
+    request: StudioRevisionCreateRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioCIRRevision:
+    try:
+        return service.create_revision(request)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
+    "/projects/{project_id}/revisions",
+    response_model=list[StudioCIRRevision],
+)
+def list_revisions(
+    project_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> list[StudioCIRRevision]:
+    try:
+        return service.list_revisions(project_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
+    "/projects/{project_id}/revisions/{revision_id}",
+    response_model=StudioCIRRevision,
+)
+def get_revision(
+    project_id: str,
+    revision_id: str,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioCIRRevision:
+    try:
+        return service.get_revision(project_id, revision_id)
     except ValueError as exc:
         raise _bad_request(exc) from exc
 
