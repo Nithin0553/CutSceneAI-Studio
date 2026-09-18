@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from cutsceneai_parity import compile_semantics
-from cutsceneai_performance import load_performance_bundle
+from cutsceneai_performance import ARKIT_52_BLENDSHAPE_NAMES, load_performance_bundle
 from cutsceneai_unity import (
     UnityAssetMap,
     UnityEntityAsset,
@@ -43,62 +43,7 @@ from app.services.studio import StudioService
 from cutsceneai_cir import Project
 
 
-_ARKIT_BLENDSHAPES = frozenset(
-    (
-        "eyeBlinkLeft",
-        "eyeLookDownLeft",
-        "eyeLookInLeft",
-        "eyeLookOutLeft",
-        "eyeLookUpLeft",
-        "eyeSquintLeft",
-        "eyeWideLeft",
-        "eyeBlinkRight",
-        "eyeLookDownRight",
-        "eyeLookInRight",
-        "eyeLookOutRight",
-        "eyeLookUpRight",
-        "eyeSquintRight",
-        "eyeWideRight",
-        "jawForward",
-        "jawLeft",
-        "jawRight",
-        "jawOpen",
-        "mouthClose",
-        "mouthFunnel",
-        "mouthPucker",
-        "mouthLeft",
-        "mouthRight",
-        "mouthSmileLeft",
-        "mouthSmileRight",
-        "mouthFrownLeft",
-        "mouthFrownRight",
-        "mouthDimpleLeft",
-        "mouthDimpleRight",
-        "mouthStretchLeft",
-        "mouthStretchRight",
-        "mouthRollLower",
-        "mouthRollUpper",
-        "mouthShrugLower",
-        "mouthShrugUpper",
-        "mouthPressLeft",
-        "mouthPressRight",
-        "mouthLowerDownLeft",
-        "mouthLowerDownRight",
-        "mouthUpperUpLeft",
-        "mouthUpperUpRight",
-        "browDownLeft",
-        "browDownRight",
-        "browInnerUp",
-        "browOuterUpLeft",
-        "browOuterUpRight",
-        "cheekPuff",
-        "cheekSquintLeft",
-        "cheekSquintRight",
-        "noseSneerLeft",
-        "noseSneerRight",
-        "tongueOut",
-    )
-)
+_ARKIT_BLENDSHAPES = frozenset(ARKIT_52_BLENDSHAPE_NAMES)
 
 
 def _run_token(run_id: str) -> str:
