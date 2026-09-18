@@ -423,6 +423,14 @@ class StudioService:
         request: StudioBridgeHeartbeatRequest,
     ) -> StudioProjectRecord:
         record = self.get_project(project_id)
+        merged_assets = {
+            item.object_id: item
+            for item in record.manifest.assets
+            if item.metadata.get("source") == "filesystem"
+        }
+        for item in request.assets:
+            merged_assets[item.object_id] = item
+
         manifest = record.manifest.model_copy(
             update={
                 "engine_version": request.engine_version or record.manifest.engine_version,
@@ -434,7 +442,7 @@ class StudioService:
                 "bridge_agent_id": request.agent_id,
                 "bridge_last_seen_utc": _utc_now(),
                 "capabilities": request.capabilities,
-                "assets": request.assets,
+                "assets": list(merged_assets.values()),
                 "warnings": request.warnings,
             }
         )
