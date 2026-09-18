@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import json
 from pathlib import Path
+import re
 import sys
 
 from cutsceneai_cir import Project
@@ -372,7 +374,13 @@ def test_native_realization_declares_facial_degradation_for_body_only_targets(
         Path(unity_record.project_path)
         / "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
     ).read_text(encoding="utf-8")
-    assert "omitted_facial_actor_binding_ids" in unity_source
+    match = re.search(r'private const string TargetBase64 = "([^"]+)";', unity_source)
+    assert match is not None
+    embedded_target = json.loads(base64.b64decode(match.group(1)).decode("utf-8"))
+    assert set(embedded_target["omitted_facial_actor_binding_ids"]) == {
+        "actor:mina",
+        "actor:arjun",
+    }
 
     unreal = _service(tmp_path / "unreal-state", monkeypatch)
     unreal_record = unreal.connect_project(
