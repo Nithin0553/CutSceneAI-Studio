@@ -494,6 +494,37 @@ function App() {
     }
   }
 
+  async function waitForBridgeCommand(
+    projectId: string,
+    commandId: string,
+    timeoutMs = 90000,
+  ) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const command = await apiJson(
+        "/api/v1/studio/projects/" +
+          projectId +
+          "/bridge/commands/" +
+          commandId,
+      );
+      setBridgeCommands((items) => [
+        command,
+        ...items.filter((item) => item.command_id !== command.command_id),
+      ]);
+      if (command.status === "succeeded") {
+        await refreshBootstrap();
+        return command;
+      }
+      if (command.status === "failed") {
+        throw new Error(command.error || "Engine command failed.");
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    }
+    throw new Error(
+      "Engine command did not complete within 90 seconds. It remains preserved in the bridge queue.",
+    );
+  }
+
   async function sendBridgeCommand(command: string) {
     if (!selectedProject?.manifest?.bridge_connected) return;
     setBusy("bridge");
@@ -508,8 +539,16 @@ function App() {
       setNotice(
         "Engine command queued: " + queued.command + " (" + queued.command_id + ")",
       );
-      window.setTimeout(refreshBridgeCommands, 1200);
-      window.setTimeout(refreshBootstrap, 1600);
+      const completed = await waitForBridgeCommand(
+        selectedProject.project_id,
+        queued.command_id,
+      );
+      setNotice(
+        "Engine command completed: " +
+          completed.command +
+          ". " +
+          (completed.result?.message || "Editor readback returned successfully."),
+      );
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
@@ -739,8 +778,20 @@ function App() {
               omissions.join(", ")
             : ". Full requested facial capability is available."),
       );
-      window.setTimeout(refreshBridgeCommands, 1200);
-      window.setTimeout(refreshBootstrap, 1800);
+      const completed = await waitForBridgeCommand(
+        selectedProject.project_id,
+        queued.command_id,
+        120000,
+      );
+      setNotice(
+        "Native " +
+          selectedProject.engine +
+          " realization completed. " +
+          (completed.result?.message || "The editor returned successful readback.") +
+          (omissions.length
+            ? " Declared facial omissions: " + omissions.join(", ") + "."
+            : ""),
+      );
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
