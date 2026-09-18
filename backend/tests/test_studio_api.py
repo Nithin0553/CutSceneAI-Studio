@@ -674,3 +674,247 @@ def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypat
         assert "different engine agent" in str(exc)
     else:
         raise AssertionError("Expected bridge lease ownership to be enforced.")
+
+
+
+def test_bridge_api_round_trip_and_semantic_execution(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    root = _unity_project(tmp_path)
+    client = _client_with_service(service)
+    project = _project_payload()
+
+    try:
+        connected_response = client.post(
+            "/api/v1/studio/projects/connect",
+            json={"engine": "unity", "project_path": str(root)},
+        )
+        assert connected_response.status_code == 200
+        connected = connected_response.json()
+        project_id = connected["project_id"]
+        bindings = _required_bindings(connected)
+
+        installed = client.post(f"/api/v1/studio/projects/{project_id}/bridge/install")
+        heartbeat = client.post(
+            f"/api/v1/studio/projects/{project_id}/bridge/heartbeat",
+            json={
+                "agent_id": "unity-api-agent",
+                "engine_version": "6000.3.8f1",
+                "adapter_version": "0.1.0",
+                "current_scene": "Assets/Scenes/Main.unity",
+                "fps": 24,
+                "capabilities": ["bridge:v0.1", "readback"],
+                "assets": [],
+                "warnings": [],
+            },
+        )
+        queued = client.post(
+            f"/api/v1/studio/projects/{project_id}/bridge/commands",
+            json={"command": "readback", "payload": {}},
+        )
+        listed = client.get(f"/api/v1/studio/projects/{project_id}/bridge/commands")
+        polled = client.get(
+            f"/api/v1/studio/projects/{project_id}/bridge/poll",
+            params={"agent_id": "unity-api-agent"},
+        )
+        command_id = polled.json()["command"]["command_id"]
+        completed = client.post(
+            f"/api/v1/studio/projects/{project_id}/bridge/commands/{command_id}/complete",
+            json={
+                "agent_id": "unity-api-agent",
+                "succeeded": True,
+                "result": {"current_scene": "Assets/Scenes/Main.unity"},
+            },
+        )
+        executed = client.post(
+            "/api/v1/studio/realization/execute",
+            json={
+                "project_id": project_id,
+                "project": project,
+                "bindings": bindings,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert installed.status_code == 200
+    assert installed.json()["restart_required"] is True
+    assert heartbeat.status_code == 200
+    assert heartbeat.json()["manifest"]["bridge_connected"] is True
+    assert queued.status_code == 200
+    assert queued.json()["status"] == "pending"
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+    assert polled.status_code == 200
+    assert polled.json()["command"]["status"] == "leased"
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "succeeded"
+    assert executed.status_code == 200
+    assert executed.json()["command"] == "run_importer"
+    staged = root / executed.json()["payload"]["importer_path"]
+    assert staged.exists()
+    assert "CutSceneAIGeneratedTimeline" in staged.read_text(encoding="utf-8")
+
+
+def test_bridge_api_maps_unknown_project_failures_to_422(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    client = _client_with_service(service)
+
+    try:
+        responses = [
+            client.post("/api/v1/studio/projects/missing/bridge/install"),
+            client.post(
+                "/api/v1/studio/projects/missing/bridge/heartbeat",
+                json={
+                    "agent_id": "agent",
+                    "capabilities": [],
+                    "assets": [],
+                    "warnings": [],
+                },
+            ),
+            client.post(
+                "/api/v1/studio/projects/missing/bridge/commands",
+                json={"command": "readback", "payload": {}},
+            ),
+            client.get("/api/v1/studio/projects/missing/bridge/commands"),
+            client.get(
+                "/api/v1/studio/projects/missing/bridge/poll",
+                params={"agent_id": "agent"},
+            ),
+            client.post(
+                "/api/v1/studio/projects/missing/bridge/commands/command/complete",
+                json={"agent_id": "agent", "succeeded": True},
+            ),
+        ]
+    finally:
+        app.dependency_overrides.clear()
+
+    assert all(response.status_code == 422 for response in responses)
+
+
+def test_bridge_install_is_idempotent_and_refuses_unmanaged_collision(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    first = service.install_bridge(record.project_id)
+    second = service.install_bridge(record.project_id)
+    assert first.installed_files == second.installed_files
+
+    bridge_path = (
+        Path(record.project_path)
+        / "Assets"
+        / "Editor"
+        / "CutSceneAI"
+        / "CutSceneAIStudioBridge.cs"
+    )
+    bridge_path.write_text("// user-owned editor script\n", encoding="utf-8")
+    try:
+        service.install_bridge(record.project_id)
+    except ValueError as exc:
+        assert "unmanaged bridge file" in str(exc)
+    else:
+        raise AssertionError("Expected unmanaged bridge file collision to fail closed.")
+
+
+def test_bridge_command_lease_expiry_and_completion_state_guards(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    pending = service.enqueue_bridge_command(
+        record.project_id,
+        studio_module.StudioBridgeCommandRequest(command="readback"),
+    )
+    try:
+        service.complete_bridge_command(
+            record.project_id,
+            pending.command_id,
+            studio_module.StudioBridgeCommandResultRequest(
+                agent_id="agent-a",
+                succeeded=True,
+            ),
+        )
+    except ValueError as exc:
+        assert "not currently leased" in str(exc)
+    else:
+        raise AssertionError("Expected completion of an unleased command to fail.")
+
+    leased = service.poll_bridge_command(record.project_id, "agent-a").command
+    assert leased is not None
+    commands_path = studio_module._COMMANDS_DIR / f"{record.project_id}.json"
+    commands = json.loads(commands_path.read_text(encoding="utf-8"))
+    commands[0]["leased_at_utc"] = "2000-01-01T00:00:00+00:00"
+    commands_path.write_text(json.dumps(commands), encoding="utf-8")
+
+    re_leased = service.poll_bridge_command(record.project_id, "agent-b").command
+    assert re_leased is not None
+    assert re_leased.leased_to_agent_id == "agent-b"
+
+    try:
+        service.complete_bridge_command(
+            record.project_id,
+            "missing-command",
+            studio_module.StudioBridgeCommandResultRequest(
+                agent_id="agent-b",
+                succeeded=True,
+            ),
+        )
+    except ValueError as exc:
+        assert "Unknown bridge command" in str(exc)
+    else:
+        raise AssertionError("Expected unknown command completion to fail.")
+
+
+def test_corrupt_bridge_command_registry_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    commands_path = studio_module._COMMANDS_DIR / f"{record.project_id}.json"
+    commands_path.parent.mkdir(parents=True, exist_ok=True)
+    commands_path.write_text("{bad-json", encoding="utf-8")
+
+    assert service.list_bridge_commands(record.project_id) == []
+
+
+def test_staged_importer_refuses_unmanaged_overwrite(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    relative = service.stage_realization_importer(
+        record.project_id,
+        "// Generated by CutSceneAI Unity Adapter v0.1.0\npublic class Generated {}\n",
+    )
+    target = Path(record.project_path) / relative
+    assert target.exists()
+
+    target.write_text("// user-owned importer\n", encoding="utf-8")
+    try:
+        service.stage_realization_importer(
+            record.project_id,
+            "// Generated by CutSceneAI Unity Adapter v0.1.0\npublic class Generated2 {}\n",
+        )
+    except ValueError as exc:
+        assert "unmanaged realization importer" in str(exc)
+    else:
+        raise AssertionError("Expected unmanaged realization importer collision to fail.")
