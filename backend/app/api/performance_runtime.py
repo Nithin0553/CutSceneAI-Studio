@@ -1,0 +1,85 @@
+from functools import lru_cache
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
+
+from app.models.performance_runtime import (
+    PerformanceGenerateRequest,
+    PerformanceReadinessResponse,
+    PerformanceRunRecord,
+)
+from app.services.performance_executor import StudioPerformanceExecutor
+from app.services.performance_providers import PerformanceProviderConfigurationError
+
+
+router = APIRouter(prefix="/api/v1/studio/performance", tags=["studio-performance"])
+
+
+@lru_cache
+def get_performance_executor() -> StudioPerformanceExecutor:
+    return StudioPerformanceExecutor()
+
+
+def _bad_request(exc: ValueError | PerformanceProviderConfigurationError) -> HTTPException:
+    return HTTPException(status_code=422, detail=str(exc))
+
+
+@router.get("/readiness", response_model=PerformanceReadinessResponse)
+def performance_readiness(
+    experiment_seed: int = Query(default=20260812),
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceReadinessResponse:
+    try:
+        return executor.readiness(experiment_seed)
+    except PerformanceProviderConfigurationError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post("/generate", response_model=PerformanceRunRecord)
+async def generate_performance(
+    request: PerformanceGenerateRequest,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceRunRecord:
+    return await executor.generate(request)
+
+
+@router.get("/runs", response_model=list[PerformanceRunRecord])
+def list_performance_runs(
+    limit: int = Query(default=50, ge=1, le=200),
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> list[PerformanceRunRecord]:
+    try:
+        return executor.list_runs(limit)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get("/runs/{run_id}", response_model=PerformanceRunRecord)
+def get_performance_run(
+    run_id: str,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceRunRecord:
+    try:
+        return executor.get_run(run_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get("/runs/{run_id}/bundle", response_model=None)
+def download_performance_bundle(
+    run_id: str,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> Response:
+    try:
+        data = executor.bundle_bytes(run_id)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="cutsceneai-performance-{run_id}.zip"'
+            )
+        },
+    )
