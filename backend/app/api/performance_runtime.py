@@ -78,8 +78,6 @@ def download_performance_bundle(
         content=data,
         media_type="application/zip",
         headers={
-            "Content-Disposition": (
-                f'attachment; filename="cutsceneai-performance-{run_id}.zip"'
-            )
+            "Content-Disposition": (f'attachment; filename="cutsceneai-performance-{run_id}.zip"')
         },
     )
