@@ -97,11 +97,16 @@ def compile_unity_native_performance_package(
     plan_actors = {item.binding_id: item for item in sequence.actors}
     if set(actor_targets) - set(plan_actors):
         raise ValueError("Unity native target references an unknown plan actor.")
+    facial_actor_ids = {item.actor_binding_id for item in mapping.facial_tracks}
     for binding_id, native_target in actor_targets.items():
         actor = plan_actors[binding_id]
         if actor.placeholder or actor.prefab_path != native_target.prefab_path:
             raise ValueError(
                 "Unity native target requires the same non-placeholder prefab as the plan."
+            )
+        if binding_id in facial_actor_ids and not native_target.facial_renderer_path:
+            raise ValueError(
+                "Unity native target requires facial_renderer_path for actors with facial tracks."
             )
 
     return UnityNativePerformancePackage(
