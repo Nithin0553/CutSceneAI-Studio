@@ -96,9 +96,12 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "target-reference-pose-relative-parent-local"
     )
     for token in (
-        'Application.unityVersion.StartsWith("6000.0"',
+        'version.StartsWith("6000.0"',
+        'version.StartsWith("6000.3"',
         'timelinePackage.version != "1.8.12"',
         "animator.GetBoneTransform",
+        "actorFaceTracks.Length == 0",
+        "required facial blendshapes for",
         "SetPositionAndRotation",
         "instance.transform.localScale",
         "ReferenceComponentRotation(animator, transform)",
