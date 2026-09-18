@@ -68,7 +68,9 @@ def compile_unity_native_performance_package(
         target_path=_mapping_target_root(mapping),
     )
     omitted_facial = set(target.omitted_facial_actor_binding_ids)
-    available_facial = {item.actor_binding_id for item in expected_mapping.facial_tracks}
+    available_facial = {
+        item.actor_binding_id for item in expected_mapping.facial_tracks
+    }
     unknown_omissions = sorted(omitted_facial - available_facial)
     if unknown_omissions:
         raise ValueError(
