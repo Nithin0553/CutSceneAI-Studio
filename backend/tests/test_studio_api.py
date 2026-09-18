@@ -675,8 +675,7 @@ def test_unreal_bridge_keeps_interactive_editor_open(tmp_path: Path, monkeypatch
 
     assert 'run_name="cutsceneai_studio_bridge_import"' in bridge
     assert (
-        'entry_name = "import_plan" if relative == semantic_importer else "import_native"'
-        in bridge
+        'entry_name = "import_plan" if relative == semantic_importer else "import_native"' in bridge
     )
     assert 'run_name="__main__"' not in bridge
 
