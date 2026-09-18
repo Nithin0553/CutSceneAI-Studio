@@ -1,0 +1,249 @@
+import asyncio
+from io import BytesIO
+import json
+from pathlib import Path
+import sys
+import wave
+
+from cutsceneai_cir import Project
+from cutsceneai_dialogue import SpeechBackendResult
+from cutsceneai_performance import load_performance_bundle
+from fastapi.testclient import TestClient
+
+from app.api.performance_runtime import get_performance_executor
+from app.main import app
+from app.models.performance_runtime import PerformanceGenerateRequest, PerformanceRunStatus
+from app.services.performance_executor import StudioPerformanceExecutor
+import app.services.performance_executor as performance_executor_module
+
+
+FIXTURE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
+
+
+def _project() -> Project:
+    return Project.model_validate_json(FIXTURE.read_text(encoding="utf-8"))
+
+
+def _project_without_dialogue() -> Project:
+    payload = _project().model_dump(mode="json")
+    for scene in payload["scenes"]:
+        for beat in scene["beats"]:
+            for performance in beat["performances"]:
+                performance["dialogue"] = None
+                performance["facial"]["lip_sync"] = False
+    return Project.model_validate(payload)
+
+
+def _write_body_provider(path: Path) -> None:
+    path.write_text(
+        """
+import json
+import re
+import sys
+
+payload = json.loads(sys.stdin.read())
+request = payload["request"]
+frame_count = request["end_frame"] - request["start_frame"]
+match = re.search(r"at (\\d+) fps", request["prompt"])
+fps = int(match.group(1)) if match else 24
+identity = {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}
+samples = [
+    {
+        "frame_index": frame,
+        "root_translation": {"x": 0.0, "y": 0.0, "z": -0.01 * frame},
+        "joint_rotations": [identity for _ in range(22)],
+    }
+    for frame in range(frame_count)
+]
+response = {
+    "request_semantic_id": request["semantic_id"],
+    "provider": request["provider"],
+    "model": request["model"],
+    "model_revision": request["model_revision"],
+    "prompt_sha256": request["prompt_sha256"],
+    "configuration_sha256": request["configuration_sha256"],
+    "seed": request["seed"],
+    "generated_at_inference": True,
+    "retrieved_pre_authored_clip": False,
+    "deterministic_algorithms": True,
+    "artifact": {
+        "fps": fps,
+        "frame_count": frame_count,
+        "samples": samples,
+    },
+}
+sys.stdout.write(json.dumps(response))
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _configure_body_provider(tmp_path: Path, monkeypatch) -> None:
+    script = tmp_path / "body_provider.py"
+    _write_body_provider(script)
+    monkeypatch.setenv(
+        "CUTSCENEAI_BODY_PROVIDER_COMMAND",
+        json.dumps([sys.executable, str(script)]),
+    )
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-motion")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "identity-canonical")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+
+
+def _wav(duration_seconds: float = 0.08, sample_rate: int = 16000) -> bytes:
+    frame_count = max(1, int(duration_seconds * sample_rate))
+    output = BytesIO()
+    with wave.open(output, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(b"\x00\x00" * frame_count)
+    return output.getvalue()
+
+
+class FakeSpeechBackend:
+    async def synthesize(self, request):
+        return SpeechBackendResult(
+            data=_wav(),
+            provider="fake-speech",
+            model="fake-wav",
+            voice=request.voice,
+            request_id="speech-test",
+        )
+
+
+def test_readiness_requires_explicit_body_provider_identity(tmp_path: Path, monkeypatch) -> None:
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_COMMAND", raising=False)
+    monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_URL", raising=False)
+
+    blocked = executor.readiness()
+    assert blocked.ready is False
+    assert any(item.modality == "body" and not item.configured for item in blocked.providers)
+
+    _configure_body_provider(tmp_path, monkeypatch)
+    ready = executor.readiness()
+    assert ready.ready is True
+    assert next(item for item in ready.providers if item.modality == "body").configured is True
+
+
+def test_executor_generates_verified_bundle_and_evidence(tmp_path: Path, monkeypatch) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    record = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(
+                project=_project_without_dialogue(),
+                experiment_seed=20260812,
+            )
+        )
+    )
+
+    assert record.status is PerformanceRunStatus.SUCCEEDED
+    assert record.bundle_sha256 is not None
+    assert record.body_request_count > 0
+    assert record.facial_request_count == record.body_request_count
+    assert record.camera_request_count > 0
+    assert record.audio_track_count == 0
+
+    data = executor.bundle_bytes(record.run_id)
+    bundle = load_performance_bundle(data)
+    assert bundle.package.project_id == record.project_id
+    assert len(bundle.package.body_tracks) == record.body_request_count
+    assert len(bundle.package.facial_tracks) == record.facial_request_count
+    assert len(bundle.package.camera_tracks) == record.camera_request_count
+
+    run_dir = tmp_path / "runs" / record.run_id
+    assert (run_dir / "input.cir.json").exists()
+    assert (run_dir / "generation.plan.json").exists()
+    assert (run_dir / "provider-readiness.json").exists()
+    assert (run_dir / "provider-output-summary.json").exists()
+    assert executor.get_run(record.run_id).bundle_sha256 == record.bundle_sha256
+    assert executor.list_runs()[0].run_id == record.run_id
+
+
+def test_executor_keeps_failed_run_evidence(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_COMMAND", raising=False)
+    monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_URL", raising=False)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    record = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(project=_project_without_dialogue())
+        )
+    )
+
+    assert record.status is PerformanceRunStatus.FAILED
+    assert "Generated performance is not ready" in (record.error or "")
+    run_dir = tmp_path / "runs" / record.run_id
+    assert (run_dir / "failure.txt").exists()
+    try:
+        executor.bundle_bytes(record.run_id)
+    except ValueError as exc:
+        assert "did not succeed" in str(exc)
+    else:
+        raise AssertionError("Expected failed runs to refuse bundle download.")
+
+
+def test_executor_synthesizes_dialogue_and_preserves_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        performance_executor_module,
+        "OpenAISpeechBackend",
+        lambda: FakeSpeechBackend(),
+    )
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    record = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(project=_project())
+        )
+    )
+
+    assert record.status is PerformanceRunStatus.SUCCEEDED
+    assert record.audio_track_count > 0
+    run_dir = tmp_path / "runs" / record.run_id
+    manifest = json.loads((run_dir / "dialogue.manifest.json").read_text(encoding="utf-8"))
+    assert manifest["ai_voice_disclosure_required"] is True
+    assert all(clip["provenance"]["ai_generated"] for clip in manifest["clips"])
+    bundle = load_performance_bundle(executor.bundle_bytes(record.run_id))
+    assert len(bundle.package.audio_tracks) == record.audio_track_count
+
+
+def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monkeypatch) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    app.dependency_overrides[get_performance_executor] = lambda: executor
+
+    try:
+        client = TestClient(app)
+        readiness = client.get("/api/v1/studio/performance/readiness")
+        generated = client.post(
+            "/api/v1/studio/performance/generate",
+            json={
+                "project": _project_without_dialogue().model_dump(mode="json"),
+                "experiment_seed": 20260812,
+            },
+        )
+        assert generated.status_code == 200
+        run_id = generated.json()["run_id"]
+        fetched = client.get(f"/api/v1/studio/performance/runs/{run_id}")
+        listed = client.get("/api/v1/studio/performance/runs?limit=5")
+        bundle = client.get(f"/api/v1/studio/performance/runs/{run_id}/bundle")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert readiness.status_code == 200
+    assert readiness.json()["ready"] is True
+    assert generated.json()["status"] == "succeeded"
+    assert fetched.status_code == 200
+    assert listed.status_code == 200
+    assert listed.json()[0]["run_id"] == run_id
+    assert bundle.status_code == 200
+    assert bundle.headers["content-type"].startswith("application/zip")
+    load_performance_bundle(bundle.content)
