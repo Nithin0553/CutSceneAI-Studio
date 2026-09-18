@@ -114,7 +114,7 @@ def test_compiles_exact_bundle_and_renders_three_phase_unreal_harness() -> None:
         "target-reference-pose-relative-parent-local"
     )
     for token in (
-        'version.startswith("5.8.0")',
+        'version.startswith("5.8.")',
         "AnimPoseExtensions.get_reference_pose",
         "AnimPoseExtensions.get_ref_bone_pose",
         "data_model_interface",
