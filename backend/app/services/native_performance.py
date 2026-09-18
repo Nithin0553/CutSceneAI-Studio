@@ -59,9 +59,7 @@ def _mapping_sha(rendered: str) -> str:
 
 def _verified_asset_for_engine_ref(record, engine_ref: str):
     verified = [
-        item
-        for item in record.manifest.assets
-        if item.engine_ref == engine_ref and item.verified
+        item for item in record.manifest.assets if item.engine_ref == engine_ref and item.verified
     ]
     if not verified:
         raise ValueError(
@@ -180,9 +178,7 @@ class NativePerformanceRealizer:
             if not asset.engine_ref.startswith("Assets/") or not asset.engine_ref.endswith(
                 ".prefab"
             ):
-                raise ValueError(
-                    f"Unity character '{character.id}' must bind to a project prefab."
-                )
+                raise ValueError(f"Unity character '{character.id}' must bind to a project prefab.")
             entities.append(
                 UnityEntityAsset(
                     source_entity_id=character.id,
@@ -262,9 +258,7 @@ class NativePerformanceRealizer:
             target=target,
         )
         script = render_unity_native_performance_script(package)
-        importer_relative = (
-            "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
-        )
+        importer_relative = "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
         self._write_managed_text(
             Path(record.project_path) / importer_relative,
             script,
@@ -272,8 +266,7 @@ class NativePerformanceRealizer:
         )
 
         audio_by_relative = {
-            track.artifact.relative_path: track
-            for track in bundle.package.audio_tracks
+            track.artifact.relative_path: track for track in bundle.package.audio_tracks
         }
         for mapped in mapping.audio_tracks:
             source = audio_by_relative[mapped.source_artifact.relative_path]
@@ -325,11 +318,7 @@ class NativePerformanceRealizer:
             )
 
         plan = base_plan.model_copy(
-            update={
-                "sequences": [
-                    sequence.model_copy(update={"actors": updated_actors})
-                ]
-            }
+            update={"sequences": [sequence.model_copy(update={"actors": updated_actors})]}
         )
         semantics = compile_semantics(project)
         mapping = compile_unreal_performance_bundle(
@@ -341,12 +330,9 @@ class NativePerformanceRealizer:
 
         facial_actor_ids = {item.actor_binding_id for item in mapping.facial_tracks}
         native_actors: list[UnrealNativeActorTarget] = []
-        plan_actor_by_binding = {
-            actor.binding_id: actor for actor in plan.sequences[0].actors
-        }
+        plan_actor_by_binding = {actor.binding_id: actor for actor in plan.sequences[0].actors}
         for actor_binding_id in sorted(
-            {item.actor_binding_id for item in mapping.body_tracks}
-            | facial_actor_ids
+            {item.actor_binding_id for item in mapping.body_tracks} | facial_actor_ids
         ):
             actor = plan_actor_by_binding[actor_binding_id]
             assert actor.asset_path is not None
@@ -401,8 +387,7 @@ class NativePerformanceRealizer:
         )
         script = render_unreal_native_import_script(package)
         importer_relative = (
-            f"Saved/CutSceneAI/NativeBridge/{token}/Scripts/"
-            "cutsceneai-unreal-native-import.py"
+            f"Saved/CutSceneAI/NativeBridge/{token}/Scripts/cutsceneai-unreal-native-import.py"
         )
         importer = Path(record.project_path) / importer_relative
         self._write_managed_text(
