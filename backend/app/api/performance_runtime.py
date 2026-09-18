@@ -8,7 +8,10 @@ from app.models.performance_runtime import (
     PerformanceReadinessResponse,
     PerformanceRunRecord,
 )
+from app.models.studio import StudioBridgeCommand, StudioRealizationRequest
+from app.services.native_performance import NativePerformanceRealizer
 from app.services.performance_executor import StudioPerformanceExecutor
+from app.services.studio import StudioService
 from app.services.performance_providers import PerformanceProviderConfigurationError
 
 
@@ -18,6 +21,11 @@ router = APIRouter(prefix="/api/v1/studio/performance", tags=["studio-performanc
 @lru_cache
 def get_performance_executor() -> StudioPerformanceExecutor:
     return StudioPerformanceExecutor()
+
+
+@lru_cache
+def get_native_studio_service() -> StudioService:
+    return StudioService()
 
 
 def _bad_request(exc: ValueError | PerformanceProviderConfigurationError) -> HTTPException:
@@ -81,3 +89,28 @@ def download_performance_bundle(
             "Content-Disposition": (f'attachment; filename="cutsceneai-performance-{run_id}.zip"')
         },
     )
+
+
+
+@router.post(
+    "/runs/{run_id}/realize",
+    response_model=StudioBridgeCommand,
+)
+def realize_performance_run(
+    run_id: str,
+    request: StudioRealizationRequest,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+    studio: StudioService = Depends(get_native_studio_service),
+) -> StudioBridgeCommand:
+    try:
+        return NativePerformanceRealizer(
+            studio=studio,
+            performance=executor,
+        ).realize(
+            run_id=run_id,
+            project_id=request.project_id,
+            project=request.project,
+            bindings=request.bindings,
+        )
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
