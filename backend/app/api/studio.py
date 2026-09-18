@@ -13,7 +13,7 @@ from cutsceneai_unreal import (
     compile_project as compile_unreal_project,
     render_unreal_import_script,
 )
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from app.models.studio import (
@@ -45,19 +45,19 @@ def _bad_request(exc: ValueError) -> HTTPException:
 
 
 @router.get("/capabilities", response_model=StudioCapabilityResponse)
-def capabilities(service: StudioService = get_studio_service()) -> StudioCapabilityResponse:
+def capabilities(service: StudioService = Depends(get_studio_service)) -> StudioCapabilityResponse:
     return service.capabilities()
 
 
 @router.get("/projects", response_model=list[StudioProjectRecord])
-def list_projects(service: StudioService = get_studio_service()) -> list[StudioProjectRecord]:
+def list_projects(service: StudioService = Depends(get_studio_service)) -> list[StudioProjectRecord]:
     return service.list_projects()
 
 
 @router.post("/projects/connect", response_model=StudioProjectRecord)
 def connect_project(
     request: StudioProjectConnectRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioProjectRecord:
     try:
         return service.connect_project(request)
@@ -68,7 +68,7 @@ def connect_project(
 @router.post("/projects/{project_id}/scan", response_model=StudioProjectRecord)
 def scan_project(
     project_id: str,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioProjectRecord:
     try:
         return service.scan_project(project_id)
@@ -80,7 +80,7 @@ def scan_project(
 def update_bridge_manifest(
     project_id: str,
     request: StudioBridgeManifestRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioProjectRecord:
     try:
         return service.update_bridge_manifest(project_id, request)
@@ -91,7 +91,7 @@ def update_bridge_manifest(
 @router.post("/bindings/options", response_model=StudioBindingOptionsResponse)
 def binding_options(
     request: StudioBindingOptionsRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioBindingOptionsResponse:
     try:
         return service.binding_options(request.project_id, request.project)
@@ -102,7 +102,7 @@ def binding_options(
 @router.post("/bindings/validate", response_model=StudioBindingManifest)
 def validate_bindings(
     request: StudioBindingValidateRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioBindingManifest:
     try:
         return service.validate_bindings(
@@ -117,7 +117,7 @@ def validate_bindings(
 @router.post("/performance/plan", response_model=dict[str, Any])
 def performance_plan(
     request: StudioPerformancePlanRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> dict[str, Any]:
     try:
         return service.performance_plan(request.project, request.experiment_seed)
@@ -128,7 +128,7 @@ def performance_plan(
 @router.post("/realization/plan", response_model=StudioRealizationResponse)
 def realization_plan(
     request: StudioRealizationRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> StudioRealizationResponse:
     try:
         return service.compile_realization(
@@ -143,7 +143,7 @@ def realization_plan(
 @router.post("/realization/importer", response_model=None)
 def realization_importer(
     request: StudioRealizationRequest,
-    service: StudioService = get_studio_service(),
+    service: StudioService = Depends(get_studio_service),
 ) -> Response:
     try:
         record = service.get_project(request.project_id)
