@@ -952,7 +952,9 @@ def render_unity_native_runner_script(
             }
         )
     bundle_data = render_performance_bundle(package.bundle)
-    evidence_root = PurePosixPath(package.target.render.output_directory).parent.as_posix()
+    evidence_root = PurePosixPath(
+        package.target.render.output_directory
+    ).parent.as_posix()
     return (
         _UNITY_RUNNER_TEMPLATE.replace("__BUNDLE_SHA256__", _sha256(bundle_data))
         .replace("__EVIDENCE_ROOT_RELATIVE__", _windows_relative(evidence_root))
