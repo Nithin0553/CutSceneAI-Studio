@@ -113,7 +113,6 @@ def test_generate_endpoint_maps_provider_error() -> None:
     }
 
 
-
 def test_service_validates_and_stamps_edit_generation_metadata() -> None:
     result = asyncio.run(
         DirectorService(FakeBackend(project())).edit(
