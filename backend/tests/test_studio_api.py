@@ -80,10 +80,10 @@ def test_capabilities_report_missing_v3_execution_gates(tmp_path: Path, monkeypa
 
     assert by_id["project-connection"].status == "implemented"
     assert by_id["director-cir"].status == "implemented"
-    assert by_id["performance-inference"].status == "missing"
+    assert by_id["performance-inference"].status == "provider-ready"
     assert by_id["performance-inference"].blocking is True
-    assert by_id["engine-runner"].status == "missing"
-    assert by_id["natural-language-editing"].status == "missing"
+    assert by_id["engine-runner"].status == "implemented-beta"
+    assert by_id["natural-language-editing"].status == "implemented-baseline"
 
 
 def test_unity_connect_uses_scoped_filesystem_preflight(tmp_path: Path, monkeypatch) -> None:
@@ -598,7 +598,7 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     )
     assert heartbeat.manifest.bridge_connected is True
     assert heartbeat.manifest.bridge_agent_id == "test-unity-agent"
-    assert heartbeat.manifest.assets[0].verified is True
+    verified = next(item for item in heartbeat.manifest.assets if item.object_id == "global:mina")\n    assert verified.verified is True
 
     queued = service.enqueue_bridge_command(
         record.project_id,
