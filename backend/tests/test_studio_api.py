@@ -5,7 +5,11 @@ from fastapi.testclient import TestClient
 
 from app.api.studio import get_studio_service
 from app.main import app
-from app.models.studio import StudioEngine, StudioProjectConnectRequest
+from app.models.studio import (
+    StudioBindingSelection,
+    StudioEngine,
+    StudioProjectConnectRequest,
+)
 from app.services.studio import StudioService
 import app.services.studio as studio_module
 from cutsceneai_cir import Project
@@ -153,8 +157,8 @@ def test_binding_options_and_validation_use_connected_project_objects(
         record.project_id,
         project,
         [
-            {"cir_id": "mina", "project_object_id": mina.object_id},
-            {"cir_id": "arjun", "project_object_id": arjun.object_id},
+            StudioBindingSelection(cir_id="mina", project_object_id=mina.object_id),
+            StudioBindingSelection(cir_id="arjun", project_object_id=arjun.object_id),
         ],
     )
 
