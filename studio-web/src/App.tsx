@@ -573,8 +573,33 @@ function App() {
       anchor.click();
       URL.revokeObjectURL(url);
       setNotice(
-        "Bound importer generated. Automatic execution in the connected editor requires the remaining engine bridge.",
+        "Bound importer generated for inspection or manual execution.",
       );
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function executeRealizationInEngine() {
+    if (!cir || !selectedProject || !realizationReady) return;
+    setBusy("bridge");
+    setError("");
+    try {
+      const queued = await postJson("/api/v1/studio/realization/execute", {
+        project_id: selectedProject.project_id,
+        project: cir,
+        bindings: selectedBindings,
+      });
+      setNotice(
+        "Managed importer staged and queued for " +
+          selectedProject.engine +
+          ": " +
+          queued.command_id,
+      );
+      window.setTimeout(refreshBridgeCommands, 1200);
+      window.setTimeout(refreshBootstrap, 1800);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
@@ -1199,8 +1224,25 @@ function App() {
                       >
                         <Download size={15} /> Download bound importer
                       </button>
-                      <button className="primary-button" disabled title="Engine bridge required">
-                        <MonitorPlay size={15} /> Generate in engine
+                      <button
+                        className="primary-button"
+                        onClick={executeRealizationInEngine}
+                        disabled={
+                          busy === "bridge" ||
+                          !selectedProject.manifest.bridge_connected
+                        }
+                        title={
+                          selectedProject.manifest.bridge_connected
+                            ? "Stage and execute the managed importer in the connected editor"
+                            : "Open the project and wait for the local bridge heartbeat"
+                        }
+                      >
+                        {busy === "bridge" ? (
+                          <LoaderCircle className="spin" size={15} />
+                        ) : (
+                          <MonitorPlay size={15} />
+                        )}
+                        Build in engine
                       </button>
                     </div>
                   </>
