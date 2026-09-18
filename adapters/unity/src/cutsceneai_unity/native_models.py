@@ -59,7 +59,7 @@ class UnityNativeRenderSettings(UnityModel):
 class UnityNativeRealizationTarget(UnityModel):
     target_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unity"] = "Unity"
-    target_engine_version: Literal["6000.0"] = "6000.0"
+    target_engine_version: str = Field(default="6000.3", pattern=r"^6000\.(?:0|3)$")
     timeline_package_version: Literal["1.8.12"] = "1.8.12"
     project_id: str
     source_mapping_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
