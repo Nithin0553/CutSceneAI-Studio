@@ -27,6 +27,11 @@ class FakeBackend:
         assert prompt
         return DirectorBackendResult(self.value, "fake", "fake-model", "req-1")
 
+    async def edit(self, current: Project, instruction: str) -> DirectorBackendResult:
+        assert current.id
+        assert instruction
+        return DirectorBackendResult(self.value, "fake", "fake-model", "req-edit")
+
 
 def test_service_validates_and_stamps_generation_metadata() -> None:
     result = asyncio.run(
@@ -106,3 +111,52 @@ def test_generate_endpoint_maps_provider_error() -> None:
         "retryable": True,
         "request_id": "req-fail",
     }
+
+
+
+def test_service_validates_and_stamps_edit_generation_metadata() -> None:
+    result = asyncio.run(
+        DirectorService(FakeBackend(project())).edit(
+            project(),
+            "Hold the final reaction two seconds longer.",
+        )
+    )
+    assert result.project.generation.generator == "fake-director"
+    assert result.project.generation.prompt_version == "director-edit-v0.1"
+    assert result.request_id == "req-edit"
+
+
+def test_openai_adapter_requests_typed_project_for_edit() -> None:
+    responses = FakeResponses(project())
+    backend = OpenAIDirectorBackend(SimpleNamespace(responses=responses), model="test-model")
+    result = asyncio.run(
+        backend.edit(
+            project(),
+            "Move the close-up later without changing the dialogue.",
+        )
+    )
+    assert responses.kwargs["text_format"] is Project
+    assert responses.kwargs["model"] == "test-model"
+    payload = responses.kwargs["input"]
+    assert isinstance(payload, list)
+    assert "CURRENT CIR:" in payload[1]["content"]
+    assert "Move the close-up later" in payload[1]["content"]
+    assert result.request_id == "req-openai"
+
+
+def test_edit_endpoint_returns_validated_revised_cir() -> None:
+    app.dependency_overrides[get_director_service] = lambda: DirectorService(FakeBackend(project()))
+    try:
+        response = TestClient(app).post(
+            "/api/v1/director/edit",
+            json={
+                "project": project().model_dump(mode="json"),
+                "instruction": "Hold the final reaction two seconds longer.",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["project"]["generation"]["prompt_version"] == "director-edit-v0.1"
+    assert body["request_id"] == "req-edit"
