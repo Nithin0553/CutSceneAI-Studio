@@ -199,7 +199,6 @@ def test_studio_api_connects_and_lists_project(tmp_path: Path, monkeypatch) -> N
     assert listed.json()[0]["engine"] == "unity"
 
 
-
 def _client_with_service(service: StudioService) -> TestClient:
     app.dependency_overrides[get_studio_service] = lambda: service
     return TestClient(app)
@@ -215,11 +214,7 @@ def _required_bindings(record: dict[str, object]) -> list[dict[str, str]]:
     assets = manifest["assets"]
     assert isinstance(assets, list)
 
-    by_name = {
-        item["display_name"]: item
-        for item in assets
-        if isinstance(item, dict)
-    }
+    by_name = {item["display_name"]: item for item in assets if isinstance(item, dict)}
     return [
         {
             "cir_id": "mina",
@@ -304,9 +299,7 @@ def test_api_accepts_verified_engine_bridge_manifest(tmp_path: Path, monkeypatch
     assert body["manifest"]["assets"][0]["verified"] is True
 
 
-def test_api_runs_unity_binding_plan_realization_and_importer(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_api_runs_unity_binding_plan_realization_and_importer(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     client = _client_with_service(service)
     project = _project_payload()
@@ -370,9 +363,7 @@ def test_api_runs_unity_binding_plan_realization_and_importer(
     assert "CutSceneAI" in importer.text
 
 
-def test_api_runs_unreal_binding_realization_and_importer(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_api_runs_unreal_binding_realization_and_importer(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     client = _client_with_service(service)
     project = _project_payload()
@@ -450,9 +441,7 @@ def test_realization_blocks_missing_and_incompatible_required_bindings(
     assert "Unity prefab" in incompatible.blocking_issues[0]
 
 
-def test_binding_validation_rejects_unknown_project_object(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_binding_validation_rejects_unknown_project_object(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
         StudioProjectConnectRequest(
