@@ -69,6 +69,25 @@ def compile_unreal_native_performance_package(
         semantics=semantics,
         target_path=_mapping_target_root(mapping),
     )
+    omitted_facial = set(target.omitted_facial_actor_binding_ids)
+    available_facial = {item.actor_binding_id for item in expected_mapping.facial_tracks}
+    unknown_omissions = sorted(omitted_facial - available_facial)
+    if unknown_omissions:
+        raise ValueError(
+            "Unreal native target omits facial tracks that are not present in the bundle: "
+            + ", ".join(unknown_omissions)
+        )
+    if omitted_facial:
+        expected_mapping = expected_mapping.model_copy(
+            update={
+                "facial_tracks": [
+                    item
+                    for item in expected_mapping.facial_tracks
+                    if item.actor_binding_id not in omitted_facial
+                ]
+            },
+            deep=True,
+        )
     if mapping != expected_mapping:
         raise ValueError(
             "Unreal performance mapping is not the deterministic mapping of the bundle."
