@@ -37,8 +37,14 @@ public static class CutSceneAIStudioBridge
         public bool humanoid;
         public int humanoid_bone_count;
         public int blendshape_count;
+        public string[] blendshape_names;
         public string facial_renderer_path;
         public string class_name;
+    }
+
+    private sealed class RetryLaterException : Exception
+    {
+        public RetryLaterException(string message) : base(message) {}
     }
 
     [Serializable]
@@ -279,6 +285,16 @@ public static class CutSceneAIStudioBridge
                         "Unsupported bridge command: " + command.command);
             }
         }
+        catch (RetryLaterException exc)
+        {
+            Debug.Log(
+                "CutSceneAI Studio Bridge deferred command "
+                + command.command_id
+                + ": "
+                + exc.Message);
+            _nextPoll = EditorApplication.timeSinceStartup + PollIntervalSeconds;
+            return;
+        }
         catch (Exception exc)
         {
             succeeded = false;
@@ -369,15 +385,15 @@ public static class CutSceneAIStudioBridge
 
         AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
         if (EditorApplication.isCompiling)
-            throw new InvalidOperationException(
-                "Unity is compiling the staged importer. Retry after compilation completes.");
+            throw new RetryLaterException(
+                "Unity is compiling the staged importer; the leased command will be retried.");
 
         Type importerType = AppDomain.CurrentDomain.GetAssemblies()
             .Select(assembly => assembly.GetType(typeName))
             .FirstOrDefault(type => type != null);
         if (importerType == null)
-            throw new InvalidOperationException(
-                "CutSceneAI generated importer is not compiled in the editor domain: "
+            throw new RetryLaterException(
+                "Generated importer type is not available in this editor domain yet: "
                 + typeName);
 
         System.Reflection.MethodInfo method = importerType.GetMethod(
@@ -521,6 +537,12 @@ public static class CutSceneAIStudioBridge
             .FirstOrDefault();
         int blendshapes =
             face == null || face.sharedMesh == null ? 0 : face.sharedMesh.blendShapeCount;
+        string[] blendshapeNames =
+            face == null || face.sharedMesh == null
+                ? Array.Empty<string>()
+                : Enumerable.Range(0, face.sharedMesh.blendShapeCount)
+                    .Select(index => face.sharedMesh.GetBlendShapeName(index))
+                    .ToArray();
 
         return new AssetRecord
         {
@@ -537,6 +559,7 @@ public static class CutSceneAIStudioBridge
                 humanoid = humanoid,
                 humanoid_bone_count = mappedBones,
                 blendshape_count = blendshapes,
+                blendshape_names = blendshapeNames,
                 facial_renderer_path = face == null ? string.Empty : RelativePath(root.transform, face.transform),
                 class_name = root.GetType().Name,
             },
