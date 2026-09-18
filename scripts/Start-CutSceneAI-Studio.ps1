@@ -44,6 +44,10 @@ Write-Host "Web: http://127.0.0.1:5173"
 Write-Host ""
 
 $BackendCommand = @($PythonArgs + @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"))
+$EnvFile = Join-Path $RepoRoot ".env.local"
+if (Test-Path -LiteralPath $EnvFile) {
+    $BackendCommand += @("--env-file", $EnvFile)
+}
 $Backend = Start-Process -FilePath $PythonExe -ArgumentList $BackendCommand -WorkingDirectory $BackendDir -PassThru
 $Frontend = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev") -WorkingDirectory $WebDir -PassThru
 
