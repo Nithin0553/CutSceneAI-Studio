@@ -148,6 +148,8 @@ function App() {
   const [realization, setRealization] = useState<Json | null>(null);
   const [editInstruction, setEditInstruction] = useState("");
   const [cirHistory, setCirHistory] = useState<Json[]>([]);
+  const [currentRevisionId, setCurrentRevisionId] = useState("");
+  const [revisionCount, setRevisionCount] = useState(0);
   const [bridgeCommands, setBridgeCommands] = useState<Json[]>([]);
 
   const selectedProject = useMemo(
@@ -207,6 +209,32 @@ function App() {
       setHealth("offline");
       setError(exc instanceof Error ? exc.message : String(exc));
     }
+  }
+
+  async function persistCirRevision(
+    nextCir: Json,
+    source: "generation" | "edit" | "restore" | "import",
+    instruction?: string,
+    parentRevisionId?: string,
+  ) {
+    if (!selectedProjectId) return null;
+    const revision = await postJson("/api/v1/studio/revisions", {
+      project_id: selectedProjectId,
+      project: nextCir,
+      source,
+      parent_revision_id: parentRevisionId || null,
+      instruction: instruction || null,
+    });
+    setCurrentRevisionId(revision.revision_id);
+    try {
+      const revisions = await apiJson(
+        "/api/v1/studio/projects/" + selectedProjectId + "/revisions",
+      );
+      setRevisionCount(revisions?.length || 0);
+    } catch {
+      // Revision creation already succeeded; count is informational.
+    }
+    return revision;
   }
 
   async function connectProject() {
@@ -307,11 +335,12 @@ function App() {
       });
 
       if (selectedProjectId) {
+        await persistCirRevision(nextCir, "generation");
         await loadBindingOptions(nextCir, selectedProjectId);
       }
 
       setNotice(
-        "CIR generated and validated. Review project bindings before realization.",
+        "CIR generated, validated, and stored as an immutable revision. Review project bindings before realization.",
       );
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
@@ -358,10 +387,21 @@ function App() {
       setPerformanceRun(null);
       setRealization(null);
       if (selectedProjectId) {
+        let parentRevisionId = currentRevisionId;
+        if (!parentRevisionId) {
+          const imported = await persistCirRevision(cir, "import");
+          parentRevisionId = imported?.revision_id || "";
+        }
+        await persistCirRevision(
+          nextCir,
+          "edit",
+          editInstruction.trim(),
+          parentRevisionId,
+        );
         await loadBindingOptions(nextCir, selectedProjectId);
       }
       setNotice(
-        "CIR revision validated. Downstream bindings and generated performance were invalidated for safe regeneration.",
+        "CIR revision validated and persisted. Downstream bindings and generated performance were invalidated for safe regeneration.",
       );
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
@@ -371,11 +411,27 @@ function App() {
   }
 
   async function undoLastEdit() {
-    const previous = cirHistory[cirHistory.length - 1];
-    if (!previous) return;
+    if (!selectedProjectId || !currentRevisionId) return;
     setBusy("edit");
     setError("");
     try {
+      const current = await apiJson(
+        "/api/v1/studio/projects/" +
+          selectedProjectId +
+          "/revisions/" +
+          currentRevisionId,
+      );
+      if (!current.parent_revision_id) {
+        setNotice("This CIR revision has no parent revision to restore.");
+        return;
+      }
+      const previousRevision = await apiJson(
+        "/api/v1/studio/projects/" +
+          selectedProjectId +
+          "/revisions/" +
+          current.parent_revision_id,
+      );
+      const previous = previousRevision.project;
       const [validated, storyboardResponse] = await Promise.all([
         postJson("/api/v1/cir/validate", previous),
         fetch("/api/v1/preview/storyboard.svg", {
@@ -390,15 +446,14 @@ function App() {
       setCir(previous);
       setValidation(validated);
       setStoryboard(await storyboardResponse.text());
+      setCurrentRevisionId(previousRevision.revision_id);
       setCirHistory((items) => items.slice(0, -1));
       setBindingManifest(null);
       setPerformancePlan(null);
       setPerformanceRun(null);
       setRealization(null);
-      if (selectedProjectId) {
-        await loadBindingOptions(previous, selectedProjectId);
-      }
-      setNotice("Previous validated CIR revision restored.");
+      await loadBindingOptions(previous, selectedProjectId);
+      setNotice("Previous persisted CIR revision restored.");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
@@ -714,6 +769,8 @@ function App() {
     setRealization(null);
     setEditInstruction("");
     setCirHistory([]);
+    setCurrentRevisionId("");
+    setRevisionCount(0);
     setBridgeCommands([]);
     setError("");
     setNotice("");
@@ -1526,8 +1583,8 @@ function App() {
                       downstream artifacts that may depend on changed semantics.
                     </p>
                   </div>
-                  <Pill tone={cirHistory.length ? "info" : "neutral"}>
-                    {cirHistory.length} prior revision{cirHistory.length === 1 ? "" : "s"}
+                  <Pill tone={revisionCount ? "info" : "neutral"}>
+                    {revisionCount} persisted revision{revisionCount === 1 ? "" : "s"}
                   </Pill>
                 </div>
                 <textarea
@@ -1542,7 +1599,7 @@ function App() {
                   <button
                     className="secondary-button"
                     onClick={undoLastEdit}
-                    disabled={busy === "edit" || cirHistory.length === 0}
+                    disabled={busy === "edit" || !currentRevisionId}
                   >
                     <RefreshCw size={15} /> Undo last CIR edit
                   </button>
