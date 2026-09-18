@@ -54,6 +54,7 @@ class UnrealNativeRealizationTarget(UnrealModel):
     sequence_package_path: str = Field(pattern=r"^/Game(?:/[A-Za-z][A-Za-z0-9_]*)+$")
     sequence_asset_name: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")
     actors: list[UnrealNativeActorTarget] = Field(min_length=1)
+    omitted_facial_actor_binding_ids: list[str] = Field(default_factory=list)
     render: UnrealNativeRenderSettings
 
     @model_validator(mode="after")
@@ -61,4 +62,15 @@ class UnrealNativeRealizationTarget(UnrealModel):
         binding_ids = [item.actor_binding_id for item in self.actors]
         if len(binding_ids) != len(set(binding_ids)):
             raise ValueError("actors must contain unique actor_binding_id values")
+        omissions = self.omitted_facial_actor_binding_ids
+        if len(omissions) != len(set(omissions)):
+            raise ValueError(
+                "omitted_facial_actor_binding_ids must contain unique values"
+            )
+        unknown = sorted(set(omissions) - set(binding_ids))
+        if unknown:
+            raise ValueError(
+                "omitted_facial_actor_binding_ids references unknown actors: "
+                + ", ".join(unknown)
+            )
         return self
