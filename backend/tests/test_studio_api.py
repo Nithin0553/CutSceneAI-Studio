@@ -757,6 +757,9 @@ def test_bridge_api_round_trip_and_semantic_execution(tmp_path: Path, monkeypatc
                 "result": {"current_scene": "Assets/Scenes/Main.unity"},
             },
         )
+        fetched_command = client.get(
+            f"/api/v1/studio/projects/{project_id}/bridge/commands/{command_id}"
+        )
         executed = client.post(
             "/api/v1/studio/realization/execute",
             json={
@@ -780,6 +783,8 @@ def test_bridge_api_round_trip_and_semantic_execution(tmp_path: Path, monkeypatc
     assert polled.json()["command"]["status"] == "leased"
     assert completed.status_code == 200
     assert completed.json()["status"] == "succeeded"
+    assert fetched_command.status_code == 200
+    assert fetched_command.json()["status"] == "succeeded"
     assert executed.status_code == 200
     assert executed.json()["command"] == "run_importer"
     staged = root / executed.json()["payload"]["importer_path"]
@@ -808,6 +813,9 @@ def test_bridge_api_maps_unknown_project_failures_to_422(tmp_path: Path, monkeyp
                 json={"command": "readback", "payload": {}},
             ),
             client.get("/api/v1/studio/projects/missing/bridge/commands"),
+            client.get(
+                "/api/v1/studio/projects/missing/bridge/commands/missing-command"
+            ),
             client.get(
                 "/api/v1/studio/projects/missing/bridge/poll",
                 params={"agent_id": "agent"},
