@@ -44,7 +44,9 @@ type Busy =
   | "bindings"
   | "performance"
   | "realization"
-  | "export";
+  | "export"
+  | "edit"
+  | "bridge";
 
 const DEFAULT_PROMPT =
   "A guard walks through an abandoned hallway, hears a noise, stops, turns toward a door, and quietly asks who is there.";
@@ -142,6 +144,9 @@ function App() {
 
   const [performancePlan, setPerformancePlan] = useState<Json | null>(null);
   const [realization, setRealization] = useState<Json | null>(null);
+  const [editInstruction, setEditInstruction] = useState("");
+  const [cirHistory, setCirHistory] = useState<Json[]>([]);
+  const [bridgeCommands, setBridgeCommands] = useState<Json[]>([]);
 
   const selectedProject = useMemo(
     () => projects.find((item) => item.project_id === selectedProjectId) || null,
@@ -309,6 +314,146 @@ function App() {
     }
   }
 
+  async function editScene() {
+    if (!cir || editInstruction.trim().length < 5) return;
+    setBusy("edit");
+    setError("");
+    setNotice("");
+    try {
+      const director = await postJson("/api/v1/director/edit", {
+        project: cir,
+        instruction: editInstruction.trim(),
+      });
+      const nextCir = director.project;
+      const [validated, storyboardResponse] = await Promise.all([
+        postJson("/api/v1/cir/validate", nextCir),
+        fetch("/api/v1/preview/storyboard.svg", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nextCir),
+        }),
+      ]);
+      if (!storyboardResponse.ok) {
+        throw new Error(await storyboardResponse.text());
+      }
+
+      setCirHistory((items) => [...items, cir]);
+      setCir(nextCir);
+      setValidation(validated);
+      setStoryboard(await storyboardResponse.text());
+      setDirectorMeta({
+        provider: director.provider,
+        model: director.model,
+        request_id: director.request_id,
+      });
+      setEditInstruction("");
+      setBindingManifest(null);
+      setPerformancePlan(null);
+      setRealization(null);
+      if (selectedProjectId) {
+        await loadBindingOptions(nextCir, selectedProjectId);
+      }
+      setNotice(
+        "CIR revision validated. Downstream bindings and generated performance were invalidated for safe regeneration.",
+      );
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function undoLastEdit() {
+    const previous = cirHistory[cirHistory.length - 1];
+    if (!previous) return;
+    setBusy("edit");
+    setError("");
+    try {
+      const [validated, storyboardResponse] = await Promise.all([
+        postJson("/api/v1/cir/validate", previous),
+        fetch("/api/v1/preview/storyboard.svg", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(previous),
+        }),
+      ]);
+      if (!storyboardResponse.ok) {
+        throw new Error(await storyboardResponse.text());
+      }
+      setCir(previous);
+      setValidation(validated);
+      setStoryboard(await storyboardResponse.text());
+      setCirHistory((items) => items.slice(0, -1));
+      setBindingManifest(null);
+      setPerformancePlan(null);
+      setRealization(null);
+      if (selectedProjectId) {
+        await loadBindingOptions(previous, selectedProjectId);
+      }
+      setNotice("Previous validated CIR revision restored.");
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function installEngineBridge() {
+    if (!selectedProject) return;
+    setBusy("bridge");
+    setError("");
+    try {
+      const result = await postJson(
+        "/api/v1/studio/projects/" +
+          selectedProject.project_id +
+          "/bridge/install",
+        {},
+      );
+      setNotice(result.message);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function refreshBridgeCommands() {
+    if (!selectedProject) return;
+    try {
+      const result = await apiJson(
+        "/api/v1/studio/projects/" +
+          selectedProject.project_id +
+          "/bridge/commands",
+      );
+      setBridgeCommands(result || []);
+    } catch {
+      setBridgeCommands([]);
+    }
+  }
+
+  async function sendBridgeCommand(command: string) {
+    if (!selectedProject?.manifest?.bridge_connected) return;
+    setBusy("bridge");
+    setError("");
+    try {
+      const queued = await postJson(
+        "/api/v1/studio/projects/" +
+          selectedProject.project_id +
+          "/bridge/commands",
+        { command, payload: {} },
+      );
+      setNotice(
+        "Engine command queued: " + queued.command + " (" + queued.command_id + ")",
+      );
+      window.setTimeout(refreshBridgeCommands, 1200);
+      window.setTimeout(refreshBootstrap, 1600);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function loadBindingOptions(nextCir = cir, projectId = selectedProjectId) {
     if (!nextCir || !projectId) return;
     setBusy("bindings");
@@ -460,6 +605,9 @@ function App() {
     setBindingManifest(null);
     setPerformancePlan(null);
     setRealization(null);
+    setEditInstruction("");
+    setCirHistory([]);
+    setBridgeCommands([]);
     setError("");
     setNotice("");
   }
@@ -577,13 +725,19 @@ function App() {
                 index={6}
                 title="Preview in engine"
                 detail="Authoritative interactive preview"
-                state={realizationReady ? "blocked" : "pending"}
+                state={
+                  realizationReady && selectedProject?.manifest?.bridge_connected
+                    ? "active"
+                    : realizationReady
+                      ? "blocked"
+                      : "pending"
+                }
               />
               <Step
                 index={7}
                 title="Edit + verify"
                 detail="CIR patch, readback, parity"
-                state="blocked"
+                state={cirHistory.length > 0 ? "active" : cirReady ? "active" : "pending"}
               />
             </div>
 
@@ -673,18 +827,32 @@ function App() {
                       </option>
                     ))}
                   </select>
-                  <button
-                    className="secondary-button"
-                    onClick={scanSelectedProject}
-                    disabled={busy === "scan"}
-                  >
-                    {busy === "scan" ? (
-                      <LoaderCircle className="spin" size={15} />
-                    ) : (
-                      <ScanSearch size={15} />
-                    )}
-                    Refresh scan
-                  </button>
+                  <div className="project-action-stack">
+                    <button
+                      className="secondary-button"
+                      onClick={scanSelectedProject}
+                      disabled={busy === "scan"}
+                    >
+                      {busy === "scan" ? (
+                        <LoaderCircle className="spin" size={15} />
+                      ) : (
+                        <ScanSearch size={15} />
+                      )}
+                      Refresh scan
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={installEngineBridge}
+                      disabled={busy === "bridge"}
+                    >
+                      {busy === "bridge" ? (
+                        <LoaderCircle className="spin" size={15} />
+                      ) : (
+                        <Link2 size={15} />
+                      )}
+                      Install bridge
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="empty-inline">
@@ -1103,12 +1271,124 @@ function App() {
                       : "Unity Timeline / Game view"}
                   </strong>
                   <span>
-                    Automatic focus, preview, readback and render controls will
-                    activate when the bidirectional engine bridge is implemented.
+                    {selectedProject?.manifest?.bridge_connected
+                      ? "The local editor bridge is connected. Use these controls to focus, play, save and read back the authoritative engine state."
+                      : "Install the local editor bridge, then open the project. The engine will heartbeat into Studio without exposing a remote control port."}
                   </span>
+                  <div className="bridge-controls">
+                    {!selectedProject?.manifest?.bridge_connected ? (
+                      <button
+                        className="secondary-button"
+                        onClick={installEngineBridge}
+                        disabled={!selectedProject || busy === "bridge"}
+                      >
+                        <Link2 size={15} /> Install local bridge
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="secondary-button"
+                          onClick={() => sendBridgeCommand("focus_preview")}
+                          disabled={busy === "bridge"}
+                        >
+                          <MonitorPlay size={15} /> Focus
+                        </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() => sendBridgeCommand("play_preview")}
+                          disabled={busy === "bridge"}
+                        >
+                          <Play size={15} /> Play
+                        </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() => sendBridgeCommand("readback")}
+                          disabled={busy === "bridge"}
+                        >
+                          <ScanSearch size={15} /> Readback
+                        </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() => sendBridgeCommand("save")}
+                          disabled={busy === "bridge"}
+                        >
+                          <PackageCheck size={15} /> Save
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {selectedProject?.manifest?.bridge_last_seen_utc && (
+                    <small className="bridge-last-seen">
+                      Last engine heartbeat:{" "}
+                      {new Date(
+                        selectedProject.manifest.bridge_last_seen_utc,
+                      ).toLocaleTimeString()}
+                    </small>
+                  )}
                 </div>
               </div>
             </section>
+
+            {cirReady && (
+              <section className="stage-card edit-stage">
+                <div className="stage-header">
+                  <div className="stage-number">07</div>
+                  <div>
+                    <h2>Revise with natural language</h2>
+                    <p>
+                      Each edit creates a new validated CIR revision and invalidates
+                      downstream artifacts that may depend on changed semantics.
+                    </p>
+                  </div>
+                  <Pill tone={cirHistory.length ? "info" : "neutral"}>
+                    {cirHistory.length} prior revision{cirHistory.length === 1 ? "" : "s"}
+                  </Pill>
+                </div>
+                <textarea
+                  className="edit-box"
+                  value={editInstruction}
+                  onChange={(event) => setEditInstruction(event.target.value)}
+                  placeholder='Example: "Hold the final close-up two seconds longer and make the guard more hesitant."'
+                  minLength={5}
+                  maxLength={4000}
+                />
+                <div className="stage-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={undoLastEdit}
+                    disabled={busy === "edit" || cirHistory.length === 0}
+                  >
+                    <RefreshCw size={15} /> Undo last CIR edit
+                  </button>
+                  <button
+                    className="primary-button"
+                    onClick={editScene}
+                    disabled={
+                      busy === "edit" || editInstruction.trim().length < 5
+                    }
+                  >
+                    {busy === "edit" ? (
+                      <LoaderCircle className="spin" size={15} />
+                    ) : (
+                      <Sparkles size={15} />
+                    )}
+                    Apply validated edit
+                  </button>
+                </div>
+                <div className="gate-note">
+                  <Wrench size={16} />
+                  <div>
+                    <strong>Dependency-safe behavior</strong>
+                    <span>
+                      Editing already preserves CIR validity and invalidates stale
+                      bindings/performance/realization. Fine-grained dependency-local
+                      regeneration will replace this conservative full downstream
+                      invalidation after the provider executor is connected.
+                    </span>
+                  </div>
+                </div>
+              </section>
+            )}
           </section>
         </main>
       )}
