@@ -603,9 +603,7 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     )
     assert heartbeat.manifest.bridge_connected is True
     assert heartbeat.manifest.bridge_agent_id == "test-unity-agent"
-    verified = next(
-        item for item in heartbeat.manifest.assets if item.object_id == "global:mina"
-    )
+    verified = next(item for item in heartbeat.manifest.assets if item.object_id == "global:mina")
     assert verified.verified is True
 
     queued = service.enqueue_bridge_command(
@@ -682,7 +680,6 @@ def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypat
         assert "different engine agent" in str(exc)
     else:
         raise AssertionError("Expected bridge lease ownership to be enforced.")
-
 
 
 def test_bridge_api_round_trip_and_semantic_execution(tmp_path: Path, monkeypatch) -> None:
@@ -815,11 +812,7 @@ def test_bridge_install_is_idempotent_and_refuses_unmanaged_collision(
     assert first.installed_files == second.installed_files
 
     bridge_path = (
-        Path(record.project_path)
-        / "Assets"
-        / "Editor"
-        / "CutSceneAI"
-        / "CutSceneAIStudioBridge.cs"
+        Path(record.project_path) / "Assets" / "Editor" / "CutSceneAI" / "CutSceneAIStudioBridge.cs"
     )
     bridge_path.write_text("// user-owned editor script\n", encoding="utf-8")
     try:
