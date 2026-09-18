@@ -147,9 +147,7 @@ def test_binding_options_and_validation_use_connected_project_objects(
     assert roles["contract"].required is False
     assert roles["mina"].candidates
 
-    mina = next(
-        item for item in record.manifest.assets if item.engine_ref.endswith("/Mina.prefab")
-    )
+    mina = next(item for item in record.manifest.assets if item.engine_ref.endswith("/Mina.prefab"))
     arjun = next(
         item for item in record.manifest.assets if item.engine_ref.endswith("/Arjun.prefab")
     )
