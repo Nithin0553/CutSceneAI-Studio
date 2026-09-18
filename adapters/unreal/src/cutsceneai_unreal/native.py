@@ -172,7 +172,14 @@ PLAN = json.loads(__PLAN_JSON__)
 MAPPING = json.loads(__MAPPING_JSON__)
 TARGET = json.loads(__TARGET_JSON__)
 EXPECTED_BONES = tuple(item["target_bone_name"] for item in MAPPING["body_tracks"][0]["joint_bindings"])
-EXPECTED_MORPHS = tuple(item["target_curve_name"] for item in MAPPING["facial_tracks"][0]["curve_bindings"])
+EXPECTED_MORPHS = (
+    tuple(
+        item["target_curve_name"]
+        for item in MAPPING["facial_tracks"][0]["curve_bindings"]
+    )
+    if MAPPING["facial_tracks"]
+    else tuple()
+)
 BODY_PREFIX = "CSA|BODY|"
 FACE_PREFIX = "CSA|FACIAL|"
 CAMERA_PREFIX = "CSA|CAMERA|"
