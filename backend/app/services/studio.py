@@ -395,7 +395,36 @@ class StudioService:
 
         asset_by_id = {item.object_id: item for item in record.manifest.assets}
         selection_by_cir = {item.cir_id: item for item in bindings}
+        required_character_ids = {item.id for item in project.characters}
         warnings: list[str] = []
+        blocking_issues: list[str] = []
+
+        for cir_id in required_character_ids:
+            selection = selection_by_cir[cir_id]
+            asset = asset_by_id[selection.project_object_id]
+            if record.engine is StudioEngine.UNITY:
+                compatible = (
+                    asset.engine_ref.startswith("Assets/")
+                    and asset.engine_ref.endswith(".prefab")
+                )
+                requirement = "a Unity prefab path under Assets/"
+            else:
+                compatible = asset.engine_ref.startswith("/Game/")
+                requirement = "an Unreal /Game asset reference"
+            if not compatible:
+                blocking_issues.append(
+                    f"Required character binding '{cir_id}' must resolve to {requirement}; "
+                    f"got '{asset.engine_ref}'."
+                )
+
+        if blocking_issues:
+            return StudioRealizationResponse(
+                project_id=project_id,
+                engine=record.engine,
+                ready=False,
+                warnings=warnings,
+                blocking_issues=blocking_issues,
+            )
 
         if record.engine is StudioEngine.UNITY:
             entity_assets: list[UnityEntityAsset] = []
@@ -563,7 +592,7 @@ class StudioService:
             ".unity": "scene",
             ".wav": "audio",
         }
-        for path in sorted(asset_root.rglob("*")):
+        for path in asset_root.rglob("*"):
             if len(assets) >= _MAX_DISCOVERED_ASSETS:
                 break
             if not path.is_file() or path.suffix.lower() not in extension_kind:
@@ -628,7 +657,7 @@ class StudioService:
         assets: list[StudioAsset] = []
         content_root = project_path / "Content"
         if content_root.exists():
-            for path in sorted(content_root.rglob("*")):
+            for path in content_root.rglob("*"):
                 if len(assets) >= _MAX_DISCOVERED_ASSETS:
                     break
                 if not path.is_file() or path.suffix.lower() not in {".uasset", ".umap", ".wav"}:
