@@ -49,7 +49,6 @@ async def generate_cir(
     )
 
 
-
 @router.post("/edit", response_model=DirectorGenerateResponse)
 async def edit_cir(
     request: DirectorEditRequest,
