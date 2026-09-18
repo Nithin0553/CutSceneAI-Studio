@@ -156,6 +156,7 @@ class NativePerformanceRealizer:
                     "entry_point": entry_point,
                     "performance_run_id": run_id,
                     "bundle_sha256": run.bundle_sha256,
+                    "realization_policy": "strict-body-camera-audio_degrade-facial-by-capability",
                 },
             ),
         )
@@ -193,13 +194,16 @@ class NativePerformanceRealizer:
             timeline_path=f"{root}/Timelines",
             scene_path=f"{root}/Scenes",
         )
-        mapping = compile_unity_performance_bundle(
+        full_mapping = compile_unity_performance_bundle(
             bundle,
             export_plan=plan,
             target_path=f"{root}/GeneratedPerformance",
         )
 
-        facial_actor_ids = {item.actor_binding_id for item in mapping.facial_tracks}
+        requested_facial_actor_ids = {
+            item.actor_binding_id for item in full_mapping.facial_tracks
+        }
+        omitted_facial_actor_ids: set[str] = set()
         actors: list[UnityNativeActorTarget] = []
         for plan_actor in plan.sequences[0].actors:
             if not plan_actor.binding_id.startswith("actor:"):
@@ -212,18 +216,12 @@ class NativePerformanceRealizer:
                     f"Unity target '{verified.display_name}' is not a verified valid Humanoid."
                 )
             facial_renderer = str(verified.metadata.get("facial_renderer_path") or "")
-            if plan_actor.binding_id in facial_actor_ids:
+            if plan_actor.binding_id in requested_facial_actor_ids:
                 names = set(verified.metadata.get("blendshape_names") or [])
                 missing = sorted(_ARKIT_BLENDSHAPES - names)
                 if not facial_renderer or missing:
-                    detail = (
-                        "no facial renderer"
-                        if not facial_renderer
-                        else f"{len(missing)} required ARKit-52 blendshapes missing"
-                    )
-                    raise ValueError(
-                        f"Unity actor '{source_id}' cannot realize requested facial tracks: {detail}."
-                    )
+                    omitted_facial_actor_ids.add(plan_actor.binding_id)
+                    facial_renderer = ""
             actors.append(
                 UnityNativeActorTarget(
                     actor_binding_id=plan_actor.binding_id,
@@ -232,6 +230,17 @@ class NativePerformanceRealizer:
                     facial_renderer_path=facial_renderer,
                 )
             )
+
+        mapping = full_mapping.model_copy(
+            update={
+                "facial_tracks": [
+                    item
+                    for item in full_mapping.facial_tracks
+                    if item.actor_binding_id not in omitted_facial_actor_ids
+                ]
+            },
+            deep=True,
+        )
 
         version = str(record.manifest.engine_version or "")
         line_match = re.match(r"^(6000\.(?:0|3))", version)
@@ -247,6 +256,7 @@ class NativePerformanceRealizer:
             timeline_asset_path=plan.sequences[0].timeline_asset_path,
             scene_asset_path=plan.sequences[0].scene_asset_path,
             actors=actors,
+            omitted_facial_actor_binding_ids=sorted(omitted_facial_actor_ids),
             render=UnityNativeRenderSettings(
                 output_directory=f"CutSceneAIEvidence/Studio/{token}/Unity/Frames"
             ),
@@ -321,31 +331,31 @@ class NativePerformanceRealizer:
             update={"sequences": [sequence.model_copy(update={"actors": updated_actors})]}
         )
         semantics = compile_semantics(project)
-        mapping = compile_unreal_performance_bundle(
+        full_mapping = compile_unreal_performance_bundle(
             bundle,
             export_plan=plan,
             semantics=semantics,
             target_path=f"/Game/CutSceneAI/Studio/{token}/GeneratedPerformance",
         )
 
-        facial_actor_ids = {item.actor_binding_id for item in mapping.facial_tracks}
+        requested_facial_actor_ids = {
+            item.actor_binding_id for item in full_mapping.facial_tracks
+        }
+        omitted_facial_actor_ids: set[str] = set()
         native_actors: list[UnrealNativeActorTarget] = []
         plan_actor_by_binding = {actor.binding_id: actor for actor in plan.sequences[0].actors}
-        for actor_binding_id in sorted(
-            {item.actor_binding_id for item in mapping.body_tracks} | facial_actor_ids
-        ):
+        body_actor_ids = {item.actor_binding_id for item in full_mapping.body_tracks}
+        for actor_binding_id in sorted(body_actor_ids | requested_facial_actor_ids):
             actor = plan_actor_by_binding[actor_binding_id]
             assert actor.asset_path is not None
             verified = _verified_asset_for_engine_ref(record, actor.asset_path)
             morph_names = set(verified.metadata.get("morph_target_names") or [])
-            needs_face = actor_binding_id in facial_actor_ids
+            needs_face = actor_binding_id in requested_facial_actor_ids
             if needs_face:
                 missing = sorted(_ARKIT_BLENDSHAPES - morph_names)
                 if missing:
-                    raise ValueError(
-                        f"Unreal actor '{actor.source_entity_id}' cannot realize requested "
-                        f"facial tracks: {len(missing)} required ARKit-52 morph targets missing."
-                    )
+                    omitted_facial_actor_ids.add(actor_binding_id)
+                    needs_face = False
             native_actors.append(
                 UnrealNativeActorTarget(
                     actor_binding_id=actor_binding_id,
@@ -353,6 +363,17 @@ class NativePerformanceRealizer:
                     require_arkit_52_morph_targets=needs_face,
                 )
             )
+
+        mapping = full_mapping.model_copy(
+            update={
+                "facial_tracks": [
+                    item
+                    for item in full_mapping.facial_tracks
+                    if item.actor_binding_id not in omitted_facial_actor_ids
+                ]
+            },
+            deep=True,
+        )
 
         current_map = str(record.manifest.current_scene or "")
         if not current_map.startswith("/Game/"):
@@ -373,6 +394,7 @@ class NativePerformanceRealizer:
             sequence_package_path=plan.sequences[0].package_path,
             sequence_asset_name=plan.sequences[0].asset_name,
             actors=native_actors,
+            omitted_facial_actor_binding_ids=sorted(omitted_facial_actor_ids),
             render=UnrealNativeRenderSettings(
                 map_path=current_map,
                 output_directory=f"CutSceneAI/Studio/{token}/Unreal/Frames",
