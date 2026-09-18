@@ -227,8 +227,18 @@ def _execute(command: dict[str, Any]) -> tuple[bool, dict[str, Any], str | None]
                 raise RuntimeError("Managed importer escaped the Unreal project root.")
             if not os.path.isfile(importer):
                 raise RuntimeError(f"Managed importer does not exist: {importer}")
-            runpy.run_path(importer, run_name="__main__")
-            result = _readback("CutSceneAI Unreal importer executed.")
+            namespace = runpy.run_path(
+                importer,
+                run_name="cutsceneai_studio_bridge_import",
+            )
+            entry_name = "import_plan" if relative == semantic_importer else "import_native"
+            entry = namespace.get(entry_name)
+            if not callable(entry):
+                raise RuntimeError(
+                    f"Managed importer entry point is missing: {entry_name}"
+                )
+            entry()
+            result = _readback("CutSceneAI Unreal importer executed without closing the editor.")
         elif name in {"play_preview", "stop_preview"}:
             library = getattr(unreal, "LevelSequenceEditorBlueprintLibrary", None)
             if library is None:
