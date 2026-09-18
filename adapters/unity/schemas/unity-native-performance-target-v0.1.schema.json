@@ -14,7 +14,8 @@
         },
         "facial_renderer_path": {
           "title": "Facial Renderer Path",
-          "type": "string"
+          "type": "string",
+          "default": ""
         },
         "prefab_path": {
           "pattern": "^Assets(?:/[A-Za-z0-9_.-]+)+\\.prefab$",
@@ -24,8 +25,7 @@
       },
       "required": [
         "actor_binding_id",
-        "prefab_path",
-        "facial_renderer_path"
+        "prefab_path"
       ],
       "title": "UnityNativeActorTarget",
       "type": "object"
