@@ -170,7 +170,7 @@ class UnityExportPlan(UnityModel):
     adapter_version: Literal["0.1.0"] = "0.1.0"
     cir_schema_version: Literal["0.1.0"] = "0.1.0"
     target_engine: Literal["Unity"] = "Unity"
-    target_engine_version: Literal["6000.0"] = "6000.0"
+    target_engine_version: str = Field(default="6000.3", pattern=r"^6000\.(?:0|3)$")
     timeline_package_version: Literal["1.8.12"] = "1.8.12"
     project_id: str
     project_name: str
