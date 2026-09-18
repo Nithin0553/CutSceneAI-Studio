@@ -1,0 +1,304 @@
+import asyncio
+import json
+from pathlib import Path
+import sys
+
+from cutsceneai_cir import Project
+from cutsceneai_performance import ARKIT_52_BLENDSHAPE_NAMES
+
+from app.models.performance_runtime import PerformanceGenerateRequest
+from app.models.studio import (
+    StudioBindingSelection,
+    StudioBridgeHeartbeatRequest,
+    StudioEngine,
+    StudioProjectConnectRequest,
+)
+from app.services.native_performance import NativePerformanceRealizer
+from app.services.performance_executor import StudioPerformanceExecutor
+from app.services.studio import StudioService
+import app.services.studio as studio_module
+
+
+FIXTURE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
+
+
+def _project_without_dialogue() -> Project:
+    payload = Project.model_validate_json(FIXTURE.read_text(encoding="utf-8")).model_dump(
+        mode="json"
+    )
+    for scene in payload["scenes"]:
+        for beat in scene["beats"]:
+            for performance in beat["performances"]:
+                performance["dialogue"] = None
+                performance["facial"]["lip_sync"] = False
+    return Project.model_validate(payload)
+
+
+def _service(tmp_path: Path, monkeypatch) -> StudioService:
+    state = tmp_path / "state"
+    monkeypatch.setattr(studio_module, "_STATE_DIR", state)
+    monkeypatch.setattr(studio_module, "_PROJECTS_FILE", state / "projects.json")
+    monkeypatch.setattr(studio_module, "_COMMANDS_DIR", state / "bridge-commands")
+    return StudioService()
+
+
+def _body_provider(path: Path) -> None:
+    path.write_text(
+        """
+import json
+import re
+import sys
+
+payload = json.loads(sys.stdin.read())
+request = payload["request"]
+frame_count = request["end_frame"] - request["start_frame"]
+match = re.search(r"at (\\d+) fps", request["prompt"])
+fps = int(match.group(1)) if match else 24
+identity = {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}
+samples = [
+    {
+        "frame_index": frame,
+        "root_translation": {"x": 0.0, "y": 0.0, "z": -0.01 * frame},
+        "joint_rotations": [identity for _ in range(22)],
+    }
+    for frame in range(frame_count)
+]
+response = {
+    "request_semantic_id": request["semantic_id"],
+    "provider": request["provider"],
+    "model": request["model"],
+    "model_revision": request["model_revision"],
+    "prompt_sha256": request["prompt_sha256"],
+    "configuration_sha256": request["configuration_sha256"],
+    "seed": request["seed"],
+    "generated_at_inference": True,
+    "retrieved_pre_authored_clip": False,
+    "deterministic_algorithms": True,
+    "artifact": {
+        "fps": fps,
+        "frame_count": frame_count,
+        "samples": samples,
+    },
+}
+sys.stdout.write(json.dumps(response))
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _configure_provider(tmp_path: Path, monkeypatch) -> None:
+    script = tmp_path / "body_provider.py"
+    _body_provider(script)
+    monkeypatch.setenv(
+        "CUTSCENEAI_BODY_PROVIDER_COMMAND",
+        json.dumps([sys.executable, str(script)]),
+    )
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-motion")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "canonical-fixture")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+
+
+def _generate_run(tmp_path: Path, monkeypatch) -> tuple[StudioPerformanceExecutor, object]:
+    _configure_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    record = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(
+                project=_project_without_dialogue(),
+                experiment_seed=20260812,
+            )
+        )
+    )
+    assert record.status.value == "succeeded"
+    return executor, record
+
+
+def _unity_project(tmp_path: Path) -> Path:
+    root = tmp_path / "UnityProject"
+    (root / "Assets" / "Characters").mkdir(parents=True)
+    (root / "Assets" / "Scenes").mkdir(parents=True)
+    (root / "ProjectSettings").mkdir()
+    (root / "Packages").mkdir()
+    for name in ("Mina", "Arjun"):
+        (root / "Assets" / "Characters" / f"{name}.prefab").write_text(
+            "%YAML",
+            encoding="utf-8",
+        )
+    (root / "Assets" / "Scenes" / "Main.unity").write_text("%YAML", encoding="utf-8")
+    (root / "ProjectSettings" / "ProjectVersion.txt").write_text(
+        "m_EditorVersion: 6000.3.8f1\n",
+        encoding="utf-8",
+    )
+    (root / "Packages" / "manifest.json").write_text(
+        json.dumps({"dependencies": {"com.unity.timeline": "1.8.12"}}),
+        encoding="utf-8",
+    )
+    return root
+
+
+def _unreal_project(tmp_path: Path) -> Path:
+    root = tmp_path / "UnrealProject"
+    (root / "Content" / "Characters").mkdir(parents=True)
+    (root / "Content" / "Maps").mkdir(parents=True)
+    for name in ("Mina", "Arjun"):
+        (root / "Content" / "Characters" / f"SKM_{name}.uasset").write_bytes(b"fixture")
+    (root / "Content" / "Maps" / "Main.umap").write_bytes(b"fixture")
+    (root / "CutSceneAIStudio.uproject").write_text(
+        json.dumps({"EngineAssociation": "5.8"}),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_verified_performance_run_stages_native_unity_importer(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    executor, run = _generate_run(tmp_path, monkeypatch)
+    studio = _service(tmp_path, monkeypatch)
+    record = studio.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    assets = []
+    selections = []
+    for name in ("Mina", "Arjun"):
+        source_id = name.lower()
+        engine_ref = f"Assets/Characters/{name}.prefab"
+        object_id = f"verified:{source_id}"
+        assets.append(
+            {
+                "object_id": object_id,
+                "kind": "prefab",
+                "display_name": name,
+                "engine_ref": engine_ref,
+                "relative_path": engine_ref,
+                "verified": True,
+                "metadata": {
+                    "source": "engine_bridge",
+                    "humanoid": True,
+                    "animator_path": "Armature",
+                    "facial_renderer_path": "Geometry/Face",
+                    "blendshape_names": list(ARKIT_52_BLENDSHAPE_NAMES),
+                },
+            }
+        )
+        selections.append(
+            StudioBindingSelection(
+                cir_id=source_id,
+                project_object_id=object_id,
+            )
+        )
+
+    studio.bridge_heartbeat(
+        record.project_id,
+        StudioBridgeHeartbeatRequest(
+            agent_id="unity-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.1.0",
+            current_scene="Assets/Scenes/Main.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "humanoid-scan", "blendshape-scan"],
+            assets=assets,
+            warnings=[],
+        ),
+    )
+
+    command = NativePerformanceRealizer(
+        studio=studio,
+        performance=executor,
+    ).realize(
+        run_id=run.run_id,
+        project_id=record.project_id,
+        project=_project_without_dialogue(),
+        bindings=selections,
+    )
+
+    assert command.command.value == "run_importer"
+    assert command.payload["performance_run_id"] == run.run_id
+    importer = (
+        Path(record.project_path)
+        / "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
+    )
+    assert importer.exists()
+    source = importer.read_text(encoding="utf-8")
+    assert "CutSceneAIGeneratedPerformance" in source
+    assert 'version.StartsWith("6000.3"' in source
+
+
+def test_verified_performance_run_stages_native_unreal_importer(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    executor, run = _generate_run(tmp_path, monkeypatch)
+    studio = _service(tmp_path, monkeypatch)
+    record = studio.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNREAL,
+            project_path=str(_unreal_project(tmp_path)),
+        )
+    )
+
+    assets = []
+    selections = []
+    for name in ("Mina", "Arjun"):
+        source_id = name.lower()
+        mesh_ref = f"/Game/Characters/SKM_{name}.SKM_{name}"
+        object_id = f"verified:{source_id}"
+        assets.append(
+            {
+                "object_id": object_id,
+                "kind": "character_asset",
+                "display_name": f"SKM_{name}",
+                "engine_ref": mesh_ref,
+                "relative_path": mesh_ref,
+                "verified": True,
+                "metadata": {
+                    "source": "engine_bridge",
+                    "asset_type": "skeletal_mesh",
+                    "skeleton": "/Game/Characters/SK_Mannequin_Skeleton",
+                    "morph_target_names": list(ARKIT_52_BLENDSHAPE_NAMES),
+                },
+            }
+        )
+        selections.append(
+            StudioBindingSelection(
+                cir_id=source_id,
+                project_object_id=object_id,
+            )
+        )
+
+    studio.bridge_heartbeat(
+        record.project_id,
+        StudioBridgeHeartbeatRequest(
+            agent_id="unreal-agent",
+            engine_version="5.8.2-CL-56702186",
+            adapter_version="0.1.0",
+            current_scene="/Game/Maps/Main.Main",
+            fps=24,
+            capabilities=["bridge:v0.1", "skeletal-mesh-assets", "sequencer"],
+            assets=assets,
+            warnings=[],
+        ),
+    )
+
+    command = NativePerformanceRealizer(
+        studio=studio,
+        performance=executor,
+    ).realize(
+        run_id=run.run_id,
+        project_id=record.project_id,
+        project=_project_without_dialogue(),
+        bindings=selections,
+    )
+
+    assert command.command.value == "run_importer"
+    importer = Path(record.project_path) / str(command.payload["importer_path"])
+    assert importer.exists()
+    source = importer.read_text(encoding="utf-8")
+    assert "Generated by CutSceneAI Unreal Adapter" in source
+    assert "Validated Unreal Engine line is 5.8.x" in source
