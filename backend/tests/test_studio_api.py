@@ -168,6 +168,64 @@ def test_binding_options_and_validation_use_connected_project_objects(
     assert set(manifest.unresolved_optional_ids) == {"conference-table", "contract"}
 
 
+def test_binding_suggestions_prioritize_verified_native_character_asset(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="ranking-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.1.0",
+            current_scene="Assets/Scenes/Main.unity",
+            fps=24,
+            capabilities=["humanoid-scan"],
+            assets=[
+                {
+                    "object_id": "verified-mina-prefab",
+                    "kind": "prefab",
+                    "display_name": "Mina",
+                    "engine_ref": "Assets/Characters/Mina.prefab",
+                    "relative_path": "Assets/Characters/Mina.prefab",
+                    "verified": True,
+                    "metadata": {
+                        "source": "engine_bridge",
+                        "humanoid": True,
+                        "animator_path": "Armature",
+                    },
+                },
+                {
+                    "object_id": "verified-mina-scene",
+                    "kind": "scene_actor",
+                    "display_name": "Mina",
+                    "engine_ref": "GlobalObjectId:mina",
+                    "relative_path": "Assets/Scenes/Main.unity",
+                    "verified": True,
+                    "metadata": {
+                        "source": "engine_bridge",
+                        "humanoid": True,
+                    },
+                },
+            ],
+            warnings=[],
+        ),
+    )
+
+    options = service.binding_options(record.project_id, _project())
+    mina = next(item for item in options.roles if item.cir_id == "mina")
+
+    assert mina.candidates[0].project_object_id == "verified-mina-prefab"
+    assert mina.candidates[0].verified is True
+
+
 def test_performance_plan_compiles_deterministic_requests(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
 
