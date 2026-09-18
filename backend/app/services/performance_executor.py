@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Any
 import uuid
 
 from cutsceneai_dialogue import DialogueEngine
@@ -143,7 +144,7 @@ class StudioPerformanceExecutor:
             status=PerformanceRunStatus.RUNNING,
             created_at_utc=_utc_now(),
             experiment_seed=request.experiment_seed,
-            run_directory=run_dir.relative_to(_REPO_ROOT).as_posix(),
+            run_directory=self._portable_run_path(run_dir),
         )
         self._write_record(run_dir, record)
         self._write_json(
@@ -373,7 +374,9 @@ class StudioPerformanceExecutor:
         return data
 
     @staticmethod
-    def _provider_output_summary(outputs: list[ProviderArtifact]) -> list[dict[str, object]]:
+    def _provider_output_summary(
+        outputs: list[ProviderArtifact[Any]],
+    ) -> list[dict[str, object]]:
         return [
             {
                 "request_semantic_id": item.request_semantic_id,
@@ -389,6 +392,13 @@ class StudioPerformanceExecutor:
             }
             for item in outputs
         ]
+
+    @staticmethod
+    def _portable_run_path(run_dir: Path) -> str:
+        try:
+            return run_dir.relative_to(_REPO_ROOT).as_posix()
+        except ValueError:
+            return run_dir.as_posix()
 
     @staticmethod
     def _write_json(path: Path, value: object) -> None:
