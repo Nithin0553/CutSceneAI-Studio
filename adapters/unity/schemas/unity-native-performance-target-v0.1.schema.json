@@ -120,6 +120,13 @@
       "default": "1.8.12",
       "title": "Timeline Package Version",
       "type": "string"
+    },
+    "omitted_facial_actor_binding_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Omitted Facial Actor Binding Ids",
+      "type": "array"
     }
   },
   "required": [
