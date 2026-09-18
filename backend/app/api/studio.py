@@ -238,66 +238,110 @@ def realization_plan(
         raise _bad_request(exc) from exc
 
 
+def _render_bound_importer(
+    request: StudioRealizationRequest,
+    service: StudioService,
+) -> tuple[StudioProjectRecord, str, str, str]:
+    record = service.get_project(request.project_id)
+    realization = service.compile_realization(
+        request.project_id,
+        request.project,
+        request.bindings,
+    )
+    if not realization.ready:
+        raise ValueError(
+            "Engine realization is not ready: " + "; ".join(realization.blocking_issues)
+        )
+
+    asset_by_id = {item.object_id: item for item in record.manifest.assets}
+    selected = {item.cir_id: item for item in request.bindings}
+
+    if record.engine.value == "unity":
+        entities: list[UnityEntityAsset] = []
+        for cir_id, binding in selected.items():
+            asset = asset_by_id[binding.project_object_id]
+            if asset.engine_ref.startswith("Assets/") and asset.engine_ref.endswith(".prefab"):
+                entities.append(
+                    UnityEntityAsset(
+                        source_entity_id=cir_id,
+                        prefab_path=asset.engine_ref,
+                    )
+                )
+        unity_plan = compile_unity_project(
+            request.project,
+            asset_map=UnityAssetMap(
+                project_id=request.project.id,
+                entities=entities,
+            ),
+        )
+        return (
+            record,
+            render_unity_editor_script(unity_plan),
+            "text/x-csharp",
+            "CutSceneAI-Unity-Importer.cs",
+        )
+
+    bound_project = service.bound_project(
+        request.project_id,
+        request.project,
+        request.bindings,
+    )
+    unreal_plan = compile_unreal_project(bound_project)
+    return (
+        record,
+        render_unreal_import_script(
+            unreal_plan,
+            compile_semantics(bound_project),
+        ),
+        "text/x-python",
+        "cutsceneai-unreal-import.py",
+    )
+
+
 @router.post("/realization/importer", response_model=None)
 def realization_importer(
     request: StudioRealizationRequest,
     service: StudioService = Depends(get_studio_service),
 ) -> Response:
     try:
-        record = service.get_project(request.project_id)
-        realization = service.compile_realization(
-            request.project_id,
-            request.project,
-            request.bindings,
-        )
-        if not realization.ready:
-            raise ValueError(
-                "Engine realization is not ready: " + "; ".join(realization.blocking_issues)
-            )
-
-        asset_by_id = {item.object_id: item for item in record.manifest.assets}
-        selected = {item.cir_id: item for item in request.bindings}
-
-        if record.engine.value == "unity":
-            entities: list[UnityEntityAsset] = []
-            for cir_id, binding in selected.items():
-                asset = asset_by_id[binding.project_object_id]
-                if asset.engine_ref.startswith("Assets/") and asset.engine_ref.endswith(".prefab"):
-                    entities.append(
-                        UnityEntityAsset(
-                            source_entity_id=cir_id,
-                            prefab_path=asset.engine_ref,
-                        )
-                    )
-            unity_plan = compile_unity_project(
-                request.project,
-                asset_map=UnityAssetMap(
-                    project_id=request.project.id,
-                    entities=entities,
-                ),
-            )
-            return Response(
-                content=render_unity_editor_script(unity_plan),
-                media_type="text/x-csharp",
-                headers={
-                    "Content-Disposition": 'attachment; filename="CutSceneAI-Unity-Importer.cs"'
-                },
-            )
-
-        bound_project = service.bound_project(
-            request.project_id,
-            request.project,
-            request.bindings,
-        )
-        unreal_plan = compile_unreal_project(bound_project)
-        content = render_unreal_import_script(
-            unreal_plan,
-            compile_semantics(bound_project),
-        )
+        _, content, media_type, filename = _render_bound_importer(request, service)
         return Response(
             content=content,
-            media_type="text/x-python",
-            headers={"Content-Disposition": 'attachment; filename="cutsceneai-unreal-import.py"'},
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post("/realization/execute", response_model=StudioBridgeCommand)
+def execute_realization(
+    request: StudioRealizationRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> StudioBridgeCommand:
+    try:
+        record, content, _, _ = _render_bound_importer(request, service)
+        if not record.manifest.bridge_connected:
+            raise ValueError(
+                "The engine bridge is not live. Open the target project and wait for its heartbeat."
+            )
+        importer_path = service.stage_realization_importer(
+            request.project_id,
+            content,
+        )
+        return service.enqueue_bridge_command(
+            request.project_id,
+            StudioBridgeCommandRequest(
+                command="run_importer",
+                payload={
+                    "importer_path": importer_path,
+                    "entry_point": (
+                        "CutSceneAIGeneratedTimeline.ImportGeneratedTimeline"
+                        if record.engine.value == "unity"
+                        else "import_plan"
+                    ),
+                },
+            ),
         )
     except ValueError as exc:
         raise _bad_request(exc) from exc
