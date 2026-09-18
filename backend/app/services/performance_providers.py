@@ -50,9 +50,7 @@ def performance_compiler_config(experiment_seed: int) -> PerformanceCompilerConf
             model=os.getenv("CUTSCENEAI_BODY_MODEL", "unconfigured"),
             model_revision=os.getenv("CUTSCENEAI_BODY_MODEL_REVISION", "unconfigured"),
             prompt_version=os.getenv("CUTSCENEAI_BODY_PROMPT_VERSION", "body-v0.1"),
-            deterministic_algorithms=os.getenv(
-                "CUTSCENEAI_BODY_DETERMINISTIC", "true"
-            ).lower()
+            deterministic_algorithms=os.getenv("CUTSCENEAI_BODY_DETERMINISTIC", "true").lower()
             not in {"0", "false", "no"},
         ),
         facial=GenerationModelConfig(
@@ -130,8 +128,10 @@ class ExternalCanonicalBodyBackend:
                 parsed = json.loads(command_raw)
             except json.JSONDecodeError:
                 parsed = shlex.split(command_raw, posix=os.name != "nt")
-            if not isinstance(parsed, list) or not parsed or not all(
-                isinstance(item, str) and item.strip() for item in parsed
+            if (
+                not isinstance(parsed, list)
+                or not parsed
+                or not all(isinstance(item, str) and item.strip() for item in parsed)
             ):
                 raise PerformanceProviderConfigurationError(
                     "CUTSCENEAI_BODY_PROVIDER_COMMAND must be a non-empty JSON argv array "
@@ -269,9 +269,7 @@ class ExternalCanonicalBodyBackend:
                 "Body provider did not return valid UTF-8 JSON."
             ) from exc
         if not isinstance(value, dict):
-            raise PerformanceProviderExecutionError(
-                "Body provider response must be a JSON object."
-            )
+            raise PerformanceProviderExecutionError("Body provider response must be a JSON object.")
         return value
 
     @staticmethod
@@ -366,7 +364,9 @@ class ProceduralFacialBackend:
 
             if request.lip_sync and request.dialogue_text:
                 speech = max(0.0, math.sin((frame + phase * 7.0) * 0.72))
-                punctuation_scale = 0.85 if request.dialogue_text.strip().endswith((".", "?", "!")) else 1.0
+                punctuation_scale = (
+                    0.85 if request.dialogue_text.strip().endswith((".", "?", "!")) else 1.0
+                )
                 values[index["jaw_open"]] = max(
                     values[index["jaw_open"]],
                     min(0.72, 0.12 + 0.42 * speech * punctuation_scale),
