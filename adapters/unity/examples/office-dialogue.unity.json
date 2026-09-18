@@ -421,7 +421,7 @@
     }
   ],
   "target_engine": "Unity",
-  "target_engine_version": "6000.0",
+  "target_engine_version": "6000.3",
   "timeline_package_version": "1.8.12",
   "warnings": [
     {
