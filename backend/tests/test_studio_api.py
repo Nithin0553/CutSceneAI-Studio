@@ -214,15 +214,17 @@ def _required_bindings(record: dict[str, object]) -> list[dict[str, str]]:
     assets = manifest["assets"]
     assert isinstance(assets, list)
 
-    by_name = {item["display_name"]: item for item in assets if isinstance(item, dict)}
+    typed_assets = [item for item in assets if isinstance(item, dict)]
+    mina = next(item for item in typed_assets if str(item["display_name"]).endswith("Mina"))
+    arjun = next(item for item in typed_assets if str(item["display_name"]).endswith("Arjun"))
     return [
         {
             "cir_id": "mina",
-            "project_object_id": str(by_name["Mina"]["object_id"]),
+            "project_object_id": str(mina["object_id"]),
         },
         {
             "cir_id": "arjun",
-            "project_object_id": str(by_name["Arjun"]["object_id"]),
+            "project_object_id": str(arjun["object_id"]),
         },
     ]
 
