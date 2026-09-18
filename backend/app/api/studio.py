@@ -157,8 +157,7 @@ def realization_importer(
         )
         if not realization.ready:
             raise ValueError(
-                "Engine realization is not ready: "
-                + "; ".join(realization.blocking_issues)
+                "Engine realization is not ready: " + "; ".join(realization.blocking_issues)
             )
 
         asset_by_id = {item.object_id: item for item in record.manifest.assets}
@@ -168,9 +167,7 @@ def realization_importer(
             entities: list[UnityEntityAsset] = []
             for cir_id, binding in selected.items():
                 asset = asset_by_id[binding.project_object_id]
-                if asset.engine_ref.startswith("Assets/") and asset.engine_ref.endswith(
-                    ".prefab"
-                ):
+                if asset.engine_ref.startswith("Assets/") and asset.engine_ref.endswith(".prefab"):
                     entities.append(
                         UnityEntityAsset(
                             source_entity_id=cir_id,
@@ -202,9 +199,7 @@ def realization_importer(
         return Response(
             content=content,
             media_type="text/x-python",
-            headers={
-                "Content-Disposition": 'attachment; filename="cutsceneai-unreal-import.py"'
-            },
+            headers={"Content-Disposition": 'attachment; filename="cutsceneai-unreal-import.py"'},
         )
     except ValueError as exc:
         raise _bad_request(exc) from exc
