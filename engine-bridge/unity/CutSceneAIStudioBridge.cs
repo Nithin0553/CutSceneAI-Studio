@@ -349,23 +349,55 @@ public static class CutSceneAIStudioBridge
 
     private static void CompleteCommand(string url, CompleteRequest completion)
     {
+        if (
+            completion == null
+            || string.IsNullOrWhiteSpace(completion.agent_id)
+        )
+        {
+            ReloadConfig();
+            if (completion != null)
+                completion.agent_id = _agentId;
+        }
+
+        if (
+            completion == null
+            || string.IsNullOrWhiteSpace(completion.agent_id)
+        )
+        {
+            Debug.LogError(
+                "CutSceneAI Studio Bridge cannot complete a command without a valid agent id.");
+            return;
+        }
+
         if (_requestInFlight)
         {
             EditorApplication.delayCall += () => CompleteCommand(url, completion);
             return;
         }
 
+        string payload = JsonUtility.ToJson(completion);
         SendJson(
             "POST",
             url,
-            JsonUtility.ToJson(completion),
+            payload,
             request =>
             {
                 if (request.result != UnityWebRequest.Result.Success)
                 {
+                    string responseBody =
+                        request.downloadHandler == null
+                            ? string.Empty
+                            : request.downloadHandler.text;
                     Debug.LogWarning(
-                        "CutSceneAI Studio Bridge command completion failed: "
-                        + request.error);
+                        "CutSceneAI Studio Bridge command completion failed. HTTP "
+                        + request.responseCode
+                        + ": "
+                        + request.error
+                        + (string.IsNullOrWhiteSpace(responseBody)
+                            ? string.Empty
+                            : "\nBackend response: " + responseBody)
+                        + "\nPayload: "
+                        + payload);
                 }
             });
     }
