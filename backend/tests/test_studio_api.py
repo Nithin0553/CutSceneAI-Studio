@@ -712,6 +712,29 @@ def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -
     assert config["project_id"] == record.project_id
 
 
+def test_unity_bridge_ignores_empty_poll_commands(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    service.install_bridge(record.project_id)
+    bridge = (
+        Path(record.project_path)
+        / "Assets"
+        / "Editor"
+        / "CutSceneAI"
+        / "CutSceneAIStudioBridge.cs"
+    ).read_text(encoding="utf-8")
+
+    assert "string.IsNullOrWhiteSpace(response.command.command_id)" in bridge
+    assert "string.IsNullOrWhiteSpace(response.command.command)" in bridge
+    assert "ignored an empty or malformed bridge command" in bridge
+
+
 def test_unreal_bridge_keeps_interactive_editor_open(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
