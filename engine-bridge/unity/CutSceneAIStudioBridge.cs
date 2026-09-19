@@ -239,13 +239,33 @@ public static class CutSceneAIStudioBridge
 
                 PollResponse response = JsonUtility.FromJson<PollResponse>(
                     request.downloadHandler.text);
-                if (response != null && response.command != null)
-                    ExecuteCommand(response.command);
+                if (
+                    response == null
+                    || response.command == null
+                    || string.IsNullOrWhiteSpace(response.command.command_id)
+                    || string.IsNullOrWhiteSpace(response.command.command)
+                )
+                {
+                    return;
+                }
+
+                ExecuteCommand(response.command);
             });
     }
 
     private static void ExecuteCommand(BridgeCommand command)
     {
+        if (
+            command == null
+            || string.IsNullOrWhiteSpace(command.command_id)
+            || string.IsNullOrWhiteSpace(command.command)
+        )
+        {
+            Debug.LogWarning(
+                "CutSceneAI Studio Bridge ignored an empty or malformed bridge command.");
+            return;
+        }
+
         bool succeeded = true;
         string error = null;
         CommandResult result;
