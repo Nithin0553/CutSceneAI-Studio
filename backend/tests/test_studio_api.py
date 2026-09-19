@@ -761,6 +761,58 @@ def test_unreal_bridge_keeps_interactive_editor_open(tmp_path: Path, monkeypatch
     assert 'run_name="__main__"' not in bridge
 
 
+def test_bridge_command_completion_is_idempotent_for_same_agent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    queued = service.enqueue_bridge_command(
+        record.project_id,
+        studio_module.StudioBridgeCommandRequest(command="readback"),
+    )
+    service.poll_bridge_command(record.project_id, "agent-a")
+    request = studio_module.StudioBridgeCommandResultRequest(
+        agent_id="agent-a",
+        succeeded=True,
+        result={"message": "readback complete"},
+    )
+
+    first = service.complete_bridge_command(record.project_id, queued.command_id, request)
+    second = service.complete_bridge_command(record.project_id, queued.command_id, request)
+
+    assert first.status.value == "succeeded"
+    assert second.command_id == first.command_id
+    assert second.result == first.result
+
+
+def test_unity_bridge_logs_backend_completion_response(tmp_path: Path, monkeypatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    service.install_bridge(record.project_id)
+    bridge = (
+        Path(record.project_path)
+        / "Assets"
+        / "Editor"
+        / "CutSceneAI"
+        / "CutSceneAIStudioBridge.cs"
+    ).read_text(encoding="utf-8")
+
+    assert "Backend response:" in bridge
+    assert "request.responseCode" in bridge
+    assert "cannot complete a command without a valid agent id" in bridge
+
+
 def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
