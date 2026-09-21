@@ -16,6 +16,7 @@ from cutsceneai_performance import (
     ProviderArtifact,
     assemble_performance_bundle,
     compile_generation_plan,
+    render_body_motion,
     render_generation_plan,
     render_performance_bundle,
     render_performance_package,
@@ -229,7 +230,9 @@ class StudioPerformanceExecutor:
 
             async def body_one(item):
                 async with semaphore:
-                    return await body_backend.generate_body(item)
+                    output = await body_backend.generate_body(item)
+                    self._persist_body_provider_output(run_dir, output)
+                    return output
 
             # Dialogue is comparatively cheap and has strict timing constraints. Validate it
             # before expensive body inference so bad audio cannot waste a full GPU generation run.
@@ -406,6 +409,39 @@ class StudioPerformanceExecutor:
         if record.bundle_sha256 is None or _sha256(data) != record.bundle_sha256:
             raise ValueError("Performance bundle SHA-256 no longer matches its run record.")
         return data
+
+    @staticmethod
+    def _persist_body_provider_output(
+        run_dir: Path,
+        output: ProviderArtifact[Any],
+    ) -> None:
+        output_dir = run_dir / "body-provider-outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        digest = _sha256(output.request_semantic_id.encode("utf-8"))[:12]
+        stem = f"{digest}"
+        (output_dir / f"{stem}.motion.json").write_text(
+            render_body_motion(output.artifact),
+            encoding="utf-8",
+            newline="\n",
+        )
+        metadata = {
+            "request_semantic_id": output.request_semantic_id,
+            "provider": output.provider,
+            "model": output.model,
+            "model_revision": output.model_revision,
+            "prompt_sha256": output.prompt_sha256,
+            "configuration_sha256": output.configuration_sha256,
+            "seed": output.seed,
+            "generated_at_inference": output.generated_at_inference,
+            "retrieved_pre_authored_clip": output.retrieved_pre_authored_clip,
+            "deterministic_algorithms": output.deterministic_algorithms,
+            "artifact_file": f"{stem}.motion.json",
+        }
+        (output_dir / f"{stem}.metadata.json").write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
 
     @staticmethod
     def _provider_output_summary(
