@@ -28,6 +28,8 @@ ENV HY_MOTION_MODEL_CACHE=/models/tencent
 ENV HY_MOTION_VERIFY_CHECKPOINT_SHA256=true
 ENV PORT=8080
 
+WORKDIR /opt/HY-Motion-1.0
+
 EXPOSE 8080
 
 CMD ["python", "-m", "providers.hymotion.service"]
