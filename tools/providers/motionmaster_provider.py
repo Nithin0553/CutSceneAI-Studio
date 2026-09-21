@@ -46,11 +46,11 @@ def _health() -> dict[str, object]:
     source_fps = int(_require_env("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS"))
     source_forward_axis = _require_env("CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS")
     if source_fps < 1 or source_fps > 240:
-        raise RuntimeError("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS must be between 1 and 240.")
-    if source_forward_axis not in {"+z", "-z"}:
         raise RuntimeError(
-            "CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS must be '+z' or '-z'."
+            "CUTSCENEAI_MOTIONMASTER_SOURCE_FPS must be between 1 and 240."
         )
+    if source_forward_axis not in {"+z", "-z"}:
+        raise RuntimeError("CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS must be '+z' or '-z'.")
 
     required_paths = [
         root / "infer.py",
@@ -128,16 +128,16 @@ def _run_motionmaster(request: dict[str, object]) -> dict[str, object]:
 
     source_fps = int(_require_env("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS"))
     if source_fps < 1 or source_fps > 240:
-        raise RuntimeError("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS must be between 1 and 240.")
+        raise RuntimeError(
+            "CUTSCENEAI_MOTIONMASTER_SOURCE_FPS must be between 1 and 240."
+        )
 
     source_forward_axis = os.getenv(
         "CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS",
         "+z",
     ).strip()
     if source_forward_axis not in {"+z", "-z"}:
-        raise RuntimeError(
-            "CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS must be '+z' or '-z'."
-        )
+        raise RuntimeError("CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS must be '+z' or '-z'.")
 
     revision = _require_env("CUTSCENEAI_MOTIONMASTER_REVISION")
     if request.get("provider") != PROVIDER_ID:
@@ -224,7 +224,9 @@ def _run_motionmaster(request: dict[str, object]) -> dict[str, object]:
                 f"MotionMaster inference failed with code {completed.returncode}: {detail}"
             )
         if not output_path.is_file():
-            raise RuntimeError("MotionMaster reported success but produced no output pickle.")
+            raise RuntimeError(
+                "MotionMaster reported success but produced no output pickle."
+            )
 
         with output_path.open("rb") as handle:
             output = pickle.load(handle)
@@ -280,10 +282,14 @@ def main() -> int:
         if payload.get("protocol_version") != "cutsceneai.provider.v0.1":
             raise RuntimeError("Unsupported CutSceneAI provider protocol version.")
         if payload.get("kind") != "body_motion":
-            raise RuntimeError("MotionMaster wrapper only accepts body_motion requests.")
+            raise RuntimeError(
+                "MotionMaster wrapper only accepts body_motion requests."
+            )
         request = payload.get("request")
         if not isinstance(request, dict):
-            raise RuntimeError("CutSceneAI provider payload is missing its request object.")
+            raise RuntimeError(
+                "CutSceneAI provider payload is missing its request object."
+            )
 
         artifact = _run_motionmaster(request)
         response = {
