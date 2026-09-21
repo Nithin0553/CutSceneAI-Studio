@@ -575,9 +575,7 @@ class StudioService:
                     else StudioBridgeCommandStatus.FAILED
                 )
                 if command.status is not expected:
-                    raise ValueError(
-                        "Bridge command already completed with a conflicting outcome."
-                    )
+                    raise ValueError("Bridge command already completed with a conflicting outcome.")
                 return command
             if command.status is not StudioBridgeCommandStatus.LEASED:
                 raise ValueError("Bridge command is not currently leased.")
