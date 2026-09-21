@@ -15,7 +15,10 @@ from app.api.performance_runtime import get_performance_executor
 from app.main import app
 from app.models.performance_runtime import PerformanceGenerateRequest, PerformanceRunStatus
 from app.services.performance_executor import StudioPerformanceExecutor
-from app.services.performance_providers import ExternalCanonicalBodyBackend
+from app.services.performance_providers import (
+    ExternalCanonicalBodyBackend,
+    PerformanceProviderExecutionError,
+)
 import app.services.performance_executor as performance_executor_module
 import app.services.performance_providers as performance_providers_module
 
@@ -114,6 +117,82 @@ class FakeSpeechBackend:
             voice=request.voice,
             request_id="speech-test",
         )
+
+
+def test_external_body_provider_accepts_smplx_axis_angle_output() -> None:
+    request = performance_executor_module.compile_generation_plan(
+        _project_without_dialogue(),
+        config=performance_providers_module.performance_compiler_config(20260812),
+    ).body_requests[0]
+    request = request.model_copy(
+        update={
+            "provider": "motionmaster-cvpr2026",
+            "model": "mllm_single_3b",
+            "model_revision": "fixture-revision",
+        }
+    )
+    frame_count = 3
+    response = {
+        "request_semantic_id": request.semantic_id,
+        "provider": request.provider,
+        "model": request.model,
+        "model_revision": request.model_revision,
+        "prompt_sha256": request.prompt_sha256,
+        "configuration_sha256": request.configuration_sha256,
+        "seed": request.seed,
+        "generated_at_inference": True,
+        "retrieved_pre_authored_clip": False,
+        "deterministic_algorithms": False,
+        "artifact_format": "smplx-axis-angle-v0.1",
+        "artifact": {
+            "fps": 30,
+            "source_forward_axis": "+z",
+            "global_orient": [[0.0, 0.0, 0.0]] * frame_count,
+            "body_pose": [[0.0] * 63 for _ in range(frame_count)],
+            "transl": [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 2.0],
+                [2.0, 0.0, 4.0],
+            ],
+        },
+    }
+
+    output = ExternalCanonicalBodyBackend._parse_response(request, response)
+
+    assert output.request_semantic_id == request.semantic_id
+    assert output.provider == "motionmaster-cvpr2026"
+    assert output.deterministic_algorithms is False
+    assert output.artifact.frame_count == frame_count
+    assert len(output.artifact.samples[0].joint_rotations) == 22
+    assert output.artifact.samples[1].root_translation.model_dump() == {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -2.0,
+    }
+
+
+def test_external_body_provider_rejects_unknown_artifact_format() -> None:
+    request = performance_executor_module.compile_generation_plan(
+        _project_without_dialogue(),
+        config=performance_providers_module.performance_compiler_config(20260812),
+    ).body_requests[0]
+    response = {
+        "request_semantic_id": request.semantic_id,
+        "provider": request.provider,
+        "model": request.model,
+        "model_revision": request.model_revision,
+        "prompt_sha256": request.prompt_sha256,
+        "configuration_sha256": request.configuration_sha256,
+        "seed": request.seed,
+        "generated_at_inference": True,
+        "retrieved_pre_authored_clip": False,
+        "deterministic_algorithms": True,
+        "artifact_format": "unknown-motion-format",
+        "artifact": {},
+    }
+
+    with pytest.raises(PerformanceProviderExecutionError, match="unsupported artifact_format"):
+        ExternalCanonicalBodyBackend._parse_response(request, response)
 
 
 def test_readiness_requires_explicit_body_provider_identity(tmp_path: Path, monkeypatch) -> None:
