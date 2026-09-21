@@ -102,6 +102,11 @@ from .schema import (
     write_performance_package_json_schema,
 )
 from .semantics import verify_performance_bundle_semantics
+from .smplx import (
+    SMPL22_JOINTS,
+    SMPLXAxisAngleMotion,
+    smplx_axis_angle_to_canonical,
+)
 from .serialization import (
     body_motion_artifact_sha256,
     camera_curve_artifact_sha256,
@@ -170,6 +175,8 @@ __all__ = [
     "PerformanceInputError",
     "PerformanceOutputError",
     "ProviderArtifact",
+    "SMPL22_JOINTS",
+    "SMPLXAxisAngleMotion",
     "Quaternion",
     "Vector3",
     "assemble_performance_bundle",
@@ -212,5 +219,6 @@ __all__ = [
     "write_body_motion_json_schema",
     "write_camera_curve_json_schema",
     "write_facial_curve_json_schema",
+    "smplx_axis_angle_to_canonical",
     "write_performance_package_json_schema",
 ]
