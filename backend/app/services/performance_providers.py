@@ -113,11 +113,15 @@ class ExternalCanonicalBodyBackend:
         url: str | None = None,
         bearer_token: str | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        health_url: str | None = None,
+        health_timeout_seconds: float = 5.0,
     ) -> None:
         self.command = command
         self.url = url
         self.bearer_token = bearer_token
         self.timeout_seconds = timeout_seconds
+        self.health_url = health_url
+        self.health_timeout_seconds = health_timeout_seconds
 
     @classmethod
     def from_environment(cls) -> ExternalCanonicalBodyBackend:
@@ -141,6 +145,7 @@ class ExternalCanonicalBodyBackend:
 
         url = os.getenv("CUTSCENEAI_BODY_PROVIDER_URL")
         token = os.getenv("CUTSCENEAI_BODY_PROVIDER_TOKEN")
+        health_url = os.getenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_URL")
         timeout_raw = os.getenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS")
         timeout = _DEFAULT_TIMEOUT_SECONDS
         if timeout_raw:
@@ -159,11 +164,75 @@ class ExternalCanonicalBodyBackend:
             url=url,
             bearer_token=token,
             timeout_seconds=timeout,
+            health_url=health_url,
         )
 
     @property
     def configured(self) -> bool:
         return bool(self.command or self.url)
+
+    def probe_health(
+        self,
+        *,
+        expected_provider: str,
+        expected_model: str,
+        expected_revision: str,
+    ) -> tuple[bool | None, str | None, dict[str, object]]:
+        if not self.health_url:
+            return None, None, {}
+        if not self.health_url.lower().startswith(
+            ("https://", "http://127.0.0.1", "http://localhost")
+        ):
+            raise PerformanceProviderConfigurationError(
+                "Remote body provider health URLs must use HTTPS; "
+                "HTTP is permitted only for localhost."
+            )
+
+        headers = {"Accept": "application/json"}
+        if self.bearer_token:
+            headers["Authorization"] = "Bearer " + self.bearer_token
+        request = urllib.request.Request(
+            self.health_url,
+            headers=headers,
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(
+                request,
+                timeout=self.health_timeout_seconds,
+            ) as response:
+                raw = response.read(256 * 1024 + 1)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return False, "unreachable", {"error": str(exc)}
+
+        if len(raw) > 256 * 1024:
+            return False, "invalid-health-response", {
+                "error": "Provider health response exceeded 256 KiB."
+            }
+        try:
+            value = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return False, "invalid-health-response", {"error": str(exc)}
+        if not isinstance(value, dict):
+            return False, "invalid-health-response", {
+                "error": "Provider health response must be a JSON object."
+            }
+
+        expected = {
+            "provider": expected_provider,
+            "model": expected_model,
+            "model_revision": expected_revision,
+        }
+        mismatches = {
+            key: {"expected": expected_value, "actual": value.get(key)}
+            for key, expected_value in expected.items()
+            if value.get(key) != expected_value
+        }
+        if mismatches:
+            return False, "identity-mismatch", {"mismatches": mismatches, **value}
+
+        status = str(value.get("status") or "reachable")
+        return True, status, value
 
     async def generate_body(
         self,
