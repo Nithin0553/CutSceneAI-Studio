@@ -118,7 +118,6 @@ def test_hymotion_converter_rejects_malformed_provider_output(
         convert_hymotion_smplh_to_cutsceneai(poses, translations)
 
 
-
 def _provider_request(**updates) -> service.BodyRequest:
     payload = {
         "semantic_id": "body:scene:beat:guard",
