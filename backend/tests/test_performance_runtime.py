@@ -499,7 +499,6 @@ def test_list_runs_skips_corrupt_records(tmp_path: Path) -> None:
     assert executor.list_runs() == []
 
 
-
 class _HealthResponse:
     def __init__(self, payload: dict[str, object]) -> None:
         self.payload = payload
