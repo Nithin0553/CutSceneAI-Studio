@@ -1513,3 +1513,56 @@ button:disabled {
     border-bottom: 1px solid #253040;
   }
 }
+
+
+.bridge-activity {
+  width: 100%;
+  max-width: 520px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid #283447;
+  border-radius: 9px;
+  background: #0a1018;
+  text-align: left;
+}
+
+.bridge-activity > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bridge-activity strong {
+  color: #b9c6d8;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.bridge-activity span {
+  color: #69788e;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.bridge-succeeded {
+  border-color: rgba(75, 177, 126, 0.28);
+  background: rgba(45, 133, 90, 0.07);
+}
+
+.bridge-succeeded > svg,
+.bridge-succeeded strong {
+  color: #82d8ae;
+}
+
+.bridge-failed {
+  border-color: rgba(205, 82, 75, 0.28);
+  background: rgba(143, 47, 43, 0.08);
+}
+
+.bridge-failed > svg,
+.bridge-failed strong {
+  color: #efa29a;
+}
