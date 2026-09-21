@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import hashlib
 import os
 from pathlib import Path
@@ -67,15 +68,47 @@ class ProviderResponse(ProviderModel):
     artifact: dict[str, Any]
 
 
+_runtime: Any | None = None
+_runtime_lock = asyncio.Lock()
+_model_path: Path | None = None
+
+
+
+def _max_duration_seconds() -> float:
+    raw = os.getenv("HY_MOTION_MAX_DURATION_SECONDS", "5.0")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise RuntimeError("HY_MOTION_MAX_DURATION_SECONDS must be numeric.") from exc
+    if not 0.5 <= value <= 12.0:
+        raise RuntimeError("HY_MOTION_MAX_DURATION_SECONDS must be between 0.5 and 12.")
+    return value
+
+
+def _max_prompt_words() -> int:
+    raw = os.getenv("HY_MOTION_MAX_PROMPT_WORDS", "60")
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError("HY_MOTION_MAX_PROMPT_WORDS must be an integer.") from exc
+    if not 1 <= value <= 200:
+        raise RuntimeError("HY_MOTION_MAX_PROMPT_WORDS must be between 1 and 200.")
+    return value
+
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    if os.getenv("HY_MOTION_PRELOAD", "false").lower() in {"1", "true", "yes"}:
+        await asyncio.to_thread(_load_runtime)
+    yield
+
+
 app = FastAPI(
     title="CutSceneAI HY-Motion Provider",
     version="0.1.0",
     docs_url="/docs",
+    lifespan=_lifespan,
 )
-
-_runtime: Any | None = None
-_runtime_lock = asyncio.Lock()
-_model_path: Path | None = None
 
 
 def _bearer_token() -> str | None:
@@ -116,7 +149,15 @@ def _motion_prompt(prompt: str) -> str:
     parts = [action.group(1).strip()]
     if style and style.group(1).strip().lower() != "natural":
         parts.append(f"Style: {style.group(1).strip()}.")
-    return " ".join(parts)[:500]
+    motion_prompt = " ".join(parts).strip()
+    word_count = len(motion_prompt.split())
+    maximum_words = _max_prompt_words()
+    if word_count > maximum_words:
+        raise RuntimeError(
+            f"HY-Motion prompt contains {word_count} words; configured maximum is "
+            f"{maximum_words}. Split the CIR performance cue into shorter motion intent."
+        )
+    return motion_prompt
 
 
 def _resolve_hymotion_root() -> Path:
@@ -205,9 +246,12 @@ def _generate_sync(request: BodyRequest) -> ProviderResponse:
     target_fps = _target_fps(request.prompt)
     target_frames = request.end_frame - request.start_frame
     duration = target_frames / target_fps
-    if not 0.5 <= duration <= 12.0:
+    maximum_duration = _max_duration_seconds()
+    if not 0.5 <= duration <= maximum_duration:
         raise RuntimeError(
-            f"HY-Motion supports 0.5-12 second requests; received {duration:.3f}s."
+            f"HY-Motion request duration must be 0.5-{maximum_duration:g} seconds in this "
+            f"deployment; received {duration:.3f}s. Split the CIR performance cue or raise "
+            "HY_MOTION_MAX_DURATION_SECONDS on a GPU with sufficient VRAM."
         )
 
     prompt = _motion_prompt(request.prompt)
@@ -280,6 +324,8 @@ async def health(
         "code_revision": HY_MOTION_CODE_REVISION,
         "checkpoint_sha256": HY_MOTION_LITE_CHECKPOINT_SHA256,
         "source_fps": HY_MOTION_SOURCE_FPS,
+        "max_duration_seconds": _max_duration_seconds(),
+        "max_prompt_words": _max_prompt_words(),
         "model_loaded": _runtime is not None,
     }
 
