@@ -173,6 +173,40 @@ def validate_project_model(project: Project) -> None:
                         )
                     )
 
+                phase_intervals: list[tuple[float, float, str]] = []
+                for phase_index, phase in enumerate(performance.motion.phases):
+                    phase_path = f"{performance_path}.motion.phases[{phase_index}]"
+                    phase_end = phase.start_offset_seconds + phase.duration_seconds
+                    if phase_end > beat.duration_seconds + _TIMELINE_EPSILON:
+                        issues.append(
+                            CIRValidationIssue(
+                                code="motion_phase_out_of_bounds",
+                                path=f"{phase_path}.duration_seconds",
+                                message=(
+                                    f"Motion phase '{phase.id}' ends at {phase_end:g}s, beyond "
+                                    f"beat duration {beat.duration_seconds:g}s."
+                                ),
+                            )
+                        )
+                    phase_intervals.append(
+                        (phase.start_offset_seconds, phase_end, phase_path)
+                    )
+
+                active_phase_end = -1.0
+                active_phase_path = ""
+                for phase_start, phase_end, phase_path in sorted(phase_intervals):
+                    if phase_start < active_phase_end - _TIMELINE_EPSILON:
+                        issues.append(
+                            CIRValidationIssue(
+                                code="motion_phase_overlap",
+                                path=f"{phase_path}.start_offset_seconds",
+                                message=f"Motion phase overlaps {active_phase_path}.",
+                            )
+                        )
+                    if phase_end > active_phase_end:
+                        active_phase_end = phase_end
+                        active_phase_path = phase_path
+
             for focus_index, focus_id in enumerate(beat.environment_focus_ids):
                 if focus_id not in environment_ids:
                     issues.append(
