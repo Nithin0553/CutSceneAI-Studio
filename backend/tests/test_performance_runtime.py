@@ -119,6 +119,107 @@ class FakeSpeechBackend:
         )
 
 
+def _humanml_rest_positions() -> list[list[float]]:
+    offsets = (
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 1.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+    )
+    parents = (-1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 12, 13, 14, 16, 17, 18, 19)
+    positions: list[list[float]] = []
+    for index, offset in enumerate(offsets):
+        parent = parents[index]
+        if parent < 0:
+            positions.append([0.0, 0.0, 0.0])
+        else:
+            source = positions[parent]
+            positions.append(
+                [
+                    source[0] + offset[0],
+                    source[1] + offset[1],
+                    source[2] + offset[2],
+                ]
+            )
+    return positions
+
+
+def test_external_body_provider_accepts_humanml_xyz_output() -> None:
+    request = performance_executor_module.compile_generation_plan(
+        _project_without_dialogue(),
+        config=performance_providers_module.performance_compiler_config(20260812),
+    ).body_requests[0]
+    rest = _humanml_rest_positions()
+    moved = [[x, y, z + 1.0] for x, y, z in rest]
+    response = {
+        "request_semantic_id": request.semantic_id,
+        "provider": request.provider,
+        "model": request.model,
+        "model_revision": request.model_revision,
+        "prompt_sha256": request.prompt_sha256,
+        "configuration_sha256": request.configuration_sha256,
+        "seed": request.seed,
+        "generated_at_inference": True,
+        "retrieved_pre_authored_clip": False,
+        "deterministic_algorithms": False,
+        "artifact_format": "humanml-xyz-v0.1",
+        "artifact": {
+            "fps": 20,
+            "frame_count": 2,
+            "joint_names": [
+                "pelvis",
+                "left_hip",
+                "right_hip",
+                "spine1",
+                "left_knee",
+                "right_knee",
+                "spine2",
+                "left_ankle",
+                "right_ankle",
+                "spine3",
+                "left_foot",
+                "right_foot",
+                "neck",
+                "left_collar",
+                "right_collar",
+                "head",
+                "left_shoulder",
+                "right_shoulder",
+                "left_elbow",
+                "right_elbow",
+                "left_wrist",
+                "right_wrist",
+            ],
+            "positions": [rest, moved],
+        },
+    }
+
+    output = ExternalCanonicalBodyBackend._parse_response(request, response)
+
+    assert output.artifact.fps == 20
+    assert output.artifact.frame_count == 2
+    assert len(output.artifact.samples[0].joint_rotations) == 22
+    assert output.artifact.samples[1].root_translation.z == pytest.approx(-1.0)
+
+
 def test_external_body_provider_accepts_smplx_axis_angle_output() -> None:
     request = performance_executor_module.compile_generation_plan(
         _project_without_dialogue(),
