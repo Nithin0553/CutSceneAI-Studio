@@ -166,7 +166,11 @@ class ExternalCanonicalBodyBackend:
         token = os.getenv("CUTSCENEAI_BODY_PROVIDER_TOKEN")
         health_url = os.getenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_URL")
         timeout_raw = os.getenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS")
+        health_timeout_raw = os.getenv(
+            "CUTSCENEAI_BODY_PROVIDER_HEALTH_TIMEOUT_SECONDS"
+        )
         timeout = _DEFAULT_TIMEOUT_SECONDS
+        health_timeout = 5.0
         if timeout_raw:
             try:
                 timeout = float(timeout_raw)
@@ -178,6 +182,17 @@ class ExternalCanonicalBodyBackend:
             raise PerformanceProviderConfigurationError(
                 "Body provider timeout must be between 0 and 1800 seconds."
             )
+        if health_timeout_raw:
+            try:
+                health_timeout = float(health_timeout_raw)
+            except ValueError as exc:
+                raise PerformanceProviderConfigurationError(
+                    "CUTSCENEAI_BODY_PROVIDER_HEALTH_TIMEOUT_SECONDS must be numeric."
+                ) from exc
+        if health_timeout <= 0 or health_timeout > 120:
+            raise PerformanceProviderConfigurationError(
+                "Body provider health timeout must be between 0 and 120 seconds."
+            )
         return cls(
             command=command,
             url=url,
@@ -185,6 +200,7 @@ class ExternalCanonicalBodyBackend:
             timeout_seconds=timeout,
             health_url=health_url,
             health_command=health_command,
+            health_timeout_seconds=health_timeout,
         )
 
     @property
