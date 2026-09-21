@@ -181,3 +181,51 @@ def test_generation_plan_rejects_invalid_global_invariants(
 
     with pytest.raises(ValidationError, match=message):
         PerformanceGenerationPlan.model_validate(payload)
+
+
+def test_compiler_decomposes_atomic_motion_phases_into_body_requests() -> None:
+    project = office_project()
+    performance = project.scenes[0].beats[0].performances[0]
+    performance.motion.phases = [
+        {
+            "id": "walk",
+            "start_offset_seconds": 0.0,
+            "duration_seconds": 2.5,
+            "prompt": "Walk briskly forward.",
+            "style": "restrained tension",
+        },
+        {
+            "id": "stop",
+            "start_offset_seconds": 2.5,
+            "duration_seconds": 0.5,
+            "prompt": "Decelerate and come to a balanced stop.",
+            "style": "controlled",
+        },
+        {
+            "id": "look-down",
+            "start_offset_seconds": 3.0,
+            "duration_seconds": 1.0,
+            "prompt": "Turn the head and upper torso to look down.",
+            "style": "restrained tension",
+        },
+    ]
+
+    plan = compile_generation_plan(project, config=config())
+
+    first_cue = "performance:scene-meeting:beat-arrival:mina:01"
+    first_tracks = [
+        item for item in plan.body_requests
+        if item.source_performance_cue_id == first_cue
+    ]
+    assert [item.semantic_id.rsplit(":", 1)[-1] for item in first_tracks] == [
+        "walk",
+        "stop",
+        "look-down",
+    ]
+    assert [(item.start_frame, item.end_frame) for item in first_tracks] == [
+        (0, 60),
+        (60, 72),
+        (72, 96),
+    ]
+    assert "Action: Walk briskly forward." in first_tracks[0].prompt
+    assert "larger performance" in first_tracks[0].prompt
