@@ -79,10 +79,12 @@ def _clip(
 ) -> tuple[DialogueClip, DialogueWarning | None]:
     end = Decimal(str(cue.start_seconds)) + Decimal(str(metadata.duration_seconds))
     end_seconds = float(end)
-    end_frame = max(
-        cue.start_frame + 1,
-        int((end * fps).quantize(Decimal("1"), rounding=ROUND_CEILING)),
+    duration_frames = max(
+        1,
+        (metadata.frame_count * fps + metadata.sample_rate_hz - 1)
+        // metadata.sample_rate_hz,
     )
+    end_frame = cue.start_frame + duration_frames
     fits = end <= Decimal(str(cue.beat_end_seconds)) + Decimal("1e-9")
     warning = None
     if not fits:
