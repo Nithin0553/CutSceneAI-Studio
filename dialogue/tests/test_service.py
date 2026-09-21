@@ -100,6 +100,19 @@ def test_end_frame_rounds_up_to_preserve_the_complete_wave(project: Project) -> 
     assert bundle.manifest.clips[0].end_frame == 145
 
 
+def test_end_frame_uses_canonical_start_frame_plus_wav_duration(project: Project) -> None:
+    dialogue = project.scenes[0].beats[1].performances[0].dialogue
+    assert dialogue is not None
+    dialogue.start_offset_seconds = 0.1
+
+    bundle = build_recorded_bundle(project, recordings(project, duration_seconds=1.03))
+    clip = bundle.manifest.clips[0]
+
+    assert clip.start_frame == 98
+    assert clip.end_frame == 123
+    assert clip.end_frame - clip.start_frame == 25
+
+
 @pytest.mark.parametrize(
     ("transform", "message"),
     [
