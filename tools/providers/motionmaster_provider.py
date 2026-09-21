@@ -251,6 +251,9 @@ def _run_motionmaster(request: dict[str, object]) -> dict[str, object]:
 
     return {
         "fps": source_fps,
+        "source_distance_unit": "meter",
+        "source_handedness": "right",
+        "source_up_axis": "y",
         "source_forward_axis": source_forward_axis,
         "global_orient": global_orient,
         "body_pose": body_pose,
