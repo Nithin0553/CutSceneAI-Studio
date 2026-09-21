@@ -223,8 +223,10 @@ def _generate_sync(request: BodyRequest) -> ProviderResponse:
         output_dir=output_dir,
         output_filename=request.semantic_id.replace(":", "_"),
         original_text=prompt,
-        use_special_game_feat=os.getenv("HY_MOTION_USE_SPECIAL_GAME_FEAT", "false").lower()
-        in {"1", "true", "yes"},
+        use_special_game_feat=(
+            os.getenv("HY_MOTION_USE_SPECIAL_GAME_FEAT", "false").lower()
+            in {"1", "true", "yes"}
+        ),
     )
 
     rot6d = model_output["rot6d"]
@@ -254,11 +256,13 @@ def _generate_sync(request: BodyRequest) -> ProviderResponse:
         prompt_sha256=request.prompt_sha256,
         configuration_sha256=request.configuration_sha256,
         seed=request.seed,
-        deterministic_algorithms=os.getenv(
-            "HY_MOTION_DETERMINISTIC_ALGORITHMS",
-            "false",
-        ).lower()
-        in {"1", "true", "yes"},
+        deterministic_algorithms=(
+            os.getenv(
+                "HY_MOTION_DETERMINISTIC_ALGORITHMS",
+                "false",
+            ).lower()
+            in {"1", "true", "yes"}
+        ),
         artifact=artifact,
     )
 
