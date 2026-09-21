@@ -78,7 +78,17 @@ class StudioPerformanceExecutor:
             )
             and config.body.provider != "unconfigured-body"
         )
-        body_ready = body.configured and body_identity_configured
+        body_transport_ready = body.configured and body_identity_configured
+        body_reachable: bool | None = None
+        body_health_status: str | None = None
+        body_health: dict[str, object] = {}
+        if body_transport_ready:
+            body_reachable, body_health_status, body_health = body.probe_health(
+                expected_provider=config.body.provider,
+                expected_model=config.body.model,
+                expected_revision=config.body.model_revision,
+            )
+        body_ready = body_transport_ready and body_reachable is not False
         tts_ready = bool(os.getenv("OPENAI_API_KEY"))
 
         providers = [
@@ -91,6 +101,9 @@ class StudioPerformanceExecutor:
                     "Canonical external text-to-motion provider over a strict JSON command/HTTPS "
                     "contract. Configure both transport and truthful provider/model provenance."
                 ),
+                reachable=body_reachable,
+                health_status=body_health_status,
+                health=body_health,
             ),
             PerformanceProviderState(
                 modality="facial",
@@ -130,6 +143,16 @@ class StudioPerformanceExecutor:
             blocking.append(
                 "Set CUTSCENEAI_BODY_PROVIDER, CUTSCENEAI_BODY_MODEL, and "
                 "CUTSCENEAI_BODY_MODEL_REVISION to the actual motion generator identity."
+            )
+        if body_transport_ready and body_reachable is False:
+            blocking.append(
+                "The configured body provider health check failed"
+                + (
+                    f" ({body_health_status})."
+                    if body_health_status
+                    else "."
+                )
+                + " Verify CUTSCENEAI_BODY_PROVIDER_HEALTH_URL, credentials, and provider identity."
             )
         return PerformanceReadinessResponse(
             ready=not blocking,
