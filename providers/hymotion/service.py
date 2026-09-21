@@ -10,16 +10,16 @@ import sys
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
-from huggingface_hub import snapshot_download
 from pydantic import BaseModel, ConfigDict, Field
 
 from providers.hymotion.canonical import convert_hymotion_smplh_to_cutsceneai
 
 
 HY_MOTION_CODE_REVISION = "4e426f5a1021cbcf7f375458c37b840ee7225229"
+HY_MOTION_PROVIDER_ID = "tencent-hymotion"
 HY_MOTION_MODEL_REPO = "tencent/HY-Motion-1.0"
 HY_MOTION_MODEL_NAME = "HY-Motion-1.0-Lite"
-HY_MOTION_MODEL_REVISION = "e156af266a810d4873998baa1af44ea1962498cc"
+HY_MOTION_HUB_REVISION = "e156af266a810d4873998baa1af44ea1962498cc"
 HY_MOTION_LITE_CHECKPOINT_SHA256 = (
     "d83f118f8d74db76249db86dcf9982a8229f43ef4e9fa11f683019d6230dd486"
 )
@@ -182,9 +182,11 @@ def _resolve_model_path() -> Path:
         cache_root = Path(
             os.getenv("HY_MOTION_MODEL_CACHE", "/models/tencent")
         ).expanduser()
+        from huggingface_hub import snapshot_download
+
         local_dir = snapshot_download(
             repo_id=HY_MOTION_MODEL_REPO,
-            revision=os.getenv("HY_MOTION_MODEL_REVISION", HY_MOTION_MODEL_REVISION),
+            revision=os.getenv("HY_MOTION_HUB_REVISION", HY_MOTION_HUB_REVISION),
             allow_patterns=f"{HY_MOTION_MODEL_NAME}/*",
             local_dir=str(cache_root),
             token=os.getenv("HF_TOKEN") or None,
@@ -241,7 +243,22 @@ def _load_runtime() -> Any:
     return _runtime
 
 
+def _validate_request_identity(request: BodyRequest) -> None:
+    expected = (
+        HY_MOTION_PROVIDER_ID,
+        HY_MOTION_MODEL_NAME,
+        HY_MOTION_LITE_CHECKPOINT_SHA256,
+    )
+    actual = (request.provider, request.model, request.model_revision)
+    if actual != expected:
+        raise RuntimeError(
+            "Body generation request identity does not match the loaded HY-Motion checkpoint. "
+            f"Expected provider/model/revision {expected!r}; got {actual!r}."
+        )
+
+
 def _generate_sync(request: BodyRequest) -> ProviderResponse:
+    _validate_request_identity(request)
     runtime = _load_runtime()
     target_fps = _target_fps(request.prompt)
     target_frames = request.end_frame - request.start_frame
@@ -318,9 +335,10 @@ async def health(
     _authorize(authorization)
     return {
         "status": "ready" if _runtime is not None else "cold",
-        "provider": "tencent-hymotion",
+        "provider": HY_MOTION_PROVIDER_ID,
         "model": HY_MOTION_MODEL_NAME,
-        "model_revision": HY_MOTION_MODEL_REVISION,
+        "model_revision": HY_MOTION_LITE_CHECKPOINT_SHA256,
+        "hub_revision": HY_MOTION_HUB_REVISION,
         "code_revision": HY_MOTION_CODE_REVISION,
         "checkpoint_sha256": HY_MOTION_LITE_CHECKPOINT_SHA256,
         "source_fps": HY_MOTION_SOURCE_FPS,
