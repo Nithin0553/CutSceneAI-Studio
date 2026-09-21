@@ -39,7 +39,6 @@ from app.services.performance_providers import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PERFORMANCE_RUN_ROOT = _REPO_ROOT / ".cutsceneai-studio" / "runs" / "performance"
-_MAX_BODY_CONCURRENCY = 2
 
 
 def _utc_now() -> str:
@@ -48,6 +47,17 @@ def _utc_now() -> str:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _body_concurrency() -> int:
+    raw = os.getenv("CUTSCENEAI_BODY_MAX_CONCURRENCY", "1")
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError("CUTSCENEAI_BODY_MAX_CONCURRENCY must be an integer.") from exc
+    if value < 1 or value > 16:
+        raise RuntimeError("CUTSCENEAI_BODY_MAX_CONCURRENCY must be between 1 and 16.")
+    return value
 
 
 def _safe_run_id(run_id: str) -> str:
@@ -219,7 +229,7 @@ class StudioPerformanceExecutor:
             facial_backend = ProceduralFacialBackend()
             camera_backend = ProceduralCameraBackend()
 
-            semaphore = asyncio.Semaphore(_MAX_BODY_CONCURRENCY)
+            semaphore = asyncio.Semaphore(_body_concurrency())
 
             async def body_one(item):
                 async with semaphore:
