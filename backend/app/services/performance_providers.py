@@ -21,11 +21,13 @@ from cutsceneai_performance import (
     FacialCurveSample,
     FacialGenerationRequest,
     GenerationModelConfig,
+    HumanMLXYZMotion,
     PerformanceCompilerConfig,
     ProviderArtifact,
     Quaternion,
     SMPLXAxisAngleMotion,
     Vector3,
+    humanml_xyz_to_canonical,
     smplx_axis_angle_to_canonical,
 )
 from pydantic import BaseModel, ValidationError
@@ -373,6 +375,9 @@ class ExternalCanonicalBodyBackend:
             elif artifact_format == "smplx-axis-angle-v0.1":
                 smplx = SMPLXAxisAngleMotion.model_validate(response["artifact"])
                 artifact = smplx_axis_angle_to_canonical(smplx)
+            elif artifact_format == "humanml-xyz-v0.1":
+                humanml = HumanMLXYZMotion.model_validate(response["artifact"])
+                artifact = humanml_xyz_to_canonical(humanml)
             else:
                 raise PerformanceProviderExecutionError(
                     "Body provider returned unsupported artifact_format "
