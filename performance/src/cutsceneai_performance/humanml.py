@@ -105,7 +105,9 @@ class HumanMLXYZMotion(PerformanceModel):
     @model_validator(mode="after")
     def validate_motion(self) -> Self:
         if self.frame_count != len(self.positions):
-            raise ValueError("frame_count must equal the number of HumanML position frames.")
+            raise ValueError(
+                "frame_count must equal the number of HumanML position frames."
+            )
         if tuple(self.joint_names) != CANONICAL_HUMANOID_JOINTS:
             raise ValueError(
                 "HumanML joint_names must exactly match the CutSceneAI 22-joint order."
@@ -217,7 +219,9 @@ def _reference_directions() -> list[tuple[float, float, float]]:
     return directions
 
 
-def _source_position(value: list[float] | tuple[float, float, float]) -> tuple[float, float, float]:
+def _source_position(
+    value: list[float] | tuple[float, float, float],
+) -> tuple[float, float, float]:
     if len(value) != 3:
         raise ValueError("HumanML source positions must contain exactly three values.")
     # The validated S02 boundary records HumanML as RH/Y-up/+Z-forward and the
@@ -394,7 +398,9 @@ def _scale(
     return (value[0] * amount, value[1] * amount, value[2] * amount)
 
 
-def _dot(first: tuple[float, float, float], second: tuple[float, float, float]) -> float:
+def _dot(
+    first: tuple[float, float, float], second: tuple[float, float, float]
+) -> float:
     return first[0] * second[0] + first[1] * second[1] + first[2] * second[2]
 
 
