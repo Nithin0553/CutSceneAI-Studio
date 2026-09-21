@@ -188,6 +188,14 @@ def validate_project_model(project: Project) -> None:
                                 ),
                             )
                         )
+                    if phase.target_id and phase.target_id not in entity_ids:
+                        issues.append(
+                            CIRValidationIssue(
+                                code="unknown_entity_reference",
+                                path=f"{phase_path}.target_id",
+                                message=f"Entity '{phase.target_id}' is not declared in project.",
+                            )
+                        )
                     phase_intervals.append(
                         (phase.start_offset_seconds, phase_end, phase_path)
                     )
