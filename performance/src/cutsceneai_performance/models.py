@@ -121,6 +121,7 @@ class BodyGenerationRequest(GenerationRequest):
     source_performance_cue_id: SemanticId
     skeleton_profile: Identifier
     look_at_binding_id: SemanticId | None = None
+    target_binding_id: SemanticId | None = None
 
 
 class FacialGenerationRequest(GenerationRequest):
@@ -188,6 +189,7 @@ class BodyMotionTrack(TimedGeneratedTrack):
     actor_binding_id: SemanticId
     source_performance_cue_id: SemanticId
     skeleton_profile: Identifier
+    target_binding_id: SemanticId | None = None
     joint_count: int = Field(gt=0)
     sample_count: int = Field(gt=0)
 
