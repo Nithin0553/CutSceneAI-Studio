@@ -73,7 +73,6 @@ _runtime_lock = asyncio.Lock()
 _model_path: Path | None = None
 
 
-
 def _max_duration_seconds() -> float:
     raw = os.getenv("HY_MOTION_MAX_DURATION_SECONDS", "5.0")
     try:
