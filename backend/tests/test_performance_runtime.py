@@ -347,6 +347,39 @@ def test_executor_generates_verified_bundle_and_evidence(tmp_path: Path, monkeyp
     assert executor.list_runs()[0].run_id == record.run_id
 
 
+def test_executor_persists_body_outputs_before_postprocessing_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    def fail_after_body(*args, **kwargs):
+        raise RuntimeError("post-body failure")
+
+    monkeypatch.setattr(
+        performance_executor_module,
+        "assemble_performance_bundle",
+        fail_after_body,
+    )
+
+    record = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(project=_project_without_dialogue())
+        )
+    )
+
+    assert record.status is PerformanceRunStatus.FAILED
+    assert "post-body failure" in (record.error or "")
+    output_dir = tmp_path / "runs" / record.run_id / "body-provider-outputs"
+    motion_files = sorted(output_dir.glob("*.motion.json"))
+    metadata_files = sorted(output_dir.glob("*.metadata.json"))
+    assert len(motion_files) == record.body_request_count
+    assert len(metadata_files) == record.body_request_count
+    metadata = json.loads(metadata_files[0].read_text(encoding="utf-8"))
+    assert metadata["request_semantic_id"].startswith("body:")
+    assert metadata["artifact_file"] == motion_files[0].name
+
+
 def test_executor_keeps_failed_run_evidence(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_COMMAND", raising=False)
     monkeypatch.delenv("CUTSCENEAI_BODY_PROVIDER_URL", raising=False)
