@@ -21,12 +21,14 @@ def _require_env(name: str) -> str:
 
 
 def _as_float_lists(value, *, width: int, name: str) -> list[list[float]]:
-    try:
+    if hasattr(value, "tolist"):
         array = value.tolist()
-    except AttributeError as exc:
-        raise RuntimeError(f"MotionMaster output '{name}' is not an ndarray.") from exc
+    else:
+        array = value
     if not isinstance(array, list) or not array:
-        raise RuntimeError(f"MotionMaster output '{name}' is empty.")
+        raise RuntimeError(
+            f"MotionMaster output '{name}' must be a non-empty ndarray or list."
+        )
     result: list[list[float]] = []
     for row in array:
         if not isinstance(row, list) or len(row) != width:
