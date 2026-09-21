@@ -166,9 +166,7 @@ class ExternalCanonicalBodyBackend:
         token = os.getenv("CUTSCENEAI_BODY_PROVIDER_TOKEN")
         health_url = os.getenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_URL")
         timeout_raw = os.getenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS")
-        health_timeout_raw = os.getenv(
-            "CUTSCENEAI_BODY_PROVIDER_HEALTH_TIMEOUT_SECONDS"
-        )
+        health_timeout_raw = os.getenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_TIMEOUT_SECONDS")
         timeout = _DEFAULT_TIMEOUT_SECONDS
         health_timeout = 5.0
         if timeout_raw:
@@ -228,15 +226,21 @@ class ExternalCanonicalBodyBackend:
                 return False, "unreachable", {"error": str(exc)}
             if completed.returncode != 0:
                 detail = completed.stderr.decode("utf-8", errors="replace")[-4000:]
-                return False, "unhealthy", {
-                    "exit_code": completed.returncode,
-                    "error": detail,
-                }
+                return (
+                    False,
+                    "unhealthy",
+                    {
+                        "exit_code": completed.returncode,
+                        "error": detail,
+                    },
+                )
             raw = completed.stdout
             if len(raw) > 256 * 1024:
-                return False, "invalid-health-response", {
-                    "error": "Provider health response exceeded 256 KiB."
-                }
+                return (
+                    False,
+                    "invalid-health-response",
+                    {"error": "Provider health response exceeded 256 KiB."},
+                )
             return self._validate_health_identity(
                 raw,
                 expected_provider=expected_provider,
@@ -272,9 +276,11 @@ class ExternalCanonicalBodyBackend:
             return False, "unreachable", {"error": str(exc)}
 
         if len(raw) > 256 * 1024:
-            return False, "invalid-health-response", {
-                "error": "Provider health response exceeded 256 KiB."
-            }
+            return (
+                False,
+                "invalid-health-response",
+                {"error": "Provider health response exceeded 256 KiB."},
+            )
         return self._validate_health_identity(
             raw,
             expected_provider=expected_provider,
@@ -295,9 +301,11 @@ class ExternalCanonicalBodyBackend:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             return False, "invalid-health-response", {"error": str(exc)}
         if not isinstance(value, dict):
-            return False, "invalid-health-response", {
-                "error": "Provider health response must be a JSON object."
-            }
+            return (
+                False,
+                "invalid-health-response",
+                {"error": "Provider health response must be a JSON object."},
+            )
 
         expected = {
             "provider": expected_provider,
@@ -458,8 +466,7 @@ class ExternalCanonicalBodyBackend:
                 artifact = humanml_xyz_to_canonical(humanml)
             else:
                 raise PerformanceProviderExecutionError(
-                    "Body provider returned unsupported artifact_format "
-                    f"'{artifact_format}'."
+                    f"Body provider returned unsupported artifact_format '{artifact_format}'."
                 )
         except ValidationError as exc:
             raise PerformanceProviderExecutionError(
