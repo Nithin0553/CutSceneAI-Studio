@@ -18,6 +18,7 @@ from providers.hymotion.canonical import convert_hymotion_smplh_to_cutsceneai
 HY_MOTION_CODE_REVISION = "4e426f5a1021cbcf7f375458c37b840ee7225229"
 HY_MOTION_MODEL_REPO = "tencent/HY-Motion-1.0"
 HY_MOTION_MODEL_NAME = "HY-Motion-1.0-Lite"
+HY_MOTION_MODEL_REVISION = "e156af266a810d4873998baa1af44ea1962498cc"
 HY_MOTION_LITE_CHECKPOINT_SHA256 = (
     "d83f118f8d74db76249db86dcf9982a8229f43ef4e9fa11f683019d6230dd486"
 )
@@ -108,11 +109,6 @@ def _motion_prompt(prompt: str) -> str:
         prompt,
         flags=re.IGNORECASE | re.DOTALL,
     )
-    emotion = re.search(
-        r"Emotion:\s*(.+?)\.\s+Duration:",
-        prompt,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
     if action is None:
         cleaned = re.sub(r"\s+", " ", prompt).strip()
         return cleaned[:500]
@@ -120,11 +116,6 @@ def _motion_prompt(prompt: str) -> str:
     parts = [action.group(1).strip()]
     if style and style.group(1).strip().lower() != "natural":
         parts.append(f"Style: {style.group(1).strip()}.")
-    if emotion:
-        emotion_text = emotion.group(1).strip()
-        emotion_text = re.sub(r"\s+at\s+[0-9.]+\s+intensity$", "", emotion_text)
-        if emotion_text and emotion_text.lower() not in {"neutral", "none"}:
-            parts.append(f"Emotion: {emotion_text}.")
     return " ".join(parts)[:500]
 
 
@@ -152,7 +143,7 @@ def _resolve_model_path() -> Path:
         ).expanduser()
         local_dir = snapshot_download(
             repo_id=HY_MOTION_MODEL_REPO,
-            revision=os.getenv("HY_MOTION_MODEL_REVISION", "main"),
+            revision=os.getenv("HY_MOTION_MODEL_REVISION", HY_MOTION_MODEL_REVISION),
             allow_patterns=f"{HY_MOTION_MODEL_NAME}/*",
             local_dir=str(cache_root),
             token=os.getenv("HF_TOKEN") or None,
@@ -189,6 +180,7 @@ def _load_runtime() -> Any:
         return _runtime
 
     root = _resolve_hymotion_root()
+    os.chdir(root)
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -231,7 +223,8 @@ def _generate_sync(request: BodyRequest) -> ProviderResponse:
         output_dir=output_dir,
         output_filename=request.semantic_id.replace(":", "_"),
         original_text=prompt,
-        use_special_game_feat=True,
+        use_special_game_feat=os.getenv("HY_MOTION_USE_SPECIAL_GAME_FEAT", "false").lower()
+        in {"1", "true", "yes"},
     )
 
     rot6d = model_output["rot6d"]
@@ -279,6 +272,7 @@ async def health(
         "status": "ready" if _runtime is not None else "cold",
         "provider": "tencent-hymotion",
         "model": HY_MOTION_MODEL_NAME,
+        "model_revision": HY_MOTION_MODEL_REVISION,
         "code_revision": HY_MOTION_CODE_REVISION,
         "checkpoint_sha256": HY_MOTION_LITE_CHECKPOINT_SHA256,
         "source_fps": HY_MOTION_SOURCE_FPS,
