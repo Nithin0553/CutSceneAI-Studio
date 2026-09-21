@@ -15,6 +15,15 @@ Use stable lowercase IDs and SI units. Every scene needs non-overlapping beats a
 an establishing shot, and an environment-detail shot for each focused object. Declare every
 referenced character and environment object. Plan camera, body motion, facial performance,
 dialogue, blocking, and narrative intent. Timelines must fit their scene duration.
+
+For every compound body performance, populate motion.phases with short, sequential, atomic
+physical actions whose start offsets and durations fit inside the beat. A phase should describe
+one motion-generation task such as walking, reacting, decelerating/stopping, turning, gesturing,
+or holding a pose. Do not combine multiple physically distinct actions into one phase. Preserve
+the full natural-language intent in motion.prompt as a summary, but make motion.phases the
+authoritative choreography for body generation. Use enough phases to preserve the user's event
+order and timing without inventing unnecessary actions.
+
 Return only the structured Project requested by the response schema.
 """
 
