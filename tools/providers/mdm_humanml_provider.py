@@ -144,8 +144,21 @@ def _motion_prompt(request: dict[str, Any]) -> str:
         prompt,
         flags=re.IGNORECASE | re.DOTALL,
     )
+    style = re.search(
+        r"Style:\s*(.+?)\.\s+Emotion:",
+        prompt,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     if action is not None and action.group(1).strip():
-        return re.sub(r"\s+", " ", action.group(1)).strip()
+        action_text = re.sub(r"\s+", " ", action.group(1)).strip().rstrip(".")
+        style_text = (
+            re.sub(r"\s+", " ", style.group(1)).strip().rstrip(".")
+            if style is not None and style.group(1).strip()
+            else ""
+        )
+        if style_text and style_text.lower() != "natural":
+            return f"{action_text}. Perform the motion in a {style_text} manner."
+        return action_text + "."
     return re.sub(r"\s+", " ", prompt).strip()[:1000]
 
 
