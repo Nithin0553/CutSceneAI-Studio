@@ -219,7 +219,7 @@ if ($Mode -eq "Remote") {
     Write-Host "Provider URL: $RemoteProviderUrl"
     Write-Host ""
     Write-Host "Restart CutSceneAI Studio after writing .env.local."
-    exit 0
+    return
 }
 
 if ($SourceFps -lt 1 -or $SourceFps -gt 240) {
@@ -337,7 +337,7 @@ if ($Missing.Count -gt 0) {
     Write-Host "MotionMaster's README requires the MLLM/tokenizer/stats checkpoints plus"
     Write-Host "separately acquired SMPL-X and VPoser assets. CutSceneAI will not fabricate"
     Write-Host "or substitute those files."
-    exit 2
+    throw "MotionMaster model assets are incomplete; configuration was not activated."
 }
 
 $GitRevision = Get-GitRevision -Root $MotionMasterRoot
