@@ -270,6 +270,7 @@ def assemble_performance_bundle(
                 semantic_id=body_request.semantic_id,
                 actor_binding_id=body_request.actor_binding_id,
                 source_performance_cue_id=body_request.source_performance_cue_id,
+                target_binding_id=body_request.target_binding_id,
                 start_frame=body_request.start_frame,
                 end_frame=body_request.end_frame,
                 skeleton_profile=body_request.skeleton_profile,
@@ -496,6 +497,7 @@ def verify_performance_bundle(bundle: PerformanceBundle) -> None:
             body_track.actor_binding_id != body_request.actor_binding_id
             or body_track.source_performance_cue_id
             != body_request.source_performance_cue_id
+            or body_track.target_binding_id != body_request.target_binding_id
             or body_track.start_frame != body_request.start_frame
             or body_track.end_frame != body_request.end_frame
             or body_track.skeleton_profile != body_request.skeleton_profile
