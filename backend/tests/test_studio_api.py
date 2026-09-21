@@ -723,11 +723,7 @@ def test_unity_bridge_ignores_empty_poll_commands(tmp_path: Path, monkeypatch) -
 
     service.install_bridge(record.project_id)
     bridge = (
-        Path(record.project_path)
-        / "Assets"
-        / "Editor"
-        / "CutSceneAI"
-        / "CutSceneAIStudioBridge.cs"
+        Path(record.project_path) / "Assets" / "Editor" / "CutSceneAI" / "CutSceneAIStudioBridge.cs"
     ).read_text(encoding="utf-8")
 
     assert "string.IsNullOrWhiteSpace(response.command.command_id)" in bridge
@@ -824,11 +820,7 @@ def test_unity_bridge_logs_backend_completion_response(tmp_path: Path, monkeypat
     )
     service.install_bridge(record.project_id)
     bridge = (
-        Path(record.project_path)
-        / "Assets"
-        / "Editor"
-        / "CutSceneAI"
-        / "CutSceneAIStudioBridge.cs"
+        Path(record.project_path) / "Assets" / "Editor" / "CutSceneAI" / "CutSceneAIStudioBridge.cs"
     ).read_text(encoding="utf-8")
 
     assert "Backend response:" in bridge
