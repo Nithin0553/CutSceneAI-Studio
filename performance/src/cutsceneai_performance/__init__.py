@@ -32,6 +32,12 @@ from .facial import (
     FacialResamplingRecord,
     resample_facial_curves,
 )
+from .humanml import (
+    HUMANML_POSITION_CONVERSION_METHOD,
+    HUMANML_SOURCE_FPS,
+    HumanMLXYZMotion,
+    humanml_xyz_to_canonical,
+)
 from .models import (
     ArtifactFormat,
     ArtifactKind,
@@ -131,6 +137,8 @@ __all__ = [
     "FACIAL_RESAMPLING_METHOD",
     "GENERATION_PLAN_SCHEMA_ID",
     "JSON_SCHEMA_DIALECT",
+    "HUMANML_POSITION_CONVERSION_METHOD",
+    "HUMANML_SOURCE_FPS",
     "MAX_PERFORMANCE_BUNDLE_BYTES",
     "MAX_PERFORMANCE_BUNDLE_ENTRIES",
     "MAX_PERFORMANCE_BUNDLE_UNCOMPRESSED_BYTES",
@@ -164,6 +172,7 @@ __all__ = [
     "FacialGenerationRequest",
     "FacialResamplingRecord",
     "GeneratedPerformancePackage",
+    "HumanMLXYZMotion",
     "GenerationModelConfig",
     "ModelProvenance",
     "MotionResamplingRecord",
@@ -190,6 +199,7 @@ __all__ = [
     "facial_curve_artifact_sha256",
     "facial_curve_json_schema",
     "generation_plan_json_schema",
+    "humanml_xyz_to_canonical",
     "invert_quaternion",
     "load_performance_bundle",
     "multiply_quaternions",
