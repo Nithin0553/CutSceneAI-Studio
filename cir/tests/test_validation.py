@@ -70,3 +70,27 @@ def test_coordinate_axes_must_not_be_collinear() -> None:
     payload["settings"]["forward_axis"] = "-y"
 
     assert "coordinate_axes_collinear" in error_codes(payload)
+
+
+def test_motion_phases_must_fit_and_not_overlap_their_beat() -> None:
+    payload = load_example()
+    motion = payload["scenes"][0]["beats"][0]["performances"][0]["motion"]
+    motion["phases"] = [
+        {
+            "id": "walk",
+            "start_offset_seconds": 0.0,
+            "duration_seconds": 3.0,
+            "prompt": "Walk forward.",
+        },
+        {
+            "id": "turn",
+            "start_offset_seconds": 2.5,
+            "duration_seconds": 2.0,
+            "prompt": "Turn toward the target.",
+        },
+    ]
+
+    assert error_codes(payload) >= {
+        "motion_phase_overlap",
+        "motion_phase_out_of_bounds",
+    }
