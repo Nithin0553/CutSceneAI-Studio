@@ -151,6 +151,7 @@ function App() {
   const [currentRevisionId, setCurrentRevisionId] = useState("");
   const [revisionCount, setRevisionCount] = useState(0);
   const [bridgeCommands, setBridgeCommands] = useState<Json[]>([]);
+  const [bridgeActivity, setBridgeActivity] = useState<Json | null>(null);
 
   const selectedProject = useMemo(
     () => projects.find((item) => item.project_id === selectedProjectId) || null,
@@ -184,6 +185,16 @@ function App() {
 
   useEffect(() => {
     refreshBootstrap();
+
+    const timer = window.setInterval(() => {
+      apiJson("/api/v1/studio/projects")
+        .then((value) => setProjects(value || []))
+        .catch(() => {
+          // Main health state is handled by refreshBootstrap and explicit actions.
+        });
+    }, 5000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   async function refreshBootstrap() {
@@ -511,6 +522,7 @@ function App() {
         command,
         ...items.filter((item) => item.command_id !== command.command_id),
       ]);
+      setBridgeActivity(command);
       if (command.status === "succeeded") {
         await refreshBootstrap();
         return command;
@@ -526,23 +538,54 @@ function App() {
   }
 
   async function sendBridgeCommand(command: string) {
-    if (!selectedProject?.manifest?.bridge_connected) return;
+    if (!selectedProject) {
+      setError("Select a target project before sending an engine command.");
+      return;
+    }
+
     setBusy("bridge");
     setError("");
+    setBridgeActivity({
+      command,
+      status: "checking",
+      message: "Checking the latest editor heartbeat…",
+    });
+
     try {
+      const liveProjects = await apiJson("/api/v1/studio/projects");
+      setProjects(liveProjects || []);
+      const liveProject = (liveProjects || []).find(
+        (item: Json) => item.project_id === selectedProject.project_id,
+      );
+      if (!liveProject?.manifest?.bridge_connected) {
+        throw new Error(
+          "Unity/Unreal bridge is not live right now. Keep the editor open and wait for a fresh heartbeat.",
+        );
+      }
+
       const queued = await postJson(
         "/api/v1/studio/projects/" +
           selectedProject.project_id +
           "/bridge/commands",
         { command, payload: {} },
       );
+      setBridgeActivity({
+        ...queued,
+        message: "Command queued. Waiting for the editor to execute it…",
+      });
       setNotice(
         "Engine command queued: " + queued.command + " (" + queued.command_id + ")",
       );
+
       const completed = await waitForBridgeCommand(
         selectedProject.project_id,
         queued.command_id,
       );
+      setBridgeActivity({
+        ...completed,
+        message:
+          completed.result?.message || "Editor readback returned successfully.",
+      });
       setNotice(
         "Engine command completed: " +
           completed.command +
@@ -550,7 +593,13 @@ function App() {
           (completed.result?.message || "Editor readback returned successfully."),
       );
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : String(exc));
+      const message = exc instanceof Error ? exc.message : String(exc);
+      setBridgeActivity({
+        command,
+        status: "failed",
+        message,
+      });
+      setError(message);
     } finally {
       setBusy("");
     }
@@ -1574,6 +1623,36 @@ function App() {
                       ? "The local editor bridge is connected. Use these controls to focus, play, save and read back the authoritative engine state."
                       : "Install the local editor bridge, then open the project. The engine will heartbeat into Studio without exposing a remote control port."}
                   </span>
+                  {bridgeActivity && (
+                    <div className={"bridge-activity bridge-" + bridgeActivity.status}>
+                      {busy === "bridge" &&
+                      bridgeActivity.status !== "succeeded" &&
+                      bridgeActivity.status !== "failed" ? (
+                        <LoaderCircle className="spin" size={14} />
+                      ) : bridgeActivity.status === "succeeded" ? (
+                        <BadgeCheck size={14} />
+                      ) : bridgeActivity.status === "failed" ? (
+                        <CircleAlert size={14} />
+                      ) : (
+                        <CircleDot size={14} />
+                      )}
+                      <div>
+                        <strong>
+                          {String(bridgeActivity.command || "engine command").replaceAll(
+                            "_",
+                            " ",
+                          )}
+                          {" · "}
+                          {bridgeActivity.status || "pending"}
+                        </strong>
+                        <span>
+                          {bridgeActivity.message ||
+                            bridgeActivity.result?.message ||
+                            "Waiting for editor response…"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <div className="bridge-controls">
                     {!selectedProject?.manifest?.bridge_connected ? (
                       <button
@@ -1604,7 +1683,13 @@ function App() {
                           onClick={() => sendBridgeCommand("readback")}
                           disabled={busy === "bridge"}
                         >
-                          <ScanSearch size={15} /> Readback
+                          {busy === "bridge" &&
+                          bridgeActivity?.command === "readback" ? (
+                            <LoaderCircle className="spin" size={15} />
+                          ) : (
+                            <ScanSearch size={15} />
+                          )}{" "}
+                          Readback
                         </button>
                         <button
                           className="secondary-button"
