@@ -17,7 +17,8 @@ Pinned research identities:
 - HY-Motion code revision:
   `4e426f5a1021cbcf7f375458c37b840ee7225229`
 - model: `tencent/HY-Motion-1.0/HY-Motion-1.0-Lite`
-- Lite checkpoint SHA-256:
+- Hub snapshot revision: `e156af266a810d4873998baa1af44ea1962498cc`
+- Lite checkpoint SHA-256 / CutSceneAI model revision:
   `d83f118f8d74db76249db86dcf9982a8229f43ef4e9fa11f683019d6230dd486`
 - source representation: SMPL-H, first 22 body joints
 - source FPS: 30
@@ -91,6 +92,7 @@ The CutSceneAI backend can point at any HTTPS deployment of the provider:
 
 ```dotenv
 CUTSCENEAI_BODY_PROVIDER_URL=https://YOUR-GPU-ENDPOINT/generate
+CUTSCENEAI_BODY_PROVIDER_HEALTH_URL=https://YOUR-GPU-ENDPOINT/health
 CUTSCENEAI_BODY_PROVIDER_TOKEN=YOUR_PROVIDER_TOKEN
 CUTSCENEAI_BODY_PROVIDER=tencent-hymotion
 CUTSCENEAI_BODY_MODEL=HY-Motion-1.0-Lite
@@ -100,7 +102,9 @@ CUTSCENEAI_BODY_DETERMINISTIC=false
 CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS=600
 ```
 
-Restart Studio after changing `.env.local`. Stage 04 should then report the body provider as ready.
+Restart Studio after changing `.env.local`. Stage 04 now verifies the health endpoint and immutable
+provider/model/checkpoint identity before enabling generation. A configured endpoint that is offline
+or serving a different checkpoint is displayed as unavailable rather than falsely marked ready.
 
 Do not place the cloud token in `studio-web`, commit it, or expose it to the browser.
 
