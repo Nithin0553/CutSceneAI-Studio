@@ -157,11 +157,7 @@ class StudioPerformanceExecutor:
         if body_transport_ready and body_reachable is False:
             blocking.append(
                 "The configured body provider health check failed"
-                + (
-                    f" ({body_health_status})."
-                    if body_health_status
-                    else "."
-                )
+                + (f" ({body_health_status})." if body_health_status else ".")
                 + " Verify CUTSCENEAI_BODY_PROVIDER_HEALTH_URL, credentials, and provider identity."
             )
         return PerformanceReadinessResponse(
