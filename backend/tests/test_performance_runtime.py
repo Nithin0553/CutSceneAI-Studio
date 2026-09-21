@@ -514,6 +514,46 @@ class _HealthResponse:
         return json.dumps(self.payload).encode("utf-8")
 
 
+def test_external_body_local_health_command_verifies_identity(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    script = tmp_path / "health_provider.py"
+    script.write_text(
+        """
+import json
+
+print(json.dumps({
+    "status": "ready",
+    "provider": "mdm-local",
+    "model": "humanml-encoder-512-50steps",
+    "model_revision": "mdm-test-revision",
+}))
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(
+        "CUTSCENEAI_BODY_PROVIDER_COMMAND",
+        json.dumps([sys.executable, str(script)]),
+    )
+    monkeypatch.setenv(
+        "CUTSCENEAI_BODY_PROVIDER_HEALTH_COMMAND",
+        json.dumps([sys.executable, str(script)]),
+    )
+
+    backend = ExternalCanonicalBodyBackend.from_environment()
+    reachable, status, health = backend.probe_health(
+        expected_provider="mdm-local",
+        expected_model="humanml-encoder-512-50steps",
+        expected_revision="mdm-test-revision",
+    )
+
+    assert reachable is True
+    assert status == "ready"
+    assert health["provider"] == "mdm-local"
+
+
 def test_external_body_health_probe_verifies_provider_identity(monkeypatch) -> None:
     backend = ExternalCanonicalBodyBackend(
         url="https://provider.example/generate",
