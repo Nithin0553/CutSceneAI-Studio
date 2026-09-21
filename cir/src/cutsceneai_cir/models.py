@@ -156,6 +156,7 @@ class MotionPhase(CIRModel):
     duration_seconds: PositiveSeconds
     prompt: NonEmptyString
     style: str | None = None
+    target_id: Identifier | None = None
 
 
 class MotionPlan(CIRModel):
