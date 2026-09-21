@@ -17,6 +17,9 @@ class PerformanceProviderState(PerformanceRuntimeModel):
     provider: str
     model: str
     description: str
+    reachable: bool | None = None
+    health_status: str | None = None
+    health: dict[str, object] = Field(default_factory=dict)
 
 
 class PerformanceReadinessResponse(PerformanceRuntimeModel):
