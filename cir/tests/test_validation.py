@@ -94,3 +94,19 @@ def test_motion_phases_must_fit_and_not_overlap_their_beat() -> None:
         "motion_phase_overlap",
         "motion_phase_out_of_bounds",
     }
+
+
+def test_motion_phase_target_must_reference_declared_entity() -> None:
+    payload = load_example()
+    motion = payload["scenes"][0]["beats"][0]["performances"][0]["motion"]
+    motion["phases"] = [
+        {
+            "id": "turn",
+            "start_offset_seconds": 0.0,
+            "duration_seconds": 1.0,
+            "prompt": "Turn toward the target.",
+            "target_id": "missing-door",
+        }
+    ]
+
+    assert "unknown_entity_reference" in error_codes(payload)
