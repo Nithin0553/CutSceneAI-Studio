@@ -357,6 +357,7 @@ if ($WriteEnvironment) {
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_COMMAND" -Value $ProviderCommand
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_HEALTH_COMMAND" -Value $HealthCommand
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS" -Value "1200"
+    Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_HEALTH_TIMEOUT_SECONDS" -Value "30"
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_MAX_CONCURRENCY" -Value "1"
 
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MDM_ROOT" -Value $SourceRoot
