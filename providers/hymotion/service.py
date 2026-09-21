@@ -136,7 +136,9 @@ def _resolve_hymotion_root() -> Path:
         )
     root = Path(configured).expanduser().resolve()
     if not (root / "hymotion").is_dir():
-        raise RuntimeError(f"HY_MOTION_ROOT does not contain the hymotion package: {root}")
+        raise RuntimeError(
+            f"HY_MOTION_ROOT does not contain the hymotion package: {root}"
+        )
     return root
 
 
@@ -195,9 +197,7 @@ def _load_runtime() -> Any:
     _model_path = _resolve_model_path()
     device_ids_raw = os.getenv("HY_MOTION_DEVICE_IDS", "0")
     device_ids = [
-        int(value.strip())
-        for value in device_ids_raw.split(",")
-        if value.strip()
+        int(value.strip()) for value in device_ids_raw.split(",") if value.strip()
     ]
     _runtime = T2MRuntime(
         config_path=str(_model_path / "config.yml"),
@@ -293,9 +293,13 @@ async def generate(
 ) -> ProviderResponse:
     _authorize(authorization)
     if envelope.protocol_version != "cutsceneai.provider.v0.1":
-        raise HTTPException(status_code=422, detail="Unsupported CutSceneAI provider protocol.")
+        raise HTTPException(
+            status_code=422, detail="Unsupported CutSceneAI provider protocol."
+        )
     if envelope.kind != "body_motion":
-        raise HTTPException(status_code=422, detail="HY-Motion provider only generates body motion.")
+        raise HTTPException(
+            status_code=422, detail="HY-Motion provider only generates body motion."
+        )
     if envelope.request.skeleton_profile != "cutsceneai-humanoid-v1":
         raise HTTPException(status_code=422, detail="Unsupported skeleton profile.")
 
