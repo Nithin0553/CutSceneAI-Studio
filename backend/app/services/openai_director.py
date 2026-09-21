@@ -24,6 +24,11 @@ the full natural-language intent in motion.prompt as a summary, but make motion.
 authoritative choreography for body generation. Use enough phases to preserve the user's event
 order and timing without inventing unnecessary actions.
 
+When an atomic phase is directed toward a declared character or environment object, set that
+entity's ID in motion.phases[].target_id. Keep the phase prompt target-relative, for example
+"turn toward the door" or "look toward Arjun". Do not invent absolute left/right/forward/backward
+directions for a target whose actual transform will only be known after project role binding.
+
 Return only the structured Project requested by the response schema.
 """
 
