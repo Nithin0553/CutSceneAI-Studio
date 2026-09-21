@@ -114,29 +114,72 @@ def compile_generation_plan(
         strict=True,
     ):
         body_id = semantic_cue.cue_id.replace("performance:", "body:", 1)
-        body_prompt = (
-            f"Generate novel full-body motion. Action: {source.motion.prompt} "
-            f"Style: {source.motion.style or 'natural'}. "
-            f"Emotion: {source.facial.emotion} at {source.facial.intensity:.2f} intensity. "
-            f"Duration: {semantic_cue.end_frame - semantic_cue.start_frame} frames at "
-            f"{project.settings.fps} fps. Preserve balanced foot contact and continuous motion."
-        )
-        body_requests.append(
-            BodyGenerationRequest(
-                **_request_fields(
-                    semantic_id=body_id,
-                    start_frame=semantic_cue.start_frame,
-                    end_frame=semantic_cue.end_frame,
-                    prompt=body_prompt,
-                    config=config.body,
-                    experiment_seed=config.experiment_seed,
-                ),
-                actor_binding_id=semantic_cue.actor_binding_id,
-                source_performance_cue_id=semantic_cue.cue_id,
-                skeleton_profile=config.skeleton_profile,
-                look_at_binding_id=semantic_cue.look_at_binding_id,
+        motion_phases = source.motion.phases
+        if motion_phases:
+            for phase in motion_phases:
+                start_frame = semantic_cue.start_frame + round(
+                    phase.start_offset_seconds * project.settings.fps
+                )
+                duration_frames = max(
+                    1,
+                    round(phase.duration_seconds * project.settings.fps),
+                )
+                end_frame = min(
+                    semantic_cue.end_frame,
+                    start_frame + duration_frames,
+                )
+                phase_id = f"{body_id}:{phase.id}"
+                phase_prompt = (
+                    f"Generate novel full-body motion. Action: {phase.prompt} "
+                    f"Style: {phase.style or source.motion.style or 'natural'}. "
+                    f"Emotion: {source.facial.emotion} at "
+                    f"{source.facial.intensity:.2f} intensity. "
+                    f"Duration: {end_frame - start_frame} frames at "
+                    f"{project.settings.fps} fps. "
+                    f"This is one atomic phase of the larger performance: "
+                    f"{source.motion.prompt}. Preserve balanced foot contact and "
+                    f"continuous entry/exit poses."
+                )
+                body_requests.append(
+                    BodyGenerationRequest(
+                        **_request_fields(
+                            semantic_id=phase_id,
+                            start_frame=start_frame,
+                            end_frame=end_frame,
+                            prompt=phase_prompt,
+                            config=config.body,
+                            experiment_seed=config.experiment_seed,
+                        ),
+                        actor_binding_id=semantic_cue.actor_binding_id,
+                        source_performance_cue_id=semantic_cue.cue_id,
+                        skeleton_profile=config.skeleton_profile,
+                        look_at_binding_id=semantic_cue.look_at_binding_id,
+                    )
+                )
+        else:
+            body_prompt = (
+                f"Generate novel full-body motion. Action: {source.motion.prompt} "
+                f"Style: {source.motion.style or 'natural'}. "
+                f"Emotion: {source.facial.emotion} at {source.facial.intensity:.2f} intensity. "
+                f"Duration: {semantic_cue.end_frame - semantic_cue.start_frame} frames at "
+                f"{project.settings.fps} fps. Preserve balanced foot contact and continuous motion."
             )
-        )
+            body_requests.append(
+                BodyGenerationRequest(
+                    **_request_fields(
+                        semantic_id=body_id,
+                        start_frame=semantic_cue.start_frame,
+                        end_frame=semantic_cue.end_frame,
+                        prompt=body_prompt,
+                        config=config.body,
+                        experiment_seed=config.experiment_seed,
+                    ),
+                    actor_binding_id=semantic_cue.actor_binding_id,
+                    source_performance_cue_id=semantic_cue.cue_id,
+                    skeleton_profile=config.skeleton_profile,
+                    look_at_binding_id=semantic_cue.look_at_binding_id,
+                )
+            )
 
         dialogue_cue = None
         if preview_cue.dialogue_start_frame is not None:
