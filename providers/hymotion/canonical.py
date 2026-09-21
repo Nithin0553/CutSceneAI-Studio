@@ -133,7 +133,9 @@ def _frame_axis_angles(frame: Sequence[Any]) -> list[Sequence[float]]:
     ):
         joints = list(frame[:_HY_MOTION_JOINT_COUNT])
         if any(len(joint) != 3 for joint in joints):
-            raise ValueError("Nested HY-Motion pose joints must each contain three values.")
+            raise ValueError(
+                "Nested HY-Motion pose joints must each contain three values."
+            )
         return joints
 
     flat = list(frame)
@@ -182,7 +184,9 @@ def convert_hymotion_smplh_to_cutsceneai(
         zip(poses, translations, strict=True)
     ):
         if len(translation) != 3:
-            raise ValueError("HY-Motion translations must contain exactly three values.")
+            raise ValueError(
+                "HY-Motion translations must contain exactly three values."
+            )
         x = _finite(translation[0], label="translation x") - origin_x
         y = _finite(translation[1], label="translation y") - origin_y
         z = _finite(translation[2], label="translation z") - origin_z
