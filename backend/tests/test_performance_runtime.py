@@ -15,7 +15,9 @@ from app.api.performance_runtime import get_performance_executor
 from app.main import app
 from app.models.performance_runtime import PerformanceGenerateRequest, PerformanceRunStatus
 from app.services.performance_executor import StudioPerformanceExecutor
+from app.services.performance_providers import ExternalCanonicalBodyBackend
 import app.services.performance_executor as performance_executor_module
+import app.services.performance_providers as performance_providers_module
 
 
 FIXTURE = Path(__file__).resolve().parents[2] / "cir" / "examples" / "office-dialogue.cir.json"
@@ -315,3 +317,87 @@ def test_list_runs_skips_corrupt_records(tmp_path: Path) -> None:
     (corrupt / "run.json").write_text("not-json", encoding="utf-8")
 
     assert executor.list_runs() == []
+
+
+
+class _HealthResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def read(self, _: int = -1) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
+
+
+def test_external_body_health_probe_verifies_provider_identity(monkeypatch) -> None:
+    backend = ExternalCanonicalBodyBackend(
+        url="https://provider.example/generate",
+        health_url="https://provider.example/health",
+        bearer_token="secret",
+    )
+
+    def fake_urlopen(request, timeout):
+        assert request.get_header("Authorization") == "Bearer secret"
+        assert timeout == 5.0
+        return _HealthResponse(
+            {
+                "status": "ready",
+                "provider": "tencent-hymotion",
+                "model": "HY-Motion-1.0-Lite",
+                "model_revision": "checkpoint-sha",
+            }
+        )
+
+    monkeypatch.setattr(
+        performance_providers_module.urllib.request,
+        "urlopen",
+        fake_urlopen,
+    )
+    reachable, status, health = backend.probe_health(
+        expected_provider="tencent-hymotion",
+        expected_model="HY-Motion-1.0-Lite",
+        expected_revision="checkpoint-sha",
+    )
+
+    assert reachable is True
+    assert status == "ready"
+    assert health["provider"] == "tencent-hymotion"
+
+    mismatch = backend.probe_health(
+        expected_provider="different-provider",
+        expected_model="HY-Motion-1.0-Lite",
+        expected_revision="checkpoint-sha",
+    )
+    assert mismatch[0] is False
+    assert mismatch[1] == "identity-mismatch"
+
+
+def test_readiness_blocks_configured_but_unreachable_body_provider(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_URL", "https://provider.example/generate")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_URL", "https://provider.example/health")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "tencent-hymotion")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "HY-Motion-1.0-Lite")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "checkpoint-sha")
+    monkeypatch.setattr(
+        ExternalCanonicalBodyBackend,
+        "probe_health",
+        lambda self, **kwargs: (False, "unreachable", {"error": "offline"}),
+    )
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    readiness = executor.readiness()
+
+    assert readiness.ready is False
+    body = next(item for item in readiness.providers if item.modality == "body")
+    assert body.configured is False
+    assert body.reachable is False
+    assert body.health_status == "unreachable"
+    assert any("health check failed" in issue for issue in readiness.blocking_issues)
