@@ -32,6 +32,27 @@ def _service(tmp_path: Path, monkeypatch) -> StudioService:
     return StudioService()
 
 
+def _mark_bridge_live(
+    service: StudioService,
+    project_id: str,
+    *,
+    agent_id: str = "agent-a",
+) -> None:
+    service.bridge_heartbeat(
+        project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id=agent_id,
+            engine_version="6000.3.8f1",
+            adapter_version="0.1.0",
+            current_scene="Assets/Scenes/Main.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "readback"],
+            assets=[],
+            warnings=[],
+        ),
+    )
+
+
 def _unity_project(tmp_path: Path) -> Path:
     root = tmp_path / "UnityProject"
     (root / "Assets" / "Characters").mkdir(parents=True)
@@ -791,6 +812,7 @@ def test_bridge_command_completion_is_idempotent_for_same_agent(
             project_path=str(_unity_project(tmp_path)),
         )
     )
+    _mark_bridge_live(service, record.project_id, agent_id="agent-a")
     queued = service.enqueue_bridge_command(
         record.project_id,
         studio_module.StudioBridgeCommandRequest(command="readback"),
@@ -836,6 +858,7 @@ def test_bridge_command_rejects_wrong_agent_completion(tmp_path: Path, monkeypat
             project_path=str(_unity_project(tmp_path)),
         )
     )
+    _mark_bridge_live(service, record.project_id, agent_id="agent-a")
     queued = service.enqueue_bridge_command(
         record.project_id,
         studio_module.StudioBridgeCommandRequest(command="save"),
@@ -1015,6 +1038,7 @@ def test_bridge_command_lease_expiry_and_completion_state_guards(
         )
     )
 
+    _mark_bridge_live(service, record.project_id, agent_id="agent-a")
     pending = service.enqueue_bridge_command(
         record.project_id,
         studio_module.StudioBridgeCommandRequest(command="readback"),
