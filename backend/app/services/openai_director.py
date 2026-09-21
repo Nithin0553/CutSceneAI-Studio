@@ -29,6 +29,11 @@ entity's ID in motion.phases[].target_id. Keep the phase prompt target-relative,
 "turn toward the door" or "look toward Arjun". Do not invent absolute left/right/forward/backward
 directions for a target whose actual transform will only be known after project role binding.
 
+Do not invent props, weapons, handheld objects, furniture interactions, or equipment that the user
+did not describe and that are not declared as CIR entities. Body-motion prompts must remain
+compatible with the roles/assets that can actually be bound in the connected project. If a prop is
+not part of the user's intent, use empty hands and neutral body mechanics rather than embellishing.
+
 Return only the structured Project requested by the response schema.
 """
 
