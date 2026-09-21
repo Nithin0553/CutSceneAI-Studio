@@ -97,7 +97,10 @@ def _health() -> dict[str, object]:
         ) from exc
 
     if not torch.cuda.is_available():
-        raise RuntimeError("MotionMaster requires a CUDA-capable GPU; torch.cuda.is_available() is false.")
+        raise RuntimeError(
+            "MotionMaster requires a CUDA-capable GPU; "
+            "torch.cuda.is_available() is false."
+        )
 
     device_name = torch.cuda.get_device_name(0)
     total_memory = torch.cuda.get_device_properties(0).total_memory
@@ -298,7 +301,10 @@ def main() -> int:
         sys.stdout.write("\n")
         return 0
     except Exception as exc:
-        print(f"CUTSCENEAI_MOTIONMASTER_PROVIDER_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
+        print(
+            f"CUTSCENEAI_MOTIONMASTER_PROVIDER_ERROR={type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
 
