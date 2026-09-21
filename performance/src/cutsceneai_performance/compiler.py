@@ -91,6 +91,9 @@ def compile_generation_plan(
     scene = project.scenes[0]
     preview_scene = preview.scenes[0]
     semantic_scene = semantics.scenes[0]
+    binding_by_source_entity_id = {
+        entity.source_entity_id: entity.binding_id for entity in semantic_scene.entities
+    }
     source_performances = [
         performance for beat in scene.beats for performance in beat.performances
     ]
@@ -154,6 +157,11 @@ def compile_generation_plan(
                         source_performance_cue_id=semantic_cue.cue_id,
                         skeleton_profile=config.skeleton_profile,
                         look_at_binding_id=semantic_cue.look_at_binding_id,
+                        target_binding_id=(
+                            binding_by_source_entity_id[phase.target_id]
+                            if phase.target_id is not None
+                            else None
+                        ),
                     )
                 )
         else:
