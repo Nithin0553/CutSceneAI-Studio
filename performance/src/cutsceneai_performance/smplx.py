@@ -32,9 +32,13 @@ class SMPLXAxisAngleMotion(PerformanceModel):
         if len(self.body_pose) != frame_count or len(self.transl) != frame_count:
             raise ValueError("SMPL-X arrays must have identical frame counts.")
         if any(len(item) != 3 for item in self.global_orient):
-            raise ValueError("global_orient must contain one axis-angle vec3 per frame.")
+            raise ValueError(
+                "global_orient must contain one axis-angle vec3 per frame."
+            )
         if any(len(item) != 63 for item in self.body_pose):
-            raise ValueError("body_pose must contain 21 SMPL-X axis-angle joints (63 values).")
+            raise ValueError(
+                "body_pose must contain 21 SMPL-X axis-angle joints (63 values)."
+            )
         if any(len(item) != 3 for item in self.transl):
             raise ValueError("transl must contain one vec3 per frame.")
         return self
