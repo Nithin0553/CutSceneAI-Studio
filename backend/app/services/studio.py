@@ -463,6 +463,11 @@ class StudioService:
         request: StudioBridgeCommandRequest,
     ) -> StudioBridgeCommand:
         record = self.get_project(project_id)
+        if not record.manifest.bridge_connected:
+            raise ValueError(
+                "The engine bridge is not live. Keep the target editor open and wait for a fresh "
+                "heartbeat before sending commands."
+            )
         command = StudioBridgeCommand(
             command_id=_stable_id(
                 "bridge-command",
