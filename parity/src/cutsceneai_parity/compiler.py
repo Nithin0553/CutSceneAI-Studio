@@ -27,11 +27,22 @@ def _canonical_json_sha256(value: object) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _project_fingerprint_payload(project: Project) -> dict[str, object]:
+    payload = project.model_dump(mode="json")
+    for scene in payload.get("scenes", []):
+        for beat in scene.get("beats", []):
+            for performance in beat.get("performances", []):
+                motion = performance.get("motion", {})
+                if motion.get("phases") == []:
+                    motion.pop("phases", None)
+    return payload
+
+
 def cir_fingerprint(project: Project) -> str:
     """Return the canonical SHA-256 identity of a validated CIR project."""
 
     validate_project_model(project)
-    return _canonical_json_sha256(project.model_dump(mode="json"))
+    return _canonical_json_sha256(_project_fingerprint_payload(project))
 
 
 def _performance_id(
@@ -45,9 +56,12 @@ def _dialogue_id(performance_id: str) -> str:
 
 
 def _motion_intent_sha256(performance: PerformancePlan) -> str:
+    motion = performance.motion.model_dump(mode="json")
+    if motion.get("phases") == []:
+        motion.pop("phases", None)
     return _canonical_json_sha256(
         {
-            "motion": performance.motion.model_dump(mode="json"),
+            "motion": motion,
             "facial": performance.facial.model_dump(mode="json"),
             "look_at_id": performance.look_at_id,
         }
