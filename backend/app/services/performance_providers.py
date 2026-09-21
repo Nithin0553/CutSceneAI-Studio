@@ -6,6 +6,7 @@ import math
 import os
 import re
 import shlex
+import subprocess
 from typing import Any, TypeVar
 import urllib.error
 import urllib.request
@@ -102,6 +103,27 @@ def _provider_artifact(
     )
 
 
+def _parse_argv_environment(
+    name: str,
+    raw: str | None,
+) -> list[str] | None:
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        parsed = shlex.split(raw, posix=os.name != "nt")
+    if (
+        not isinstance(parsed, list)
+        or not parsed
+        or not all(isinstance(item, str) and item.strip() for item in parsed)
+    ):
+        raise PerformanceProviderConfigurationError(
+            f"{name} must be a non-empty JSON argv array or a command line."
+        )
+    return parsed
+
+
 class ExternalCanonicalBodyBackend:
     """Execute a user-configured canonical body provider over JSON.
 
@@ -118,6 +140,7 @@ class ExternalCanonicalBodyBackend:
         bearer_token: str | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         health_url: str | None = None,
+        health_command: list[str] | None = None,
         health_timeout_seconds: float = 5.0,
     ) -> None:
         self.command = command
@@ -125,27 +148,19 @@ class ExternalCanonicalBodyBackend:
         self.bearer_token = bearer_token
         self.timeout_seconds = timeout_seconds
         self.health_url = health_url
+        self.health_command = health_command
         self.health_timeout_seconds = health_timeout_seconds
 
     @classmethod
     def from_environment(cls) -> ExternalCanonicalBodyBackend:
-        command_raw = os.getenv("CUTSCENEAI_BODY_PROVIDER_COMMAND")
-        command: list[str] | None = None
-        if command_raw:
-            try:
-                parsed = json.loads(command_raw)
-            except json.JSONDecodeError:
-                parsed = shlex.split(command_raw, posix=os.name != "nt")
-            if (
-                not isinstance(parsed, list)
-                or not parsed
-                or not all(isinstance(item, str) and item.strip() for item in parsed)
-            ):
-                raise PerformanceProviderConfigurationError(
-                    "CUTSCENEAI_BODY_PROVIDER_COMMAND must be a non-empty JSON argv array "
-                    "or a command line."
-                )
-            command = parsed
+        command = _parse_argv_environment(
+            "CUTSCENEAI_BODY_PROVIDER_COMMAND",
+            os.getenv("CUTSCENEAI_BODY_PROVIDER_COMMAND"),
+        )
+        health_command = _parse_argv_environment(
+            "CUTSCENEAI_BODY_PROVIDER_HEALTH_COMMAND",
+            os.getenv("CUTSCENEAI_BODY_PROVIDER_HEALTH_COMMAND"),
+        )
 
         url = os.getenv("CUTSCENEAI_BODY_PROVIDER_URL")
         token = os.getenv("CUTSCENEAI_BODY_PROVIDER_TOKEN")
@@ -169,6 +184,7 @@ class ExternalCanonicalBodyBackend:
             bearer_token=token,
             timeout_seconds=timeout,
             health_url=health_url,
+            health_command=health_command,
         )
 
     @property
@@ -182,6 +198,36 @@ class ExternalCanonicalBodyBackend:
         expected_model: str,
         expected_revision: str,
     ) -> tuple[bool | None, str | None, dict[str, object]]:
+        if self.health_command:
+            try:
+                completed = subprocess.run(
+                    self.health_command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=self.health_timeout_seconds,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return False, "unreachable", {"error": str(exc)}
+            if completed.returncode != 0:
+                detail = completed.stderr.decode("utf-8", errors="replace")[-4000:]
+                return False, "unhealthy", {
+                    "exit_code": completed.returncode,
+                    "error": detail,
+                }
+            raw = completed.stdout
+            if len(raw) > 256 * 1024:
+                return False, "invalid-health-response", {
+                    "error": "Provider health response exceeded 256 KiB."
+                }
+            return self._validate_health_identity(
+                raw,
+                expected_provider=expected_provider,
+                expected_model=expected_model,
+                expected_revision=expected_revision,
+            )
+
         if not self.health_url:
             return None, None, {}
         if not self.health_url.lower().startswith(
@@ -213,6 +259,21 @@ class ExternalCanonicalBodyBackend:
             return False, "invalid-health-response", {
                 "error": "Provider health response exceeded 256 KiB."
             }
+        return self._validate_health_identity(
+            raw,
+            expected_provider=expected_provider,
+            expected_model=expected_model,
+            expected_revision=expected_revision,
+        )
+
+    @staticmethod
+    def _validate_health_identity(
+        raw: bytes,
+        *,
+        expected_provider: str,
+        expected_model: str,
+        expected_revision: str,
+    ) -> tuple[bool, str, dict[str, object]]:
         try:
             value = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -236,7 +297,8 @@ class ExternalCanonicalBodyBackend:
             return False, "identity-mismatch", {"mismatches": mismatches, **value}
 
         status = str(value.get("status") or "reachable")
-        return True, status, value
+        ready = status.lower() in {"ready", "reachable", "ok", "cold"}
+        return ready, status, value
 
     async def generate_body(
         self,
