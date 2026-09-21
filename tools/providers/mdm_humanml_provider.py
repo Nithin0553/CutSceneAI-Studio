@@ -73,15 +73,18 @@ def _checkpoint() -> Path:
     checkpoint = Path(_require_env("CUTSCENEAI_MDM_CHECKPOINT")).resolve()
     if not checkpoint.is_file():
         raise RuntimeError(f"MDM checkpoint was not found: {checkpoint}")
-    expected = os.getenv(
-        "CUTSCENEAI_MDM_CHECKPOINT_SHA256",
-        KNOWN_CHECKPOINT_SHA256,
-    ).strip().lower()
+    expected = (
+        os.getenv(
+            "CUTSCENEAI_MDM_CHECKPOINT_SHA256",
+            KNOWN_CHECKPOINT_SHA256,
+        )
+        .strip()
+        .lower()
+    )
     actual = _file_sha256(checkpoint)
     if actual != expected:
         raise RuntimeError(
-            "MDM checkpoint SHA-256 mismatch. "
-            f"Expected {expected}, got {actual}."
+            f"MDM checkpoint SHA-256 mismatch. Expected {expected}, got {actual}."
         )
     return checkpoint
 
@@ -113,7 +116,9 @@ def _motion_duration(request: dict[str, Any]) -> float:
     start = int(request["start_frame"])
     end = int(request["end_frame"])
     if end <= start:
-        raise RuntimeError("Body generation request end_frame must be greater than start_frame.")
+        raise RuntimeError(
+            "Body generation request end_frame must be greater than start_frame."
+        )
     duration = (end - start) / _target_fps(str(request.get("prompt") or ""))
     maximum = float(os.getenv("CUTSCENEAI_MDM_MAX_DURATION_SECONDS", "9.8"))
     if maximum <= 0.0 or maximum > 9.8:
@@ -166,7 +171,9 @@ def _extract_positions(path: Path, prompt: str) -> tuple[list[list[list[float]]]
     else:
         payload = loaded
     if not isinstance(payload, dict):
-        raise RuntimeError("MDM results.npy must contain the official results dictionary.")
+        raise RuntimeError(
+            "MDM results.npy must contain the official results dictionary."
+        )
 
     motion = payload.get("motion")
     lengths = payload.get("lengths")
@@ -333,7 +340,9 @@ def main() -> int:
             raise RuntimeError("MDM wrapper only accepts body_motion requests.")
         request = envelope.get("request")
         if not isinstance(request, dict):
-            raise RuntimeError("CutSceneAI provider payload is missing its request object.")
+            raise RuntimeError(
+                "CutSceneAI provider payload is missing its request object."
+            )
 
         artifact = _generate(request)
         response = {
