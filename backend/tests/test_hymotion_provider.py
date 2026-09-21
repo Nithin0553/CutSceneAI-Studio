@@ -1,8 +1,10 @@
 import math
 
+from fastapi.testclient import TestClient
 import pytest
 
 from cutsceneai_performance import BodyMotionArtifact
+from providers.hymotion import service
 from providers.hymotion.canonical import (
     CANONICAL_JOINT_NAMES,
     CANONICAL_PARENT_INDICES,
@@ -114,3 +116,82 @@ def test_hymotion_converter_rejects_malformed_provider_output(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         convert_hymotion_smplh_to_cutsceneai(poses, translations)
+
+
+
+def _provider_request(**updates) -> service.BodyRequest:
+    payload = {
+        "semantic_id": "body:scene:beat:guard",
+        "start_frame": 0,
+        "end_frame": 96,
+        "prompt": (
+            "Generate novel full-body motion. Action: walk forward, stop and turn toward a door "
+            "Style: natural. Emotion: cautious at 0.50 intensity. "
+            "Duration: 96 frames at 24 fps. Preserve balanced foot contact."
+        ),
+        "prompt_sha256": "a" * 64,
+        "configuration_sha256": "b" * 64,
+        "seed": 42,
+        "provider": service.HY_MOTION_PROVIDER_ID,
+        "model": service.HY_MOTION_MODEL_NAME,
+        "model_revision": service.HY_MOTION_LITE_CHECKPOINT_SHA256,
+        "prompt_version": "body-v0.1",
+        "actor_binding_id": "actor:guard",
+        "source_performance_cue_id": "performance:scene:beat:guard",
+        "skeleton_profile": "cutsceneai-humanoid-v1",
+        "look_at_binding_id": None,
+    }
+    payload.update(updates)
+    return service.BodyRequest.model_validate(payload)
+
+
+def test_hymotion_request_identity_is_checkpoint_locked() -> None:
+    service._validate_request_identity(_provider_request())
+
+    with pytest.raises(RuntimeError, match="does not match the loaded HY-Motion checkpoint"):
+        service._validate_request_identity(_provider_request(model_revision="floating-latest"))
+
+
+def test_hymotion_motion_prompt_isolates_body_action() -> None:
+    prompt = service._motion_prompt(_provider_request().prompt)
+
+    assert prompt == "walk forward, stop and turn toward a door"
+    assert "Generate novel" not in prompt
+    assert "Emotion:" not in prompt
+    assert "Duration:" not in prompt
+
+
+def test_hymotion_health_exposes_immutable_provenance(monkeypatch) -> None:
+    monkeypatch.setattr(service, "_runtime", None)
+
+    response = TestClient(service.app).get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "cold"
+    assert body["provider"] == service.HY_MOTION_PROVIDER_ID
+    assert body["model"] == service.HY_MOTION_MODEL_NAME
+    assert body["model_revision"] == service.HY_MOTION_LITE_CHECKPOINT_SHA256
+    assert body["checkpoint_sha256"] == service.HY_MOTION_LITE_CHECKPOINT_SHA256
+    assert body["hub_revision"] == service.HY_MOTION_HUB_REVISION
+    assert body["code_revision"] == service.HY_MOTION_CODE_REVISION
+
+
+def test_hymotion_generate_rejects_wrong_protocol_without_gpu_load(monkeypatch) -> None:
+    monkeypatch.setattr(
+        service,
+        "_load_runtime",
+        lambda: (_ for _ in ()).throw(AssertionError("GPU runtime must not load")),
+    )
+
+    response = TestClient(service.app).post(
+        "/generate",
+        json={
+            "protocol_version": "cutsceneai.provider.v9",
+            "kind": "body_motion",
+            "request": _provider_request().model_dump(mode="json"),
+        },
+    )
+
+    assert response.status_code == 422
+    assert "protocol" in response.json()["detail"].lower()
