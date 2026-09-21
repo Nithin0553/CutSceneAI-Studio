@@ -24,7 +24,9 @@ from cutsceneai_performance import (
     PerformanceCompilerConfig,
     ProviderArtifact,
     Quaternion,
+    SMPLXAxisAngleMotion,
     Vector3,
+    smplx_axis_angle_to_canonical,
 )
 from pydantic import BaseModel, ValidationError
 
@@ -364,11 +366,21 @@ class ExternalCanonicalBodyBackend:
             raise PerformanceProviderExecutionError(
                 "Body provider response is missing fields: " + ", ".join(missing)
             )
+        artifact_format = str(response.get("artifact_format", "cutsceneai.motion+json"))
         try:
-            artifact = BodyMotionArtifact.model_validate(response["artifact"])
+            if artifact_format == "cutsceneai.motion+json":
+                artifact = BodyMotionArtifact.model_validate(response["artifact"])
+            elif artifact_format == "smplx-axis-angle-v0.1":
+                smplx = SMPLXAxisAngleMotion.model_validate(response["artifact"])
+                artifact = smplx_axis_angle_to_canonical(smplx)
+            else:
+                raise PerformanceProviderExecutionError(
+                    "Body provider returned unsupported artifact_format "
+                    f"'{artifact_format}'."
+                )
         except ValidationError as exc:
             raise PerformanceProviderExecutionError(
-                f"Body provider returned an invalid canonical motion artifact: {exc}"
+                f"Body provider returned an invalid '{artifact_format}' artifact: {exc}"
             ) from exc
         return ProviderArtifact(
             request_semantic_id=str(response["request_semantic_id"]),
