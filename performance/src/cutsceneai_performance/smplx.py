@@ -18,6 +18,9 @@ class SMPLXAxisAngleMotion(PerformanceModel):
 
     format_version: Literal["0.1.0"] = "0.1.0"
     fps: int = Field(ge=1, le=240)
+    source_distance_unit: Literal["meter"] = "meter"
+    source_handedness: Literal["right"] = "right"
+    source_up_axis: Literal["y"] = "y"
     source_forward_axis: Literal["+z", "-z"] = "+z"
     global_orient: list[list[float]] = Field(min_length=1)
     body_pose: list[list[float]] = Field(min_length=1)
