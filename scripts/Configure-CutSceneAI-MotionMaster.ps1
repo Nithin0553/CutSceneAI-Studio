@@ -9,11 +9,9 @@ param(
 
     [string]$MotionMasterPython = "",
 
-    [ValidateSet("+z", "-z")]
-    [string]$SourceForwardAxis = "+z",
+    [string]$SourceForwardAxis = "",
 
-    [ValidateRange(1, 240)]
-    [int]$SourceFps = 30,
+    [int]$SourceFps = 0,
 
     [string]$RemoteProviderUrl = "",
 
@@ -114,6 +112,20 @@ function Set-DotEnvValue {
     }
 }
 
+function Remove-DotEnvValue {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Name
+    )
+
+    $EscapedName = [Regex]::Escape($Name)
+    for ($i = $Lines.Count - 1; $i -ge 0; $i--) {
+        if ($Lines[$i] -match "^\s*$EscapedName\s*=") {
+            $Lines.RemoveAt($i)
+        }
+    }
+}
+
 function Get-FileSha256 {
     param([string]$Path)
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -175,6 +187,16 @@ if ($Mode -eq "Remote") {
             }
         }
 
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_COMMAND"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_ROOT"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_REVISION"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_SOURCE_FPS"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_MLLM_PATH"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_TOKENIZER_PATH"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_STATS_PATH"
+        Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_MOTIONMASTER_SMPLX_PATH"
+
         Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER" -Value "motionmaster-cvpr2026"
         Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_MODEL" -Value "mllm_single_3b"
         Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_MODEL_REVISION" -Value "remote-managed"
@@ -198,6 +220,25 @@ if ($Mode -eq "Remote") {
     Write-Host ""
     Write-Host "Restart CutSceneAI Studio after writing .env.local."
     exit 0
+}
+
+if ($SourceFps -lt 1 -or $SourceFps -gt 240) {
+    throw @"
+-SourceFps is required for local MotionMaster configuration.
+
+MotionMaster's current public inference output does not include an FPS field. For research-grade
+provenance CutSceneAI will not guess one. Determine the source timebase from the accepted
+MotionMaster checkpoint/dataset configuration, then rerun with -SourceFps <1..240>.
+"@
+}
+
+if ($SourceForwardAxis -notin @("+z", "-z")) {
+    throw @"
+-SourceForwardAxis is required and must be '+z' or '-z'.
+
+CutSceneAI will not silently guess the MotionMaster source forward convention. Validate it with
+a simple locomotion probe before freezing the provider configuration.
+"@
 }
 
 if ($CloneRepository -and -not (Test-Path -LiteralPath $MotionMasterRoot)) {
@@ -304,7 +345,12 @@ $TokenizerSha = Get-FileSha256 -Path $TokenizerPath
 $StatsSha = Get-FileSha256 -Path $StatsPath
 $RevisionMaterial = "$GitRevision|$TokenizerSha|$StatsSha"
 $RevisionBytes = [Text.Encoding]::UTF8.GetBytes($RevisionMaterial)
-$RevisionHash = [Security.Cryptography.SHA256]::HashData($RevisionBytes)
+$Hasher = [Security.Cryptography.SHA256]::Create()
+try {
+    $RevisionHash = $Hasher.ComputeHash($RevisionBytes)
+} finally {
+    $Hasher.Dispose()
+}
 $RevisionDigest = -join ($RevisionHash | ForEach-Object { $_.ToString("x2") })
 $ProviderRevision = "motionmaster-$($RevisionDigest.Substring(0,16))"
 
@@ -333,6 +379,10 @@ if ($WriteEnvironment) {
     }
 
     $CommandJson = @($Python, $ProviderWrapper) | ConvertTo-Json -Compress
+
+    Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_URL"
+    Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_TOKEN"
+    Remove-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER_HEALTH_URL"
 
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_PROVIDER" -Value "motionmaster-cvpr2026"
     Set-DotEnvValue -Lines $Lines -Name "CUTSCENEAI_BODY_MODEL" -Value "mllm_single_3b"
