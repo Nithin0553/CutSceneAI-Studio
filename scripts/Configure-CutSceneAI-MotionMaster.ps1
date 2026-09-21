@@ -354,6 +354,53 @@ try {
 $RevisionDigest = -join ($RevisionHash | ForEach-Object { $_.ToString("x2") })
 $ProviderRevision = "motionmaster-$($RevisionDigest.Substring(0,16))"
 
+$PreviousEnvironment = @{
+    CUTSCENEAI_MOTIONMASTER_ROOT = $env:CUTSCENEAI_MOTIONMASTER_ROOT
+    CUTSCENEAI_MOTIONMASTER_REVISION = $env:CUTSCENEAI_MOTIONMASTER_REVISION
+    CUTSCENEAI_MOTIONMASTER_SOURCE_FPS = $env:CUTSCENEAI_MOTIONMASTER_SOURCE_FPS
+    CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS = $env:CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS
+    CUTSCENEAI_MOTIONMASTER_MLLM_PATH = $env:CUTSCENEAI_MOTIONMASTER_MLLM_PATH
+    CUTSCENEAI_MOTIONMASTER_TOKENIZER_PATH = $env:CUTSCENEAI_MOTIONMASTER_TOKENIZER_PATH
+    CUTSCENEAI_MOTIONMASTER_STATS_PATH = $env:CUTSCENEAI_MOTIONMASTER_STATS_PATH
+    CUTSCENEAI_MOTIONMASTER_SMPLX_PATH = $env:CUTSCENEAI_MOTIONMASTER_SMPLX_PATH
+}
+
+try {
+    $env:CUTSCENEAI_MOTIONMASTER_ROOT = $MotionMasterRoot
+    $env:CUTSCENEAI_MOTIONMASTER_REVISION = $ProviderRevision
+    $env:CUTSCENEAI_MOTIONMASTER_SOURCE_FPS = "$SourceFps"
+    $env:CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS = $SourceForwardAxis
+    $env:CUTSCENEAI_MOTIONMASTER_MLLM_PATH = $MllmPath
+    $env:CUTSCENEAI_MOTIONMASTER_TOKENIZER_PATH = $TokenizerPath
+    $env:CUTSCENEAI_MOTIONMASTER_STATS_PATH = $StatsPath
+    $env:CUTSCENEAI_MOTIONMASTER_SMPLX_PATH = $SmplxPath
+
+    $HealthOutput = & $Python $ProviderWrapper --health 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw @"
+MotionMaster provider health probe failed.
+
+$($HealthOutput -join [Environment]::NewLine)
+
+Do not write the provider into CutSceneAI until this health probe passes.
+"@
+    }
+
+    try {
+        $Health = ($HealthOutput -join [Environment]::NewLine) | ConvertFrom-Json
+    } catch {
+        throw "MotionMaster health probe did not return valid JSON: $HealthOutput"
+    }
+
+    if ($Health.status -ne "ready") {
+        throw "MotionMaster health probe returned unexpected status '$($Health.status)'."
+    }
+} finally {
+    foreach ($Key in $PreviousEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable($Key, $PreviousEnvironment[$Key], "Process")
+    }
+}
+
 Write-Host ""
 Write-Host "MotionMaster preflight:"
 Write-Host " Python: $Python"
@@ -361,6 +408,8 @@ Write-Host " Git revision: $GitRevision"
 Write-Host " Provider revision: $ProviderRevision"
 Write-Host " Source FPS: $SourceFps"
 Write-Host " Source forward axis: $SourceForwardAxis"
+Write-Host " CUDA device: $($Health.cuda_device)"
+Write-Host " CUDA memory bytes: $($Health.cuda_memory_bytes)"
 
 if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
     Write-Host ""
