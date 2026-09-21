@@ -761,6 +761,29 @@ def test_unreal_bridge_keeps_interactive_editor_open(tmp_path: Path, monkeypatch
     assert 'run_name="__main__"' not in bridge
 
 
+def test_bridge_command_rejected_without_live_heartbeat(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    try:
+        service.enqueue_bridge_command(
+            record.project_id,
+            studio_module.StudioBridgeCommandRequest(command="readback"),
+        )
+    except ValueError as exc:
+        assert "bridge is not live" in str(exc)
+    else:
+        raise AssertionError("Expected stale bridge command submission to be rejected.")
+
+
 def test_bridge_command_completion_is_idempotent_for_same_agent(
     tmp_path: Path,
     monkeypatch,
