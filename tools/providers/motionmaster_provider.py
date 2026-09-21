@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -37,6 +38,83 @@ def _as_float_lists(value, *, width: int, name: str) -> list[list[float]]:
             )
         result.append([float(item) for item in row])
     return result
+
+
+def _health() -> dict[str, object]:
+    root = Path(_require_env("CUTSCENEAI_MOTIONMASTER_ROOT")).resolve()
+    revision = _require_env("CUTSCENEAI_MOTIONMASTER_REVISION")
+    source_fps = int(_require_env("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS"))
+    source_forward_axis = _require_env("CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS")
+    if source_fps < 1 or source_fps > 240:
+        raise RuntimeError("CUTSCENEAI_MOTIONMASTER_SOURCE_FPS must be between 1 and 240.")
+    if source_forward_axis not in {"+z", "-z"}:
+        raise RuntimeError(
+            "CUTSCENEAI_MOTIONMASTER_FORWARD_AXIS must be '+z' or '-z'."
+        )
+
+    required_paths = [
+        root / "infer.py",
+        Path(
+            os.getenv(
+                "CUTSCENEAI_MOTIONMASTER_MLLM_PATH",
+                str(root / "checkpoints" / "mllm_single_3b"),
+            )
+        ),
+        Path(
+            os.getenv(
+                "CUTSCENEAI_MOTIONMASTER_TOKENIZER_PATH",
+                str(root / "checkpoints" / "tokenizer.pt"),
+            )
+        ),
+        Path(
+            os.getenv(
+                "CUTSCENEAI_MOTIONMASTER_STATS_PATH",
+                str(root / "checkpoints" / "norm_stats.npz"),
+            )
+        ),
+        Path(
+            os.getenv(
+                "CUTSCENEAI_MOTIONMASTER_SMPLX_PATH",
+                str(root / "checkpoints" / "smplx_model"),
+            )
+        ),
+        root / "src" / "human_body_prior_repo" / "support_data" / "dowloads" / "V02_05",
+    ]
+    missing = [str(path) for path in required_paths if not path.exists()]
+    if missing:
+        raise RuntimeError(
+            "MotionMaster health check is missing required paths: " + ", ".join(missing)
+        )
+
+    try:
+        import torch
+        import transformers
+        import pytorch3d  # noqa: F401
+        import human_body_prior  # noqa: F401
+    except Exception as exc:
+        raise RuntimeError(
+            f"MotionMaster Python dependencies are incomplete: {type(exc).__name__}: {exc}"
+        ) from exc
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("MotionMaster requires a CUDA-capable GPU; torch.cuda.is_available() is false.")
+
+    device_name = torch.cuda.get_device_name(0)
+    total_memory = torch.cuda.get_device_properties(0).total_memory
+
+    return {
+        "status": "ready",
+        "provider": PROVIDER_ID,
+        "model": MODEL_ID,
+        "model_revision": revision,
+        "source_fps": source_fps,
+        "source_forward_axis": source_forward_axis,
+        "cuda": True,
+        "cuda_device": device_name,
+        "cuda_memory_bytes": int(total_memory),
+        "torch_version": str(torch.__version__),
+        "transformers_version": str(transformers.__version__),
+    }
 
 
 def _run_motionmaster(request: dict[str, object]) -> dict[str, object]:
@@ -178,7 +256,20 @@ def _run_motionmaster(request: dict[str, object]) -> dict[str, object]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument(
+        "--health",
+        action="store_true",
+        help="Validate MotionMaster dependencies and CUDA without running inference.",
+    )
+    args = parser.parse_args()
+
     try:
+        if args.health:
+            json.dump(_health(), sys.stdout, separators=(",", ":"))
+            sys.stdout.write("\n")
+            return 0
+
         payload = json.load(sys.stdin)
         if payload.get("protocol_version") != "cutsceneai.provider.v0.1":
             raise RuntimeError("Unsupported CutSceneAI provider protocol version.")
