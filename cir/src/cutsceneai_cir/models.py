@@ -150,11 +150,20 @@ class DialoguePlan(CIRModel):
     start_offset_seconds: NonNegativeSeconds = 0.0
 
 
+class MotionPhase(CIRModel):
+    id: Identifier
+    start_offset_seconds: NonNegativeSeconds
+    duration_seconds: PositiveSeconds
+    prompt: NonEmptyString
+    style: str | None = None
+
+
 class MotionPlan(CIRModel):
     prompt: NonEmptyString
     style: str | None = None
     asset_uri: str | None = None
     seed: int | None = None
+    phases: list[MotionPhase] = Field(default_factory=list)
 
 
 class FacialPlan(CIRModel):
