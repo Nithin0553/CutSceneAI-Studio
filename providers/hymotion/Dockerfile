@@ -18,9 +18,7 @@ WORKDIR /opt/cutsceneai-provider
 
 COPY providers /opt/cutsceneai-provider/providers
 
-RUN pip install --no-cache-dir \
-    fastapi==0.116.1 \
-    "uvicorn[standard]==0.35.0"
+RUN pip install --no-cache-dir -r /opt/cutsceneai-provider/providers/hymotion/requirements.txt
 
 ENV PYTHONPATH=/opt/cutsceneai-provider:/opt/HY-Motion-1.0
 ENV HY_MOTION_ROOT=/opt/HY-Motion-1.0
