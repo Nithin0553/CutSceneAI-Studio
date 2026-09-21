@@ -90,7 +90,9 @@ def test_humanml_rest_pose_becomes_identity_local_rotations() -> None:
         assert rotation.w == pytest.approx(1.0, abs=1e-7)
 
 
-def test_humanml_whole_body_yaw_is_carried_by_pelvis_not_counter_rotated_limbs() -> None:
+def test_humanml_whole_body_yaw_is_carried_by_pelvis_not_counter_rotated_limbs() -> (
+    None
+):
     rest = _rest_positions()
     turned = _yaw(rest, math.pi / 2.0)
     artifact = humanml_xyz_to_canonical(
