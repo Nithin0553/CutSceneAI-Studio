@@ -1383,8 +1383,22 @@ function App() {
                             <strong>{provider.modality}</strong>
                             <span>{provider.provider} · {provider.model}</span>
                           </div>
-                          <Pill tone={provider.configured ? "success" : "danger"}>
-                            {provider.configured ? "ready" : "not configured"}
+                          <Pill
+                            tone={
+                              !provider.configured || provider.reachable === false
+                                ? "danger"
+                                : provider.reachable === true
+                                  ? "success"
+                                  : "info"
+                            }
+                          >
+                            {!provider.configured
+                              ? provider.reachable === false
+                                ? "offline"
+                                : "not configured"
+                              : provider.reachable === true
+                                ? provider.health_status || "ready"
+                                : "configured"}
                           </Pill>
                         </div>
                       ))}
