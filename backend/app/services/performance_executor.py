@@ -231,6 +231,10 @@ class StudioPerformanceExecutor:
                 async with semaphore:
                     return await body_backend.generate_body(item)
 
+            # Dialogue is comparatively cheap and has strict timing constraints. Validate it
+            # before expensive body inference so bad audio cannot waste a full GPU generation run.
+            audio_outputs, dialogue_manifest = await self._dialogue_outputs(request, plan)
+
             body_outputs = await asyncio.gather(*(body_one(item) for item in plan.body_requests))
             facial_outputs = await asyncio.gather(
                 *(facial_backend.generate_facial(item) for item in plan.facial_requests)
@@ -238,7 +242,6 @@ class StudioPerformanceExecutor:
             camera_outputs = await asyncio.gather(
                 *(camera_backend.generate_camera(item) for item in plan.camera_requests)
             )
-            audio_outputs, dialogue_manifest = await self._dialogue_outputs(request, plan)
 
             bundle = assemble_performance_bundle(
                 plan,
