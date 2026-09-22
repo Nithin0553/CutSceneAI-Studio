@@ -104,6 +104,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "HumanTrait.RequiredBone",
         "Required Humanoid bone is not mapped",
         "Where(transform => transform != null)",
+        "mapped = false",
+        "mapped = true",
         "EvidenceRoot(Target target)",
         "ValidateClipBindingPaths",
         "ValidateBodyClipSampling",
@@ -133,6 +135,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "Refusing to replace existing generated asset",
     ):
         assert token in script
+    assert ".Where(item => item.transform != null).Select" not in script
     assert "Humanoid bone is not mapped: " not in script
     assert "Generated clip sampling is missing Humanoid bone: " not in script
     assert "reference * QuaternionValueOf" not in script
