@@ -16,7 +16,7 @@ using UnityEngine.Timeline;
 public static class CutSceneAIStudioBridge
 {
     private const string ConfigAssetPath = "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json";
-    private const string BridgeVersion = "0.1.0";
+    private const string BridgeVersion = "0.2.0";
     private const double HeartbeatIntervalSeconds = 10.0;
     private const double PollIntervalSeconds = 2.0;
 
@@ -30,6 +30,14 @@ public static class CutSceneAIStudioBridge
     }
 
     [Serializable]
+    private sealed class CanonicalPosition
+    {
+        public float x;
+        public float y;
+        public float z;
+    }
+
+    [Serializable]
     private sealed class AssetMetadata
     {
         public string asset_type;
@@ -40,6 +48,10 @@ public static class CutSceneAIStudioBridge
         public string[] blendshape_names;
         public string facial_renderer_path;
         public string class_name;
+        public CanonicalPosition canonical_world_position_meters;
+        public string canonical_transform_space;
+        public string source_transform_space;
+        public string source_distance_unit;
     }
 
     private sealed class RetryLaterException : Exception
@@ -614,6 +626,15 @@ public static class CutSceneAIStudioBridge
                 blendshape_names = blendshapeNames,
                 facial_renderer_path = face == null ? string.Empty : RelativePath(root.transform, face.transform),
                 class_name = root.GetType().Name,
+                canonical_world_position_meters = new CanonicalPosition
+                {
+                    x = root.transform.position.x,
+                    y = root.transform.position.y,
+                    z = -root.transform.position.z,
+                },
+                canonical_transform_space = "cutsceneai-rh-yup-negative-z-forward",
+                source_transform_space = "unity-world-left-handed-yup-positive-z-forward",
+                source_distance_unit = "meter",
             },
         };
     }
