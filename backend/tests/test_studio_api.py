@@ -650,7 +650,15 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     project_root = Path(record.project_path)
     assert installed.engine is StudioEngine.UNITY
     bridge_path = project_root / "Assets/Editor/CutSceneAI/CutSceneAIStudioBridge.cs"
+    benchmark_path = (
+        project_root / "Assets/Editor/CutSceneAI/CutSceneAIHallwayBenchmarkSetup.cs"
+    )
     assert bridge_path.exists()
+    assert benchmark_path.exists()
+    benchmark_source = benchmark_path.read_text(encoding="utf-8")
+    assert "Create Hallway Source Scene" in benchmark_source
+    assert "SC_HallwaySource.unity" in benchmark_source
+    assert "Quaternion.Euler(0f, 180f, 0f)" in benchmark_source
     bridge_source = bridge_path.read_text(encoding="utf-8")
     assert "RetryLaterException" in bridge_source
     assert "blendshape_names" in bridge_source
