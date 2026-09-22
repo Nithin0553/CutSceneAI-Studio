@@ -28,6 +28,7 @@ from cutsceneai_performance.models import (
     ModelProvenance,
     PerformanceGenerationPlan,
 )
+from cutsceneai_performance.humanml import repair_humanml_v02_canonical_basis
 from cutsceneai_performance.motion import (
     BodyMotionArtifact,
     resample_body_motion,
@@ -135,6 +136,15 @@ def main() -> int:
     parser.add_argument("--hold-motion", type=Path)
     parser.add_argument("--turn-phase", default="guard_turn_to_door")
     parser.add_argument("--hold-phase", default="guard_hold_at_door")
+    parser.add_argument(
+        "--repair-humanml-v02-basis",
+        action="store_true",
+        help=(
+            "Migrate persisted HumanML canonical body artifacts produced by the old "
+            "v0.2 Z-reflection conversion into the handedness-preserving v0.3 basis "
+            "before recomposition. Does not invoke body inference."
+        ),
+    )
     args = parser.parse_args()
 
     source_dir = args.source_run_dir.resolve()
@@ -173,6 +183,8 @@ def main() -> int:
         raw_motion = BodyMotionArtifact.model_validate_json(
             motion_path.read_text(encoding="utf-8-sig")
         )
+        if args.repair_humanml_v02_basis:
+            raw_motion = repair_humanml_v02_canonical_basis(raw_motion)
         artifact = resample_body_motion(
             raw_motion,
             target_fps=plan.fps,
@@ -247,6 +259,14 @@ def main() -> int:
             "warnings": [
                 *source_record.warnings,
                 f"Derived from performance run {source_record.run_id} by deterministic body recomposition; no body inference was executed.",
+                *(
+                    [
+                        "Persisted HumanML canonical body artifacts were migrated from "
+                        "the v0.2 reflected basis to the handedness-preserving v0.3 basis."
+                    ]
+                    if args.repair_humanml_v02_basis
+                    else []
+                ),
             ],
             "error": None,
         },
@@ -271,7 +291,10 @@ def main() -> int:
     (destination / "derived-from.json").write_text(
         json.dumps(
             {
-                "derivation_version": "0.1.0",
+                "derivation_version": "0.2.0",
+                "humanml_basis_repair": (
+                    "v0.2-to-v0.3" if args.repair_humanml_v02_basis else None
+                ),
                 "source_run_id": source_record.run_id,
                 "derived_run_id": run_id,
                 "body_inference_executed": False,
@@ -297,6 +320,10 @@ def main() -> int:
     print(f"DERIVED_RUN_DIR={destination}")
     print(f"BUNDLE_SHA256={_sha256(bundle_bytes)}")
     print("BODY_INFERENCE_EXECUTED=false")
+    print(
+        "HUMANML_BASIS_REPAIR="
+        + ("v0.2-to-v0.3" if args.repair_humanml_v02_basis else "none")
+    )
     return 0
 
 
