@@ -223,7 +223,9 @@ public static class CutSceneAIGeneratedPerformance
     }
     [Serializable] private sealed class ScenePlan { public string source_scene_id; public int duration_frames; public ActorPlan[] actors; }
     [Serializable] private sealed class ActorPlan {
-        public string binding_id; public string display_name; public TransformValue transform;
+        public string binding_id; public string source_entity_id; public string display_name; public string kind;
+        public string prefab_path; public bool placeholder; public string placeholder_primitive;
+        public TransformValue transform;
     }
     [Serializable] private sealed class TransformValue {
         public VectorValue position_m; public QuaternionValue rotation; public VectorValue scale;
@@ -734,6 +736,33 @@ public static class CutSceneAIGeneratedPerformance
             AnimationTrack rootTrack = timeline.CreateTrack<AnimationTrack>(null, ActorPrefix + "ANIMATION|" + actorTarget.actor_binding_id);
             director.SetGenericBinding(rootTrack, AnimatorFor(instance, actorTarget));
             animationRoots.Add(actorTarget.actor_binding_id, rootTrack);
+        }
+        foreach (ActorPlan actorPlan in plan.sequences.Single().actors)
+        {
+            if (actors.ContainsKey(actorPlan.binding_id)) continue;
+
+            GameObject instance;
+            if (!string.IsNullOrEmpty(actorPlan.prefab_path))
+            {
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(actorPlan.prefab_path);
+                if (prefab == null)
+                    throw new InvalidOperationException("Missing Unity prefab for semantic entity: " + actorPlan.prefab_path);
+                instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+            }
+            else
+            {
+                PrimitiveType primitive = string.Equals(
+                    actorPlan.placeholder_primitive,
+                    "capsule",
+                    StringComparison.OrdinalIgnoreCase
+                ) ? PrimitiveType.Capsule : PrimitiveType.Cube;
+                instance = GameObject.CreatePrimitive(primitive);
+                SceneManager.MoveGameObjectToScene(instance, scene);
+            }
+
+            instance.name = ActorPrefix + actorPlan.binding_id;
+            ApplyActorTransform(instance, actorPlan);
+            actors.Add(actorPlan.binding_id, instance);
         }
         foreach (BodyTrack body in mapping.body_tracks)
         {
