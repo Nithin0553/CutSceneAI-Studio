@@ -76,7 +76,7 @@ def test_humanml_rest_pose_becomes_identity_local_rotations() -> None:
     )
 
     assert HUMANML_SOURCE_FPS == 20
-    assert HUMANML_POSITION_CONVERSION_METHOD.endswith("v0.2")
+    assert HUMANML_POSITION_CONVERSION_METHOD.endswith("v0.3")
     assert artifact.frame_count == 2
     assert artifact.samples[0].root_translation.model_dump() == {
         "x": 0.0,
@@ -109,7 +109,7 @@ def test_humanml_whole_body_yaw_is_carried_by_pelvis_not_counter_rotated_limbs()
         assert abs(rotation.w) == pytest.approx(1.0, abs=1e-6)
 
 
-def test_humanml_root_translation_is_rebased_and_z_reflected() -> None:
+def test_humanml_root_translation_is_rebased_and_rotated_to_minus_z_forward() -> None:
     rest = _rest_positions()
     moved = [[x + 1.5, y + 0.25, z + 2.0] for x, y, z in rest]
     artifact = humanml_xyz_to_canonical(
@@ -117,7 +117,7 @@ def test_humanml_root_translation_is_rebased_and_z_reflected() -> None:
     )
 
     assert artifact.samples[1].root_translation.model_dump() == {
-        "x": 1.5,
+        "x": -1.5,
         "y": 0.25,
         "z": -2.0,
     }
