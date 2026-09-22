@@ -124,6 +124,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "track.GetChildTracks()",
         "lifecycle.import_process_id == ProcessId",
         "camera.Render()",
+        "UnityEngine.Timeline.AudioTrack track = timeline.CreateTrack<UnityEngine.Timeline.AudioTrack>",
+        "track is UnityEngine.Timeline.AudioTrack",
         "Refusing to replace existing generated asset",
     ):
         assert token in script
