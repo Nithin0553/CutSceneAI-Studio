@@ -784,7 +784,7 @@ public static class CutSceneAIGeneratedPerformance
         {
             AudioSource source = actors[audio.actor_binding_id].GetComponent<AudioSource>() ?? actors[audio.actor_binding_id].AddComponent<AudioSource>();
             source.playOnAwake = false;
-            AudioTrack track = timeline.CreateTrack<AudioTrack>(null, AudioPrefix + audio.actor_binding_id + "|" + audio.dialogue_cue_id);
+            UnityEngine.Timeline.AudioTrack track = timeline.CreateTrack<UnityEngine.Timeline.AudioTrack>(null, AudioPrefix + audio.actor_binding_id + "|" + audio.dialogue_cue_id);
             TimelineClip clip = track.CreateClip<AudioPlayableAsset>();
             AudioPlayableAsset playable = (AudioPlayableAsset)clip.asset;
             playable.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(audio.target_audio_path); playable.loop = false;
@@ -852,7 +852,7 @@ public static class CutSceneAIGeneratedPerformance
             if (parts != null && track is AnimationTrack)
                 foreach (TimelineClip clip in track.GetClips()) face.Add(Section(parts[1], parts[0], AssetDatabase.GetAssetPath(((AnimationPlayableAsset)clip.asset).clip), clip, mapping.fps));
             parts = Parts(track.name, AudioPrefix);
-            if (parts != null && track is AudioTrack)
+            if (parts != null && track is UnityEngine.Timeline.AudioTrack)
                 foreach (TimelineClip clip in track.GetClips()) audio.Add(Section(parts[1], parts[0], AssetDatabase.GetAssetPath(((AudioPlayableAsset)clip.asset).clip), clip, mapping.fps));
             if (track.name.StartsWith(CameraPrefix, StringComparison.Ordinal) && track is ActivationTrack)
             {
