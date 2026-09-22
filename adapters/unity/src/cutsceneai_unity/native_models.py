@@ -25,13 +25,15 @@ def _validate_unity_asset_path(value: str, *, field_name: str) -> None:
 
 class UnityNativeActorTarget(UnityModel):
     actor_binding_id: str
-    prefab_path: str = Field(pattern=r"^Assets(?:/[A-Za-z0-9_.-]+)+\.prefab$")
+    prefab_path: str
     animator_path: str = ""
     facial_renderer_path: str = ""
 
     @model_validator(mode="after")
     def validate_component_paths(self) -> Self:
         _validate_unity_asset_path(self.prefab_path, field_name="prefab_path")
+        if not self.prefab_path.endswith(".prefab"):
+            raise ValueError("prefab_path must reference a Unity .prefab asset")
         if self.animator_path:
             _validate_relative_object_path(
                 self.animator_path, field_name="animator_path"
