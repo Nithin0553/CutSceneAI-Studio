@@ -285,6 +285,7 @@ public static class CutSceneAIGeneratedPerformance
     }
     [Serializable] private sealed class RetargetJoint {
         public string source_joint_name; public string target_human_bone; public int parent_index;
+        public bool mapped;
         public RetargetTransform reference_local; public RetargetTransform reference_component;
         public QuaternionValue target_parent_component_rotation;
     }
@@ -651,19 +652,40 @@ public static class CutSceneAIGeneratedPerformance
             RetargetJoint[] joints = track.joint_bindings.Select(binding => {
                 HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone);
                 Transform transform = animator.GetBoneTransform(bone);
-                return new { binding, bone, transform };
-            }).Where(item => item.transform != null).Select(item => {
-                Quaternion local = item.transform.localRotation;
-                Quaternion component = ReferenceComponentRotation(animator, item.transform);
+                if (transform == null)
+                {
+                    if (IsRequiredHumanoidBone(bone))
+                        throw new InvalidOperationException("Required Humanoid bone is not mapped: " + binding.target_human_bone);
+                    return new RetargetJoint {
+                        source_joint_name = binding.source_joint_name,
+                        target_human_bone = binding.target_human_bone,
+                        parent_index = binding.parent_index,
+                        mapped = false,
+                        reference_local = new RetargetTransform {
+                            translation = VectorData(Vector3.zero),
+                            rotation = QuaternionData(Quaternion.identity),
+                            scale = VectorData(Vector3.one),
+                        },
+                        reference_component = new RetargetTransform {
+                            translation = VectorData(Vector3.zero),
+                            rotation = QuaternionData(Quaternion.identity),
+                            scale = VectorData(Vector3.one),
+                        },
+                        target_parent_component_rotation = QuaternionData(Quaternion.identity),
+                    };
+                }
+                Quaternion local = transform.localRotation;
+                Quaternion component = ReferenceComponentRotation(animator, transform);
                 return new RetargetJoint {
-                    source_joint_name = item.binding.source_joint_name,
-                    target_human_bone = item.binding.target_human_bone,
-                    parent_index = item.binding.parent_index,
-                    reference_local = RetargetTransformData(item.transform),
+                    source_joint_name = binding.source_joint_name,
+                    target_human_bone = binding.target_human_bone,
+                    parent_index = binding.parent_index,
+                    mapped = true,
+                    reference_local = RetargetTransformData(transform),
                     reference_component = new RetargetTransform {
-                        translation = VectorData(animator.transform.InverseTransformPoint(item.transform.position)),
+                        translation = VectorData(animator.transform.InverseTransformPoint(transform.position)),
                         rotation = QuaternionData(component),
-                        scale = VectorData(item.transform.lossyScale),
+                        scale = VectorData(transform.lossyScale),
                     },
                     target_parent_component_rotation = QuaternionData(ParentComponentRotation(local, component)),
                 };
