@@ -606,7 +606,7 @@ public static class CutSceneAIGeneratedPerformance
             Animator animator = AnimatorFor(instance, target);
             animator.enabled = false;
             using (HumanPoseHandler handler = new HumanPoseHandler(
-                animator.avatar, animator.transform))
+                animator.avatar, animator.avatarRoot))
             {
                 if (!AnimationMode.InAnimationMode())
                 {
@@ -716,7 +716,7 @@ public static class CutSceneAIGeneratedPerformance
                 .Select(_ => new List<Tuple<int, float>>()).ToArray();
 
             using (HumanPoseHandler handler = new HumanPoseHandler(
-                animator.avatar, animator.transform))
+                animator.avatar, animator.avatarRoot))
             {
                 foreach (BodyKeyframe frame in track.keyframes)
                 {
