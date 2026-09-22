@@ -337,15 +337,31 @@ class StudioService:
 
         if record.engine is StudioEngine.UNITY:
             source = source_root / "unity" / "CutSceneAIStudioBridge.cs"
+            benchmark_source = source_root / "unity" / "CutSceneAIHallwayBenchmarkSetup.cs"
             if not source.exists():
                 raise ValueError("Unity bridge source is missing from the CutSceneAI repository.")
+            if not benchmark_source.exists():
+                raise ValueError(
+                    "Unity hallway benchmark setup source is missing from the CutSceneAI repository."
+                )
             script_target = (
                 project_root / "Assets" / "Editor" / "CutSceneAI" / "CutSceneAIStudioBridge.cs"
+            )
+            benchmark_target = (
+                project_root
+                / "Assets"
+                / "Editor"
+                / "CutSceneAI"
+                / "CutSceneAIHallwayBenchmarkSetup.cs"
             )
             config_target = (
                 project_root / "Assets" / "CutSceneAI" / "Bridge" / "cutsceneai-bridge.json"
             )
             self._write_managed_bridge_file(source.read_text(encoding="utf-8"), script_target)
+            self._write_managed_bridge_file(
+                benchmark_source.read_text(encoding="utf-8"),
+                benchmark_target,
+            )
             self._write_managed_bridge_file(
                 json.dumps(config, indent=2, sort_keys=True) + "\n",
                 config_target,
@@ -353,6 +369,7 @@ class StudioService:
             installed.extend(
                 [
                     script_target.relative_to(project_root).as_posix(),
+                    benchmark_target.relative_to(project_root).as_posix(),
                     config_target.relative_to(project_root).as_posix(),
                 ]
             )
