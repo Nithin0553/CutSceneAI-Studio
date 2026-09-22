@@ -607,9 +607,34 @@ class StudioService:
             existing = target.read_text(encoding="utf-8", errors="ignore")
             if existing == content:
                 return
-            if "CutSceneAI Studio Bridge" not in existing and "cutsceneai_studio_bridge" not in str(
-                target
-            ):
+
+            managed_bridge_source = (
+                "CutSceneAI Studio Bridge" in existing
+                or "cutsceneai_studio_bridge" in str(target)
+            )
+            managed_bridge_config = False
+            if target.name == "cutsceneai-bridge.json":
+                try:
+                    existing_config = json.loads(existing)
+                    replacement_config = json.loads(content)
+                except json.JSONDecodeError:
+                    existing_config = None
+                    replacement_config = None
+                if isinstance(existing_config, dict) and isinstance(replacement_config, dict):
+                    required = {
+                        "bridge_version",
+                        "project_id",
+                        "backend_url",
+                        "poll_interval_seconds",
+                    }
+                    managed_bridge_config = (
+                        required.issubset(existing_config)
+                        and required.issubset(replacement_config)
+                        and existing_config["project_id"] == replacement_config["project_id"]
+                        and existing_config["backend_url"] == replacement_config["backend_url"]
+                    )
+
+            if not managed_bridge_source and not managed_bridge_config:
                 raise ValueError(f"Refusing to replace unmanaged bridge file: {target}")
         target.write_text(content, encoding="utf-8", newline="\n")
 
