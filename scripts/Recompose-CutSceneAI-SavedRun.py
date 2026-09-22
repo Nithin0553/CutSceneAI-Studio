@@ -30,11 +30,13 @@ from cutsceneai_performance.models import (
 )
 from cutsceneai_performance.motion import (
     BodyMotionArtifact,
-    render_body_motion,
     resample_body_motion,
 )
 from cutsceneai_performance.providers import NormalizedArtifact
-from cutsceneai_performance.serialization import render_performance_package
+from cutsceneai_performance.serialization import (
+    render_body_motion,
+    render_performance_package,
+)
 from app.models.performance_runtime import (
     PerformanceRunRecord,
     PerformanceRunStatus,
