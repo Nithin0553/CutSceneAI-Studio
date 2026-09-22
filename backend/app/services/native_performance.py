@@ -189,6 +189,21 @@ class NativePerformanceRealizer:
                 )
             )
 
+        for environment in project.environment:
+            asset = selected.get(environment.id)
+            if asset is None:
+                continue
+            if not asset.engine_ref.startswith("Assets/") or not asset.engine_ref.endswith(
+                ".prefab"
+            ):
+                continue
+            entities.append(
+                UnityEntityAsset(
+                    source_entity_id=environment.id,
+                    prefab_path=asset.engine_ref,
+                )
+            )
+
         root = f"Assets/CutSceneAI/Studio/{token}"
         plan = compile_unity_project(
             project,
