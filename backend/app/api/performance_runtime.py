@@ -30,7 +30,9 @@ def get_native_studio_service() -> StudioService:
     return StudioService()
 
 
-def _bad_request(exc: ValueError | PerformanceProviderConfigurationError) -> HTTPException:
+def _bad_request(
+    exc: ValueError | PerformanceError | PerformanceProviderConfigurationError,
+) -> HTTPException:
     return HTTPException(status_code=422, detail=str(exc))
 
 
