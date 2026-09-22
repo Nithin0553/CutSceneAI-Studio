@@ -15,7 +15,7 @@ from typing import Any
 
 import unreal
 
-BRIDGE_VERSION = "0.1.0"
+BRIDGE_VERSION = "0.2.0"
 _CONFIG_PATH = os.path.join(os.path.dirname(__file__), "cutsceneai-bridge.json")
 _state: dict[str, Any] = {
     "config": None,
@@ -73,11 +73,20 @@ def _actor_record(actor: Any) -> dict[str, Any]:
         kind = "scene_actor"
 
     path_name = actor.get_path_name()
+    location = actor.get_actor_location()
     metadata: dict[str, Any] = {
         "class_name": class_name,
         "asset_type": kind,
         "humanoid": "SkeletalMesh" in class_name or "Character" in class_name,
         "blendshape_count": 0,
+        "canonical_world_position_meters": {
+            "x": float(location.y) / 100.0,
+            "y": float(location.z) / 100.0,
+            "z": -float(location.x) / 100.0,
+        },
+        "canonical_transform_space": "cutsceneai-rh-yup-negative-z-forward",
+        "source_transform_space": "unreal-world-left-handed-zup-positive-x-forward",
+        "source_distance_unit": "centimeter",
     }
 
     try:
