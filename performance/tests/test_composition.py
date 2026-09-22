@@ -1,0 +1,194 @@
+from __future__ import annotations
+
+import math
+
+import pytest
+
+from cutsceneai_performance._geometry import Quaternion, Vector3
+from cutsceneai_performance.composition import compose_body_sequence
+from cutsceneai_performance.models import BodyGenerationRequest, ModelProvenance
+from cutsceneai_performance.motion import (
+    CANONICAL_HUMANOID_JOINTS,
+    BodyMotionArtifact,
+    BodyMotionSample,
+)
+from cutsceneai_performance.providers import NormalizedArtifact
+
+
+_HASH = "0" * 64
+
+
+def _rotations(value: Quaternion) -> list[Quaternion]:
+    return [value.model_copy(deep=True) for _ in CANONICAL_HUMANOID_JOINTS]
+
+
+def _motion(
+    roots: list[tuple[float, float, float]],
+    rotations: list[Quaternion],
+) -> BodyMotionArtifact:
+    return BodyMotionArtifact(
+        fps=24,
+        frame_count=len(roots),
+        samples=[
+            BodyMotionSample(
+                frame_index=index,
+                root_translation=Vector3(x=root[0], y=root[1], z=root[2]),
+                joint_rotations=_rotations(rotations[index]),
+            )
+            for index, root in enumerate(roots)
+        ],
+    )
+
+
+def _request(
+    semantic_id: str,
+    *,
+    start: int,
+    end: int,
+    target: str | None = None,
+    prompt: str = "Generate motion.",
+) -> BodyGenerationRequest:
+    return BodyGenerationRequest(
+        semantic_id=semantic_id,
+        start_frame=start,
+        end_frame=end,
+        prompt=prompt,
+        prompt_sha256=_HASH,
+        configuration_sha256=_HASH,
+        seed=1,
+        provider="fixture",
+        model="fixture-model",
+        model_revision="r1",
+        prompt_version="body-v0.1",
+        actor_binding_id="actor:guard",
+        source_performance_cue_id="performance:scene:beat:guard:01",
+        skeleton_profile="cutsceneai-humanoid-v1",
+        target_binding_id=target,
+    )
+
+
+def _normalized(
+    request: BodyGenerationRequest,
+    motion: BodyMotionArtifact,
+) -> NormalizedArtifact[BodyMotionArtifact]:
+    return NormalizedArtifact(
+        request_semantic_id=request.semantic_id,
+        artifact=motion,
+        provenance=ModelProvenance(
+            provider=request.provider,
+            model=request.model,
+            model_revision=request.model_revision,
+            prompt_sha256=request.prompt_sha256,
+            configuration_sha256=request.configuration_sha256,
+            seed=request.seed,
+            deterministic_algorithms=True,
+        ),
+    )
+
+
+def test_compositor_rebases_root_and_blends_entry_pose() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    quarter_turn = Quaternion(
+        x=0.0,
+        y=math.sqrt(0.5),
+        z=0.0,
+        w=math.sqrt(0.5),
+    )
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+
+    first = _request("body:scene:beat:guard:01:walk", start=0, end=2)
+    second = _request("body:scene:beat:guard:01:stop", start=2, end=4)
+
+    first_motion = _motion(
+        [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+        [identity, quarter_turn],
+    )
+    second_motion = _motion(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+        [opposite, opposite],
+    )
+
+    result = compose_body_sequence(
+        [first, second],
+        {
+            first.semantic_id: _normalized(first, first_motion),
+            second.semantic_id: _normalized(second, second_motion),
+        },
+        blend_frames=2,
+    )
+
+    composed_first = result[first.semantic_id].artifact
+    composed_second = result[second.semantic_id].artifact
+
+    assert composed_second.samples[0].root_translation == composed_first.samples[-1].root_translation
+    assert composed_second.samples[-1].root_translation == Vector3(x=3.0, y=0.0, z=0.0)
+    assert (
+        composed_second.samples[0].joint_rotations[0]
+        == composed_first.samples[-1].joint_rotations[0]
+    )
+    assert composed_second.samples[-1].joint_rotations[0] == opposite
+
+    # Composition must not mutate provider-normalized input.
+    assert second_motion.samples[0].root_translation == Vector3(x=0.0, y=0.0, z=0.0)
+
+
+def test_target_facing_hold_locks_root_and_pelvis_heading() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    quarter_turn = Quaternion(
+        x=0.0,
+        y=math.sqrt(0.5),
+        z=0.0,
+        w=math.sqrt(0.5),
+    )
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+
+    turn = _request(
+        "body:scene:beat:guard:01:turn",
+        start=0,
+        end=2,
+        target="actor:door",
+        prompt="Action: turn toward the door Style: cautious.",
+    )
+    hold = _request(
+        "body:scene:beat:guard:01:hold",
+        start=2,
+        end=5,
+        target="actor:door",
+        prompt="Action: hold a cautious stance facing the door Style: cautious.",
+    )
+
+    result = compose_body_sequence(
+        [turn, hold],
+        {
+            turn.semantic_id: _normalized(
+                turn,
+                _motion(
+                    [(0.0, 0.0, 0.0), (0.1, 0.0, 0.0)],
+                    [identity, quarter_turn],
+                ),
+            ),
+            hold.semantic_id: _normalized(
+                hold,
+                _motion(
+                    [(0.0, 0.0, 0.0), (0.2, 0.4, -0.2), (0.4, 0.8, -0.5)],
+                    [opposite, quarter_turn, identity],
+                ),
+            ),
+        },
+        blend_frames=2,
+    )
+
+    composed_turn = result[turn.semantic_id].artifact
+    composed_hold = result[hold.semantic_id].artifact
+    anchor_root = composed_turn.samples[-1].root_translation
+    anchor_pelvis = composed_turn.samples[-1].joint_rotations[0]
+
+    assert all(sample.root_translation == anchor_root for sample in composed_hold.samples)
+    assert all(sample.joint_rotations[0] == anchor_pelvis for sample in composed_hold.samples)
+
+
+def test_compositor_rejects_missing_artifact() -> None:
+    request = _request("body:scene:beat:guard:01:walk", start=0, end=2)
+
+    with pytest.raises(ValueError, match="Missing normalized body artifacts"):
+        compose_body_sequence([request], {})
