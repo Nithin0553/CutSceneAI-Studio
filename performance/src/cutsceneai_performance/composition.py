@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import re
 from collections.abc import Mapping, Sequence
 
 from ._geometry import Quaternion, Vector3, slerp_quaternion
@@ -138,7 +139,16 @@ def _blend_entry_pose(
 def _is_target_facing_hold(request: BodyGenerationRequest) -> bool:
     if request.target_binding_id is None:
         return False
-    text = f"{request.semantic_id} {request.prompt}".lower()
+
+    # Only classify the atomic action, not the larger-performance context appended
+    # later in the prompt. Otherwise a turn phase can inherit words such as
+    # "remain facing" from the enclosing performance and be incorrectly frozen.
+    match = re.search(
+        r"Action:\s*(.+?)\s+Style:",
+        request.prompt,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    text = (match.group(1) if match is not None else request.prompt).lower()
     return (
         any(token in text for token in ("hold", "remain", "stand"))
         and any(token in text for token in ("facing", "toward", "still", "stance"))
