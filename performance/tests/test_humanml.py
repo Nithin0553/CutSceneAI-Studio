@@ -146,5 +146,5 @@ def test_humanml_rejects_nonfinite_and_wrong_joint_count() -> None:
 
     nonfinite = [list(position) for position in rest]
     nonfinite[0][0] = float("nan")
-    with pytest.raises(ValueError, match="not finite"):
+    with pytest.raises(ValueError, match=r"(?:not finite|finite number)"):
         HumanMLXYZMotion(frame_count=1, positions=[nonfinite])
