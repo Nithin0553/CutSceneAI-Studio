@@ -11,7 +11,7 @@ from .motion import BodyMotionArtifact, BodyMotionSample, CANONICAL_HUMANOID_JOI
 
 
 HUMANML_SOURCE_FPS = 20
-HUMANML_POSITION_CONVERSION_METHOD = "cutsceneai-position-to-parent-local-swing-v0.2"
+HUMANML_POSITION_CONVERSION_METHOD = "cutsceneai-position-to-parent-local-swing-v0.3"
 
 _HUMANML_RAW_OFFSETS = (
     (0.0, 0.0, 0.0),
@@ -224,10 +224,10 @@ def _source_position(
 ) -> tuple[float, float, float]:
     if len(value) != 3:
         raise ValueError("HumanML source positions must contain exactly three values.")
-    # The validated S02 boundary records HumanML as RH/Y-up/+Z-forward and the
-    # canonical contract as RH/Y-up/-Z-forward. This reflection matches the
-    # established CutSceneAI provider/engine coordinate boundary.
-    return (float(value[0]), float(value[1]), -float(value[2]))
+    # HumanML and CutSceneAI are both right-handed and Y-up, but use opposite
+    # forward axes (+Z versus -Z). Preserve handedness by rotating 180 degrees
+    # around Y rather than reflecting only Z.
+    return (-float(value[0]), float(value[1]), -float(value[2]))
 
 
 def _root_orientation(
