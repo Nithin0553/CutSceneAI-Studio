@@ -422,6 +422,32 @@ public static class CutSceneAIGeneratedPerformance
         => version.StartsWith("6000.0", StringComparison.Ordinal)
             || version.StartsWith("6000.3", StringComparison.Ordinal);
 
+    private static string[] GeneratedAssetPaths(Mapping mapping, Target target)
+        => mapping.body_tracks.Select(item => item.target_animation_path)
+            .Concat(mapping.facial_tracks.Select(item => item.target_animation_path))
+            .Concat(mapping.camera_tracks.Select(item => item.target_animation_path))
+            .Concat(new[] { target.timeline_asset_path, target.scene_asset_path })
+            .Distinct()
+            .ToArray();
+
+    private static void CleanupGeneratedAssets(IEnumerable<string> paths)
+    {
+        foreach (string path in paths.Reverse())
+        {
+            string absolutePath = AbsoluteAssetPath(path);
+            if (AssetDatabase.LoadMainAssetAtPath(path) == null && !File.Exists(absolutePath))
+                continue;
+
+            if (!AssetDatabase.DeleteAsset(path))
+            {
+                if (File.Exists(absolutePath)) File.Delete(absolutePath);
+                string metaPath = absolutePath + ".meta";
+                if (File.Exists(metaPath)) File.Delete(metaPath);
+            }
+        }
+        AssetDatabase.Refresh();
+    }
+
     private static void Preflight(Plan plan, Mapping mapping, Target target)
     {
         if (!SupportedUnityVersion(Application.unityVersion))
@@ -434,10 +460,7 @@ public static class CutSceneAIGeneratedPerformance
             throw new InvalidOperationException("com.unity.timeline 1.8.12 is required.");
         if (plan.project_id != mapping.project_id || target.project_id != mapping.project_id || plan.fps != mapping.fps)
             throw new InvalidOperationException("Plan, mapping, and native target identity diverged.");
-        string[] generatedAssets = mapping.body_tracks.Select(item => item.target_animation_path)
-            .Concat(mapping.facial_tracks.Select(item => item.target_animation_path))
-            .Concat(mapping.camera_tracks.Select(item => item.target_animation_path))
-            .Concat(new[] { target.timeline_asset_path, target.scene_asset_path }).ToArray();
+        string[] generatedAssets = GeneratedAssetPaths(mapping, target);
         if (generatedAssets.Distinct().Count() != generatedAssets.Length)
             throw new InvalidOperationException("Native target contains duplicate generated asset paths.");
         foreach (string path in generatedAssets)
@@ -870,10 +893,8 @@ public static class CutSceneAIGeneratedPerformance
         return clip;
     }
 
-    public static void Import()
+    private static void ImportCore(Plan plan, Mapping mapping, Target target)
     {
-        Plan plan = LoadPlan(); Mapping mapping = LoadMapping(); Target target = LoadTarget();
-        Preflight(plan, mapping, target);
         CaptureRetargetProfile(mapping, target);
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         GameObject root = new GameObject("CutSceneAI_" + mapping.source_scene_id);
@@ -983,6 +1004,22 @@ public static class CutSceneAIGeneratedPerformance
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
+    }
+
+    public static void Import()
+    {
+        Plan plan = LoadPlan(); Mapping mapping = LoadMapping(); Target target = LoadTarget();
+        Preflight(plan, mapping, target);
+        string[] generatedAssets = GeneratedAssetPaths(mapping, target);
+        try
+        {
+            ImportCore(plan, mapping, target);
+        }
+        catch
+        {
+            CleanupGeneratedAssets(generatedAssets);
+            throw;
+        }
     }
 
     private static RealizedSection Section(string semanticId, string actorId, string assetRef, TimelineClip clip, int fps)
