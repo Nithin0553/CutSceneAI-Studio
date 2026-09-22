@@ -397,6 +397,18 @@ public static class CutSceneAIGeneratedPerformance
             throw new InvalidOperationException("Target requires one valid Humanoid Animator: " + target.actor_binding_id);
         return animator;
     }
+    private static bool IsRequiredHumanoidBone(HumanBodyBones bone)
+    {
+        string enumName = bone.ToString();
+        for (int index = 0; index < HumanTrait.BoneCount; index++)
+        {
+            string traitName = HumanTrait.BoneName[index].Replace(" ", "");
+            if (string.Equals(traitName, enumName, StringComparison.Ordinal))
+                return HumanTrait.RequiredBone(index);
+        }
+        throw new InvalidOperationException("Unable to resolve Humanoid bone requirement: " + enumName);
+    }
+
     private static SkinnedMeshRenderer FaceFor(GameObject root, ActorTarget target)
     {
         SkinnedMeshRenderer renderer = Find(root.transform, target.facial_renderer_path).GetComponent<SkinnedMeshRenderer>();
@@ -437,8 +449,11 @@ public static class CutSceneAIGeneratedPerformance
             Animator animator = AnimatorFor(prefab, actorTarget);
             foreach (BodyTrack body in mapping.body_tracks.Where(item => item.actor_binding_id == actorTarget.actor_binding_id))
                 foreach (JointBinding binding in body.joint_bindings)
-                    if (animator.GetBoneTransform((HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone)) == null)
-                        throw new InvalidOperationException("Humanoid bone is not mapped: " + binding.target_human_bone);
+                {
+                    HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone);
+                    if (animator.GetBoneTransform(bone) == null && IsRequiredHumanoidBone(bone))
+                        throw new InvalidOperationException("Required Humanoid bone is not mapped: " + binding.target_human_bone);
+                }
 
             FaceTrack[] actorFaceTracks = mapping.facial_tracks
                 .Where(item => item.actor_binding_id == actorTarget.actor_binding_id).ToArray();
@@ -543,12 +558,12 @@ public static class CutSceneAIGeneratedPerformance
                 HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
                     typeof(HumanBodyBones), binding.target_human_bone);
                 Transform transform = animator.GetBoneTransform(bone);
-                if (transform == null)
+                if (transform == null && IsRequiredHumanoidBone(bone))
                     throw new InvalidOperationException(
-                        "Generated clip sampling is missing Humanoid bone: "
+                        "Generated clip sampling is missing required Humanoid bone: "
                         + binding.target_human_bone);
                 return transform;
-            }).ToArray();
+            }).Where(transform => transform != null).ToArray();
 
             float[] times = new[] {
                 0.0f,
@@ -595,6 +610,12 @@ public static class CutSceneAIGeneratedPerformance
         {
             HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), track.joint_bindings[jointIndex].target_human_bone);
             Transform transform = animator.GetBoneTransform(bone);
+            if (transform == null)
+            {
+                if (IsRequiredHumanoidBone(bone))
+                    throw new InvalidOperationException("Required Humanoid bone is not mapped: " + track.joint_bindings[jointIndex].target_human_bone);
+                continue;
+            }
             string path = AnimationUtility.CalculateTransformPath(transform, animator.transform);
             Quaternion reference = transform.localRotation;
             Quaternion referenceComponent = ReferenceComponentRotation(animator, transform);
@@ -630,17 +651,19 @@ public static class CutSceneAIGeneratedPerformance
             RetargetJoint[] joints = track.joint_bindings.Select(binding => {
                 HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone);
                 Transform transform = animator.GetBoneTransform(bone);
-                Quaternion local = transform.localRotation;
-                Quaternion component = ReferenceComponentRotation(animator, transform);
+                return new { binding, bone, transform };
+            }).Where(item => item.transform != null).Select(item => {
+                Quaternion local = item.transform.localRotation;
+                Quaternion component = ReferenceComponentRotation(animator, item.transform);
                 return new RetargetJoint {
-                    source_joint_name = binding.source_joint_name,
-                    target_human_bone = binding.target_human_bone,
-                    parent_index = binding.parent_index,
-                    reference_local = RetargetTransformData(transform),
+                    source_joint_name = item.binding.source_joint_name,
+                    target_human_bone = item.binding.target_human_bone,
+                    parent_index = item.binding.parent_index,
+                    reference_local = RetargetTransformData(item.transform),
                     reference_component = new RetargetTransform {
-                        translation = VectorData(animator.transform.InverseTransformPoint(transform.position)),
+                        translation = VectorData(animator.transform.InverseTransformPoint(item.transform.position)),
                         rotation = QuaternionData(component),
-                        scale = VectorData(transform.lossyScale),
+                        scale = VectorData(item.transform.lossyScale),
                     },
                     target_parent_component_rotation = QuaternionData(ParentComponentRotation(local, component)),
                 };
