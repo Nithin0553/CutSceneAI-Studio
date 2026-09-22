@@ -42,6 +42,7 @@ from .humanml import (
     HUMANML_SOURCE_FPS,
     HumanMLXYZMotion,
     humanml_xyz_to_canonical,
+    repair_humanml_v02_canonical_basis,
 )
 from .models import (
     ArtifactFormat,
@@ -208,6 +209,7 @@ __all__ = [
     "facial_curve_json_schema",
     "generation_plan_json_schema",
     "humanml_xyz_to_canonical",
+    "repair_humanml_v02_canonical_basis",
     "invert_quaternion",
     "load_performance_bundle",
     "multiply_quaternions",
