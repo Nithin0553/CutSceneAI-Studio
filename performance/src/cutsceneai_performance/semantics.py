@@ -1,9 +1,49 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 from cutsceneai_parity import SemanticScene, TimelineSemantics
 
 from .bundle import PerformanceBundle, verify_performance_bundle
 from .errors import PerformanceOutputError
+
+
+
+
+def _verify_body_track_semantics(body_tracks, performance_cues) -> None:
+    """Require body tracks to exactly partition each semantic performance window."""
+
+    cue_by_id = {cue.cue_id: cue for cue in performance_cues}
+    tracks_by_cue = defaultdict(list)
+    for track in body_tracks:
+        tracks_by_cue[track.source_performance_cue_id].append(track)
+
+    if set(tracks_by_cue) != set(cue_by_id):
+        raise PerformanceOutputError(
+            "Performance body tracks do not exactly match timeline semantics."
+        )
+
+    for cue_id, cue in cue_by_id.items():
+        tracks = sorted(
+            tracks_by_cue[cue_id],
+            key=lambda item: (item.start_frame, item.end_frame, item.semantic_id),
+        )
+        cursor = cue.start_frame
+        for track in tracks:
+            if (
+                track.actor_binding_id != cue.actor_binding_id
+                or track.start_frame != cursor
+                or track.end_frame <= track.start_frame
+                or track.end_frame > cue.end_frame
+            ):
+                raise PerformanceOutputError(
+                    "Performance body tracks do not exactly match timeline semantics."
+                )
+            cursor = track.end_frame
+        if cursor != cue.end_frame:
+            raise PerformanceOutputError(
+                "Performance body tracks do not exactly match timeline semantics."
+            )
 
 
 def verify_performance_bundle_semantics(
@@ -38,23 +78,10 @@ def verify_performance_bundle_semantics(
             "Performance bundle identity or timeline does not match timeline semantics."
         )
 
-    expected_body = sorted(
-        (cue.cue_id, cue.actor_binding_id, cue.start_frame, cue.end_frame)
-        for cue in scene.performance_cues
+    _verify_body_track_semantics(
+        package.body_tracks,
+        scene.performance_cues,
     )
-    actual_body = sorted(
-        (
-            track.source_performance_cue_id,
-            track.actor_binding_id,
-            track.start_frame,
-            track.end_frame,
-        )
-        for track in package.body_tracks
-    )
-    if actual_body != expected_body:
-        raise PerformanceOutputError(
-            "Performance body tracks do not exactly match timeline semantics."
-        )
 
     dialogue_ids = {cue.cue_id for cue in scene.dialogue_cues}
     expected_facial = sorted(
