@@ -145,7 +145,14 @@ def humanml_xyz_to_canonical(motion: HumanMLXYZMotion) -> BodyMotionArtifact:
 
     for frame_index, raw_frame in enumerate(motion.positions):
         positions = [_source_position(position) for position in raw_frame]
-        root_world = _root_orientation(positions)
+        root_world_absolute = _root_orientation(positions)
+        source_to_canonical_basis = (0.0, 1.0, 0.0, 0.0)
+        root_world = _normalize_quaternion(
+            _multiply_quaternion(
+                root_world_absolute,
+                _inverse_quaternion(source_to_canonical_basis),
+            )
+        )
         world_rotations: list[tuple[float, float, float, float]] = [
             _identity_quaternion()
         ] * 22
