@@ -38,6 +38,58 @@ public static class CutSceneAIStudioBridge
     }
 
     [Serializable]
+    private sealed class CanonicalQuaternion
+    {
+        public float x;
+        public float y;
+        public float z;
+        public float w;
+    }
+
+    [Serializable]
+    private sealed class CanonicalTransform
+    {
+        public CanonicalPosition position_m;
+        public CanonicalQuaternion rotation;
+        public CanonicalPosition scale;
+    }
+
+    [Serializable]
+    private sealed class CanonicalBounds
+    {
+        public CanonicalPosition center_m;
+        public CanonicalPosition extents_m;
+    }
+
+    [Serializable]
+    private sealed class SceneObjectRecord
+    {
+        public string object_id;
+        public string display_name;
+        public string hierarchy_path;
+        public string parent_object_id;
+        public string kind;
+        public bool active;
+        public bool is_static;
+        public string tag;
+        public string layer;
+        public string prefab_asset_path;
+        public CanonicalTransform transform;
+        public CanonicalBounds bounds;
+        public string[] components;
+    }
+
+    [Serializable]
+    private sealed class SceneSnapshot
+    {
+        public string snapshot_version;
+        public string scene_ref;
+        public string coordinate_space;
+        public string distance_unit;
+        public SceneObjectRecord[] objects;
+    }
+
+    [Serializable]
     private sealed class AssetMetadata
     {
         public string asset_type;
@@ -81,6 +133,7 @@ public static class CutSceneAIStudioBridge
         public int fps;
         public string[] capabilities;
         public AssetRecord[] assets;
+        public SceneSnapshot scene_snapshot;
         public string[] warnings;
     }
 
@@ -565,10 +618,166 @@ public static class CutSceneAIStudioBridge
                 "timeline",
                 "editor-command-queue",
                 "readback",
+                "scene-context:v0.1",
             },
             assets = assets.ToArray(),
+            scene_snapshot = CaptureSceneSnapshot(scene),
             warnings = Array.Empty<string>(),
         };
+    }
+
+    private static SceneSnapshot CaptureSceneSnapshot(Scene scene)
+    {
+        if (!scene.IsValid())
+            return null;
+
+        const int maxSceneObjects = 2000;
+        GameObject[] sceneObjects = scene
+            .GetRootGameObjects()
+            .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
+            .Select(item => item.gameObject)
+            .OrderBy(HierarchyPath, StringComparer.Ordinal)
+            .Take(maxSceneObjects)
+            .ToArray();
+
+        return new SceneSnapshot
+        {
+            snapshot_version = "0.1.0",
+            scene_ref = scene.path ?? string.Empty,
+            coordinate_space = "cutsceneai-rh-yup-negative-z-forward",
+            distance_unit = "meter",
+            objects = sceneObjects.Select(SceneObjectFor).ToArray(),
+        };
+    }
+
+    private static SceneObjectRecord SceneObjectFor(GameObject value)
+    {
+        Transform transform = value.transform;
+        Transform parent = transform.parent;
+        string prefabPath = string.Empty;
+        GameObject prefabSource = PrefabUtility.GetCorrespondingObjectFromSource(value);
+        if (prefabSource != null)
+            prefabPath = AssetDatabase.GetAssetPath(prefabSource) ?? string.Empty;
+
+        Renderer[] renderers = value.GetComponents<Renderer>();
+        Collider[] colliders = value.GetComponents<Collider>();
+        bool hasBounds = false;
+        Bounds aggregate = default;
+        foreach (Renderer renderer in renderers)
+        {
+            if (!hasBounds)
+            {
+                aggregate = renderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                aggregate.Encapsulate(renderer.bounds);
+            }
+        }
+        foreach (Collider collider in colliders)
+        {
+            if (!hasBounds)
+            {
+                aggregate = collider.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                aggregate.Encapsulate(collider.bounds);
+            }
+        }
+
+        return new SceneObjectRecord
+        {
+            object_id = GlobalObjectId.GetGlobalObjectIdSlow(value).ToString(),
+            display_name = value.name,
+            hierarchy_path = HierarchyPath(value),
+            parent_object_id = parent == null
+                ? null
+                : GlobalObjectId.GetGlobalObjectIdSlow(parent.gameObject).ToString(),
+            kind = SceneObjectKind(value),
+            active = value.activeInHierarchy,
+            is_static = value.isStatic,
+            tag = value.tag,
+            layer = LayerMask.LayerToName(value.layer) ?? string.Empty,
+            prefab_asset_path = string.IsNullOrWhiteSpace(prefabPath) ? null : prefabPath,
+            transform = new CanonicalTransform
+            {
+                position_m = CanonicalPositionOf(transform.position),
+                rotation = CanonicalRotationOf(transform.rotation),
+                scale = new CanonicalPosition
+                {
+                    x = transform.lossyScale.x,
+                    y = transform.lossyScale.y,
+                    z = transform.lossyScale.z,
+                },
+            },
+            bounds = hasBounds
+                ? new CanonicalBounds
+                {
+                    center_m = CanonicalPositionOf(aggregate.center),
+                    extents_m = new CanonicalPosition
+                    {
+                        x = aggregate.extents.x,
+                        y = aggregate.extents.y,
+                        z = aggregate.extents.z,
+                    },
+                }
+                : null,
+            components = value
+                .GetComponents<Component>()
+                .Where(component => component != null)
+                .Select(component => component.GetType().FullName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Take(32)
+                .ToArray(),
+        };
+    }
+
+    private static CanonicalPosition CanonicalPositionOf(Vector3 value)
+        => new CanonicalPosition
+        {
+            x = value.x,
+            y = value.y,
+            z = -value.z,
+        };
+
+    private static CanonicalQuaternion CanonicalRotationOf(Quaternion value)
+        => new CanonicalQuaternion
+        {
+            x = -value.x,
+            y = -value.y,
+            z = value.z,
+            w = value.w,
+        };
+
+    private static string SceneObjectKind(GameObject value)
+    {
+        if (value.GetComponent<Animator>() != null)
+            return "character";
+        if (value.GetComponent<Camera>() != null)
+            return "camera";
+        if (value.GetComponent<Light>() != null)
+            return "light";
+        if (value.GetComponent<Collider>() != null)
+            return "collider";
+        if (value.GetComponent<Renderer>() != null)
+            return "renderable";
+        return "scene_object";
+    }
+
+    private static string HierarchyPath(GameObject value)
+    {
+        List<string> parts = new List<string>();
+        Transform current = value.transform;
+        while (current != null)
+        {
+            parts.Add(current.name);
+            current = current.parent;
+        }
+        parts.Reverse();
+        return string.Join("/", parts);
     }
 
     private static AssetRecord RecordForObject(
