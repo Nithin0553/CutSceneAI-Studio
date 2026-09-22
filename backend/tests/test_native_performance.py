@@ -196,6 +196,28 @@ def test_verified_performance_run_stages_native_unity_importer(
             )
         )
 
+    contract_ref = "Assets/Props/Contract.prefab"
+    contract_path = Path(record.project_path) / contract_ref
+    contract_path.parent.mkdir(parents=True, exist_ok=True)
+    contract_path.write_text("%YAML", encoding="utf-8")
+    assets.append(
+        {
+            "object_id": "verified:contract",
+            "kind": "prefab",
+            "display_name": "Contract",
+            "engine_ref": contract_ref,
+            "relative_path": contract_ref,
+            "verified": True,
+            "metadata": {"source": "engine_bridge"},
+        }
+    )
+    selections.append(
+        StudioBindingSelection(
+            cir_id="contract",
+            project_object_id="verified:contract",
+        )
+    )
+
     studio.bridge_heartbeat(
         record.project_id,
         StudioBridgeHeartbeatRequest(
@@ -230,6 +252,21 @@ def test_verified_performance_run_stages_native_unity_importer(
     source = importer.read_text(encoding="utf-8")
     assert "CutSceneAIGeneratedPerformance" in source
     assert 'version.StartsWith("6000.3"' in source
+    assert "foreach (ActorPlan actorPlan in plan.sequences.Single().actors)" in source
+    assert "GameObject.CreatePrimitive(primitive)" in source
+
+    plan_match = re.search(r'private const string PlanBase64 = "([^"]+)";', source)
+    assert plan_match is not None
+    embedded_plan = json.loads(base64.b64decode(plan_match.group(1)).decode("utf-8"))
+    plan_actors = {
+        item["source_entity_id"]: item
+        for item in embedded_plan["sequences"][0]["actors"]
+    }
+    assert plan_actors["contract"]["prefab_path"] == contract_ref
+    assert plan_actors["contract"]["placeholder"] is False
+    assert plan_actors["conference-table"]["prefab_path"] is None
+    assert plan_actors["conference-table"]["placeholder"] is True
+    assert plan_actors["conference-table"]["placeholder_primitive"] == "cube"
 
 
 def test_verified_performance_run_stages_native_unreal_importer(
