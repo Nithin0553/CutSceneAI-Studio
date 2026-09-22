@@ -967,7 +967,10 @@ public static class CutSceneAIGeneratedPerformance
         }
         foreach (AudioTrack audio in mapping.audio_tracks)
         {
-            AudioSource source = actors[audio.actor_binding_id].GetComponent<AudioSource>() ?? actors[audio.actor_binding_id].AddComponent<AudioSource>();
+            GameObject audioActor = actors[audio.actor_binding_id];
+            AudioSource source = audioActor.GetComponent<AudioSource>();
+            if (source == null)
+                source = audioActor.AddComponent<AudioSource>();
             source.playOnAwake = false;
             UnityEngine.Timeline.AudioTrack track = timeline.CreateTrack<UnityEngine.Timeline.AudioTrack>(null, AudioPrefix + audio.actor_binding_id + "|" + audio.dialogue_cue_id);
             TimelineClip clip = track.CreateClip<AudioPlayableAsset>();
