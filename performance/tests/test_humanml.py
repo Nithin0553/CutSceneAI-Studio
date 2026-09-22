@@ -6,6 +6,8 @@ from cutsceneai_performance import (
     HUMANML_POSITION_CONVERSION_METHOD,
     HUMANML_SOURCE_FPS,
     HumanMLXYZMotion,
+    Quaternion,
+    Vector3,
     humanml_xyz_to_canonical,
     repair_humanml_v02_canonical_basis,
 )
@@ -166,18 +168,18 @@ def test_humanml_v02_basis_repair_matches_v03_conversion() -> None:
         v02_samples.append(
             sample.model_copy(
                 update={
-                    "root_translation": {
-                        "x": -sample.root_translation.x,
-                        "y": sample.root_translation.y,
-                        "z": sample.root_translation.z,
-                    },
+                    "root_translation": Vector3(
+                        x=-sample.root_translation.x,
+                        y=sample.root_translation.y,
+                        z=sample.root_translation.z,
+                    ),
                     "joint_rotations": [
-                        {
-                            "x": rotation.x,
-                            "y": -rotation.y,
-                            "z": -rotation.z,
-                            "w": rotation.w,
-                        }
+                        Quaternion(
+                            x=rotation.x,
+                            y=-rotation.y,
+                            z=-rotation.z,
+                            w=rotation.w,
+                        )
                         for rotation in sample.joint_rotations
                     ],
                 },
