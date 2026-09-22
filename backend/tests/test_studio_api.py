@@ -654,9 +654,12 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     bridge_source = bridge_path.read_text(encoding="utf-8")
     assert "RetryLaterException" in bridge_source
     assert "blendshape_names" in bridge_source
+    assert "canonical_world_position_meters" in bridge_source
+    assert "cutsceneai-rh-yup-negative-z-forward" in bridge_source
     config_path = project_root / "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["project_id"] == record.project_id
+    assert config["bridge_version"] == "0.2.0"
 
     heartbeat = service.bridge_heartbeat(
         record.project_id,
@@ -726,11 +729,16 @@ def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -
     assert installed.engine is StudioEngine.UNREAL
     assert (root / "CutSceneAIStudioBridge.uplugin").exists()
     assert (root / "Content/Python/init_unreal.py").exists()
-    assert (root / "Content/Python/cutsceneai_studio_bridge.py").exists()
+    bridge_path = root / "Content/Python/cutsceneai_studio_bridge.py"
+    assert bridge_path.exists()
+    bridge_source = bridge_path.read_text(encoding="utf-8")
+    assert "canonical_world_position_meters" in bridge_source
+    assert "cutsceneai-rh-yup-negative-z-forward" in bridge_source
     config = json.loads(
         (root / "Content/Python/cutsceneai-bridge.json").read_text(encoding="utf-8")
     )
     assert config["project_id"] == record.project_id
+    assert config["bridge_version"] == "0.2.0"
 
 
 def test_unity_bridge_ignores_empty_poll_commands(tmp_path: Path, monkeypatch) -> None:
