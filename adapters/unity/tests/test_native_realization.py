@@ -100,6 +100,10 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         'version.StartsWith("6000.3"',
         'timelinePackage.version != "1.8.12"',
         "animator.GetBoneTransform",
+        "IsRequiredHumanoidBone",
+        "HumanTrait.RequiredBone",
+        "Required Humanoid bone is not mapped",
+        "Where(transform => transform != null)",
         "EvidenceRoot(Target target)",
         "ValidateClipBindingPaths",
         "ValidateBodyClipSampling",
@@ -129,6 +133,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "Refusing to replace existing generated asset",
     ):
         assert token in script
+    assert "Humanoid bone is not mapped: " not in script
+    assert "Generated clip sampling is missing Humanoid bone: " not in script
     assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
