@@ -328,7 +328,7 @@ class StudioService:
         installed: list[str] = []
 
         config = {
-            "bridge_version": "0.1.0",
+            "bridge_version": "0.2.0",
             "project_id": project_id,
             "backend_url": "http://127.0.0.1:8000",
             "poll_interval_seconds": 2.0,
