@@ -107,15 +107,24 @@ def _blend_entry_pose(
             samples.append(sample.model_copy(deep=True))
             continue
 
-        alpha = 1.0 if count == 1 else index / (count - 1)
-        rotations = [
-            slerp_quaternion(previous, current, alpha)
-            for previous, current in zip(
-                previous_end.joint_rotations,
-                sample.joint_rotations,
-                strict=True,
-            )
-        ]
+        if index == 0:
+            # Preserve the boundary pose bit-for-bit. Calling the quaternion
+            # interpolator with alpha=0 would still normalize/round the value,
+            # introducing a tiny numerical discontinuity at the phase boundary.
+            rotations = [
+                rotation.model_copy(deep=True)
+                for rotation in previous_end.joint_rotations
+            ]
+        else:
+            alpha = 1.0 if count == 1 else index / (count - 1)
+            rotations = [
+                slerp_quaternion(previous, current, alpha)
+                for previous, current in zip(
+                    previous_end.joint_rotations,
+                    sample.joint_rotations,
+                    strict=True,
+                )
+            ]
         samples.append(
             sample.model_copy(
                 update={"joint_rotations": rotations},
