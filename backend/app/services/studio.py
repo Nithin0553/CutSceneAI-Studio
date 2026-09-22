@@ -883,6 +883,21 @@ class StudioService:
         warnings: list[str] = []
         blocking_issues: list[str] = []
 
+        if not record.manifest.bridge_connected:
+            warnings.append(
+                "Engine bridge is not connected. The realization plan can be prepared, "
+                "but native cutscene generation requires the Studio bridge to be installed, "
+                "the engine project open, and a live heartbeat."
+            )
+
+        environment_by_id = {item.id: item for item in project.environment}
+        for cir_id in binding_manifest.unresolved_optional_ids:
+            environment = environment_by_id[cir_id]
+            warnings.append(
+                f"Environment object '{environment.name}' is not bound to an engine asset; "
+                "CutSceneAI will use its CIR transform and a placeholder visual when needed."
+            )
+
         for cir_id in required_character_ids:
             selection = selection_by_cir[cir_id]
             asset = asset_by_id[selection.project_object_id]
@@ -899,6 +914,33 @@ class StudioService:
                     f"Required character binding '{cir_id}' must resolve to {requirement}; "
                     f"got '{asset.engine_ref}'."
                 )
+                continue
+
+            if record.manifest.bridge_connected:
+                verified_matches = [
+                    item
+                    for item in record.manifest.assets
+                    if item.verified and item.engine_ref == asset.engine_ref
+                ]
+                if not verified_matches:
+                    warnings.append(
+                        f"Character binding '{cir_id}' has not yet been verified by the live "
+                        "engine bridge. Refresh discovery before native generation."
+                    )
+                elif record.engine is StudioEngine.UNITY:
+                    verified = sorted(verified_matches, key=lambda item: item.object_id)[0]
+                    if not bool(verified.metadata.get("humanoid")):
+                        blocking_issues.append(
+                            f"Unity character binding '{cir_id}' must use a prefab with a "
+                            "verified valid Humanoid rig."
+                        )
+                else:
+                    verified = sorted(verified_matches, key=lambda item: item.object_id)[0]
+                    if verified.kind != "character_asset":
+                        blocking_issues.append(
+                            f"Unreal character binding '{cir_id}' must resolve to a verified "
+                            "SkeletalMesh character asset."
+                        )
 
         if blocking_issues:
             return StudioRealizationResponse(
