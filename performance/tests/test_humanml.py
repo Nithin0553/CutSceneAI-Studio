@@ -7,6 +7,7 @@ from cutsceneai_performance import (
     HUMANML_SOURCE_FPS,
     HumanMLXYZMotion,
     humanml_xyz_to_canonical,
+    repair_humanml_v02_canonical_basis,
 )
 
 
@@ -148,3 +149,43 @@ def test_humanml_rejects_nonfinite_and_wrong_joint_count() -> None:
     nonfinite[0][0] = float("nan")
     with pytest.raises(ValueError, match=r"(?:not finite|finite number)"):
         HumanMLXYZMotion(frame_count=1, positions=[nonfinite])
+
+def test_humanml_v02_basis_repair_matches_v03_conversion() -> None:
+    rest = _rest_positions()
+    moved = _yaw(
+        [[x + 1.25, y + 0.2, z + 1.75] for x, y, z in rest],
+        math.pi / 3.0,
+    )
+    raw = HumanMLXYZMotion(frame_count=2, positions=[rest, moved])
+    expected = humanml_xyz_to_canonical(raw)
+
+    # Reconstruct the persisted v0.2 canonical representation: old conversion
+    # reflected only Z, which differs from v0.3 by an X reflection.
+    v02_samples = []
+    for sample in expected.samples:
+        v02_samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": {
+                        "x": -sample.root_translation.x,
+                        "y": sample.root_translation.y,
+                        "z": sample.root_translation.z,
+                    },
+                    "joint_rotations": [
+                        {
+                            "x": rotation.x,
+                            "y": -rotation.y,
+                            "z": -rotation.z,
+                            "w": rotation.w,
+                        }
+                        for rotation in sample.joint_rotations
+                    ],
+                },
+                deep=True,
+            )
+        )
+    persisted_v02 = expected.model_copy(update={"samples": v02_samples}, deep=True)
+
+    repaired = repair_humanml_v02_canonical_basis(persisted_v02)
+    assert repaired.model_dump() == expected.model_dump()
+
