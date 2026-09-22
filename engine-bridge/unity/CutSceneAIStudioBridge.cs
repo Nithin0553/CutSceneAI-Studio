@@ -277,8 +277,18 @@ public static class CutSceneAIStudioBridge
                 _nextPoll = EditorApplication.timeSinceStartup + PollIntervalSeconds;
                 if (request.result != UnityWebRequest.Result.Success)
                 {
+                    string responseBody =
+                        request.downloadHandler == null
+                            ? string.Empty
+                            : request.downloadHandler.text;
                     Debug.LogWarning(
-                        "CutSceneAI Studio Bridge heartbeat failed: " + request.error);
+                        "CutSceneAI Studio Bridge heartbeat failed. HTTP "
+                        + request.responseCode
+                        + ": "
+                        + request.error
+                        + (string.IsNullOrWhiteSpace(responseBody)
+                            ? string.Empty
+                            : "\nBackend response: " + responseBody));
                 }
             });
     }
