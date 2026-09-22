@@ -3,6 +3,8 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
+from cutsceneai_performance.errors import PerformanceError
+
 from app.models.performance_runtime import (
     PerformanceGenerateRequest,
     PerformanceReadinessResponse,
@@ -58,7 +60,7 @@ def list_performance_runs(
 ) -> list[PerformanceRunRecord]:
     try:
         return executor.list_runs(limit)
-    except ValueError as exc:
+    except (ValueError, PerformanceError) as exc:
         raise _bad_request(exc) from exc
 
 
