@@ -10,6 +10,7 @@ from cutsceneai_performance import (
     assemble_performance_bundle,
     verify_performance_bundle_semantics,
 )
+from cutsceneai_performance.semantics import _verify_body_track_semantics
 
 
 def assembled(fixture: Any) -> PerformanceBundle:
@@ -81,3 +82,90 @@ def test_bundle_rejects_timeline_semantic_drift(
 
     with pytest.raises(PerformanceOutputError, match=message):
         verify_performance_bundle_semantics(assembled(performance_fixture), semantics)
+
+
+def test_body_phase_tracks_may_exactly_partition_one_semantic_cue(
+    performance_fixture: Any,
+    timeline_semantics: TimelineSemantics,
+) -> None:
+    bundle = assembled(performance_fixture)
+    cue = timeline_semantics.scenes[0].performance_cues[0]
+    source = next(
+        track
+        for track in bundle.package.body_tracks
+        if track.source_performance_cue_id == cue.cue_id
+    )
+    midpoint = cue.start_frame + (cue.end_frame - cue.start_frame) // 2
+    first = source.model_copy(
+        update={
+            "semantic_id": source.semantic_id + ":phase-a",
+            "start_frame": cue.start_frame,
+            "end_frame": midpoint,
+        },
+        deep=True,
+    )
+    second = source.model_copy(
+        update={
+            "semantic_id": source.semantic_id + ":phase-b",
+            "start_frame": midpoint,
+            "end_frame": cue.end_frame,
+        },
+        deep=True,
+    )
+
+    _verify_body_track_semantics([first, second], [cue])
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["gap", "overlap", "wrong_actor", "outside_window"],
+)
+def test_body_phase_partition_rejects_semantic_drift(
+    performance_fixture: Any,
+    timeline_semantics: TimelineSemantics,
+    mutation: str,
+) -> None:
+    bundle = assembled(performance_fixture)
+    cue = timeline_semantics.scenes[0].performance_cues[0]
+    source = next(
+        track
+        for track in bundle.package.body_tracks
+        if track.source_performance_cue_id == cue.cue_id
+    )
+    midpoint = cue.start_frame + (cue.end_frame - cue.start_frame) // 2
+    first_end = midpoint
+    second_start = midpoint
+    actor = cue.actor_binding_id
+    second_end = cue.end_frame
+
+    if mutation == "gap":
+        second_start += 1
+    elif mutation == "overlap":
+        second_start -= 1
+    elif mutation == "wrong_actor":
+        actor = "actor:other"
+    elif mutation == "outside_window":
+        second_end += 1
+
+    tracks = [
+        source.model_copy(
+            update={
+                "semantic_id": source.semantic_id + ":phase-a",
+                "start_frame": cue.start_frame,
+                "end_frame": first_end,
+            },
+            deep=True,
+        ),
+        source.model_copy(
+            update={
+                "semantic_id": source.semantic_id + ":phase-b",
+                "actor_binding_id": actor,
+                "start_frame": second_start,
+                "end_frame": second_end,
+            },
+            deep=True,
+        ),
+    ]
+
+    with pytest.raises(PerformanceOutputError, match="body tracks"):
+        _verify_body_track_semantics(tracks, [cue])
