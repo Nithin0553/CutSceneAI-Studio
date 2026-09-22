@@ -15,6 +15,7 @@ from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
 from pydantic import BaseModel, ValidationError
 
 from .camera import CameraCurveArtifact
+from .composition import compose_body_sequence
 from .errors import PerformanceInputError, PerformanceOutputError
 from .facial import ARKIT_52_CURVES, FacialCurveArtifact
 from .models import (
@@ -255,13 +256,22 @@ def assemble_performance_bundle(
     audio_by_id = _index_audio_outputs(plan, audio_outputs)
 
     artifact_files: dict[str, bytes] = {}
-    body_tracks: list[BodyMotionTrack] = []
-    for body_request in plan.body_requests:
-        normalized_body = normalize_body_output(
+    normalized_body_by_id = {
+        body_request.semantic_id: normalize_body_output(
             body_request,
             body_by_id[body_request.semantic_id],
             target_fps=plan.fps,
         )
+        for body_request in plan.body_requests
+    }
+    composed_body_by_id = compose_body_sequence(
+        plan.body_requests,
+        normalized_body_by_id,
+    )
+
+    body_tracks: list[BodyMotionTrack] = []
+    for body_request in plan.body_requests:
+        normalized_body = composed_body_by_id[body_request.semantic_id]
         body_data = render_body_motion(normalized_body.artifact).encode("utf-8")
         body_path = _artifact_path("body", body_request.semantic_id, "motion.json")
         artifact_files[body_path] = body_data
