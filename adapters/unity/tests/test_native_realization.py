@@ -279,6 +279,16 @@ def test_compile_rejects_native_target_or_plan_drift(
         )
 
 
+def test_native_actor_target_accepts_valid_prefab_path_with_spaces() -> None:
+    path = "Assets/Starter Assets/Runtime/SpaceRobotKyle/Prefabs/RobotKyle.prefab"
+    target = UnityNativeActorTarget(
+        actor_binding_id="actor:guard",
+        prefab_path=path,
+    )
+
+    assert target.prefab_path == path
+
+
 @pytest.mark.parametrize(
     ("payload", "message"),
     [
@@ -319,6 +329,18 @@ def test_compile_rejects_native_target_or_plan_drift(
                 ]
             },
             "normalized Unity Assets path",
+        ),
+        (
+            {
+                "actors": [
+                    {
+                        "actor_binding_id": "actor:mina",
+                        "prefab_path": "Assets/Characters/Mina.fbx",
+                        "facial_renderer_path": "Face",
+                    }
+                ]
+            },
+            "must reference a Unity .prefab asset",
         ),
         (
             {
