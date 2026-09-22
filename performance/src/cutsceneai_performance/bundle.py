@@ -12,10 +12,13 @@ from typing import TypeVar
 import wave
 from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
 
+from cutsceneai_cir import Project
+from cutsceneai_parity import compile_semantics
 from pydantic import BaseModel, ValidationError
 
+from ._geometry import Quaternion, Vector3
 from .camera import CameraCurveArtifact
-from .composition import compose_body_sequence
+from .composition import CanonicalSceneTransform, compose_body_sequence
 from .errors import PerformanceInputError, PerformanceOutputError
 from .facial import ARKIT_52_CURVES, FacialCurveArtifact
 from .models import (
@@ -68,6 +71,43 @@ class DialogueAudioArtifact:
     start_frame: int
     end_frame: int
     data: bytes
+
+
+def _canonical_scene_transforms(
+    project: Project,
+) -> dict[str, CanonicalSceneTransform]:
+    semantics = compile_semantics(project)
+    if len(semantics.scenes) != 1:
+        raise PerformanceInputError(
+            "Canonical target constraints require exactly one semantic scene."
+        )
+    binding_by_source = {
+        entity.source_entity_id: entity.binding_id
+        for entity in semantics.scenes[0].entities
+    }
+    result: dict[str, CanonicalSceneTransform] = {}
+    for entity in [*project.characters, *project.environment]:
+        try:
+            binding_id = binding_by_source[entity.id]
+        except KeyError as exc:
+            raise PerformanceInputError(
+                f"Semantic scene omitted CIR entity '{entity.id}'."
+            ) from exc
+        transform = entity.initial_transform
+        result[binding_id] = CanonicalSceneTransform(
+            position=Vector3(
+                x=transform.position.x,
+                y=transform.position.y,
+                z=transform.position.z,
+            ),
+            rotation=Quaternion(
+                x=transform.rotation.x,
+                y=transform.rotation.y,
+                z=transform.rotation.z,
+                w=transform.rotation.w,
+            ),
+        )
+    return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +275,7 @@ def assemble_performance_bundle(
     facial_outputs: Sequence[ProviderArtifact[FacialCurveArtifact]],
     camera_outputs: Sequence[ProviderArtifact[CameraCurveArtifact]],
     audio_outputs: Sequence[DialogueAudioArtifact],
+    project: Project | None = None,
 ) -> PerformanceBundle:
     """Normalize complete provider output and assemble one engine-neutral bundle."""
 
@@ -264,9 +305,19 @@ def assemble_performance_bundle(
         )
         for body_request in plan.body_requests
     }
+    if project is not None and project.id != plan.project_id:
+        raise PerformanceInputError(
+            f"CIR project '{project.id}' does not match performance plan '{plan.project_id}'."
+        )
+    scene_transforms = (
+        _canonical_scene_transforms(project)
+        if project is not None
+        else None
+    )
     composed_body_by_id = compose_body_sequence(
         plan.body_requests,
         normalized_body_by_id,
+        scene_transforms=scene_transforms,
     )
 
     body_tracks: list[BodyMotionTrack] = []
