@@ -110,6 +110,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "ValidateBodyClipSampling",
         "BodyTrackHasSourceMotion",
         "HumanPoseHandler",
+        "animator.avatarRoot",
         "SnapshotHumanPose",
         "clip.humanMotion",
         "AnimationMode.BeginSampling",
