@@ -328,7 +328,7 @@ public static class CutSceneAIGeneratedPerformance
     private static QuaternionValue QuaternionData(Quaternion value) => new QuaternionValue { x = value.x, y = value.y, z = value.z, w = value.w };
 
     private static Quaternion ReferenceComponentRotation(Animator animator, Transform bone)
-        => Quaternion.Inverse(animator.transform.rotation) * bone.rotation;
+        => Quaternion.Inverse(animator.avatarRoot.rotation) * bone.rotation;
 
     private static Quaternion ParentComponentRotation(Quaternion referenceLocal, Quaternion referenceComponent)
         => referenceComponent * Quaternion.Inverse(referenceLocal);
@@ -825,7 +825,7 @@ public static class CutSceneAIGeneratedPerformance
                     mapped = true,
                     reference_local = RetargetTransformData(transform),
                     reference_component = new RetargetTransform {
-                        translation = VectorData(animator.transform.InverseTransformPoint(transform.position)),
+                        translation = VectorData(animator.avatarRoot.InverseTransformPoint(transform.position)),
                         rotation = QuaternionData(component),
                         scale = VectorData(transform.lossyScale),
                     },
