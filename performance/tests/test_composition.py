@@ -187,6 +187,43 @@ def test_target_facing_hold_locks_root_and_pelvis_heading() -> None:
     assert all(sample.joint_rotations[0] == anchor_pelvis for sample in composed_hold.samples)
 
 
+
+def test_turn_is_not_misclassified_as_hold_from_larger_performance_context() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    quarter_turn = Quaternion(
+        x=0.0,
+        y=math.sqrt(0.5),
+        z=0.0,
+        w=math.sqrt(0.5),
+    )
+
+    turn = _request(
+        "body:scene:beat:guard:01:guard_turn_to_door",
+        start=0,
+        end=3,
+        target="actor:door",
+        prompt=(
+            "Generate novel full-body motion. "
+            "Action: turn toward the door "
+            "Style: cautious. "
+            "This is one atomic phase of the larger performance: "
+            "Turn toward the door, settle into a cautious stance, and remain facing it."
+        ),
+    )
+
+    motion = _motion(
+        [(0.0, 0.0, 0.0), (0.05, 0.0, 0.0), (0.1, 0.0, 0.0)],
+        [identity, quarter_turn, quarter_turn],
+    )
+
+    result = compose_body_sequence(
+        [turn],
+        {turn.semantic_id: _normalized(turn, motion)},
+    )[turn.semantic_id].artifact
+
+    assert result.samples[-1].root_translation.x == pytest.approx(0.1)
+    assert result.samples[-1].joint_rotations[0] == quarter_turn
+
 def test_compositor_rejects_missing_artifact() -> None:
     request = _request("body:scene:beat:guard:01:walk", start=0, end=2)
 
