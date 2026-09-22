@@ -764,12 +764,12 @@ public static class CutSceneAIStudioBridge
 
     private static string SceneObjectKind(GameObject value)
     {
-        if (value.GetComponent<Animator>() != null)
-            return "character";
         if (value.GetComponent<Camera>() != null)
             return "camera";
         if (value.GetComponent<Light>() != null)
             return "light";
+        if (value.GetComponent<Animator>() != null)
+            return "character";
         if (value.GetComponent<Collider>() != null)
             return "collider";
         if (value.GetComponent<Renderer>() != null)
