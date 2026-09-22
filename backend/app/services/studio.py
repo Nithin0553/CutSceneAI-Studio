@@ -563,6 +563,12 @@ class StudioService:
         for index, command in enumerate(commands):
             if command.command_id != command_id:
                 continue
+            if command.status not in {
+                StudioBridgeCommandStatus.LEASED,
+                StudioBridgeCommandStatus.SUCCEEDED,
+                StudioBridgeCommandStatus.FAILED,
+            }:
+                raise ValueError("Bridge command is not currently leased.")
             if command.leased_to_agent_id != request.agent_id:
                 raise ValueError("Bridge command lease belongs to a different engine agent.")
             if command.status in {
@@ -577,8 +583,6 @@ class StudioService:
                 if command.status is not expected:
                     raise ValueError("Bridge command already completed with a conflicting outcome.")
                 return command
-            if command.status is not StudioBridgeCommandStatus.LEASED:
-                raise ValueError("Bridge command is not currently leased.")
             completed = command.model_copy(
                 update={
                     "status": (
