@@ -151,6 +151,28 @@ def _motion_prompt(request: dict[str, Any]) -> str:
     )
     if action is not None and action.group(1).strip():
         action_text = re.sub(r"\s+", " ", action.group(1)).strip().rstrip(".")
+        action_lower = action_text.lower()
+        target_binding_id = str(request.get("target_binding_id") or "").strip()
+
+        # MDM never sees the bound engine transform, so target-relative language such as
+        # "turn toward the door" is underspecified for the model. Ask it for the physical
+        # motion primitive only; the target binding remains on the canonical request and is
+        # resolved later by CutSceneAI's constraint/composition stage.
+        if target_binding_id and re.search(r"\b(turn|pivot|rotate)\b", action_lower):
+            action_text = (
+                "turn the whole body in place to face a distinctly different direction, "
+                "using a clear planted-foot pivot without walking forward"
+            )
+        elif (
+            target_binding_id
+            and re.search(r"\b(hold|remain|stand)\b", action_lower)
+            and re.search(r"\b(facing|toward|still|stance)\b", action_lower)
+        ):
+            action_text = (
+                "stand upright and remain still in place in a cautious alert stance, "
+                "with only subtle natural body sway and no stepping or root travel"
+            )
+
         style_text = (
             re.sub(r"\s+", " ", style.group(1)).strip().rstrip(".")
             if style is not None and style.group(1).strip()
