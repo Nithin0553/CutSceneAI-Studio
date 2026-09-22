@@ -46,6 +46,54 @@ class StudioAsset(StudioModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class StudioSceneVector3(StudioModel):
+    x: float
+    y: float
+    z: float
+
+
+class StudioSceneQuaternion(StudioModel):
+    x: float
+    y: float
+    z: float
+    w: float
+
+
+class StudioSceneTransform(StudioModel):
+    position_m: StudioSceneVector3
+    rotation: StudioSceneQuaternion
+    scale: StudioSceneVector3
+
+
+class StudioSceneBounds(StudioModel):
+    center_m: StudioSceneVector3
+    extents_m: StudioSceneVector3
+
+
+class StudioSceneObject(StudioModel):
+    object_id: str
+    display_name: str
+    hierarchy_path: str
+    parent_object_id: str | None = None
+    kind: str
+    active: bool
+    is_static: bool
+    tag: str
+    layer: str
+    prefab_asset_path: str | None = None
+    transform: StudioSceneTransform
+    bounds: StudioSceneBounds | None = None
+    components: list[str] = Field(default_factory=list)
+
+
+class StudioSceneSnapshot(StudioModel):
+    snapshot_version: str = "0.1.0"
+    scene_ref: str
+    coordinate_space: str = "cutsceneai-rh-yup-negative-z-forward"
+    distance_unit: str = "meter"
+    objects: list[StudioSceneObject] = Field(default_factory=list)
+
+
 class StudioProjectManifest(StudioModel):
     manifest_version: str = "0.2.0"
     project_id: str
@@ -62,6 +110,7 @@ class StudioProjectManifest(StudioModel):
     bridge_last_seen_utc: str | None = None
     capabilities: list[str] = Field(default_factory=list)
     assets: list[StudioAsset] = Field(default_factory=list)
+    scene_snapshot: StudioSceneSnapshot | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -90,6 +139,7 @@ class StudioBridgeManifestRequest(StudioModel):
     fps: int | None = None
     capabilities: list[str] = Field(default_factory=list)
     assets: list[StudioAsset] = Field(default_factory=list)
+    scene_snapshot: StudioSceneSnapshot | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
