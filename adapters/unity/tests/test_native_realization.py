@@ -110,7 +110,12 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "ValidateClipBindingPaths",
         "ValidateBodyClipSampling",
         "BodyTrackHasSourceMotion",
-        "direct Unity sampling",
+        "HumanPoseHandler",
+        'typeof(Animator), "RootT.x"',
+        'typeof(Animator), "RootQ.w"',
+        "HumanTrait.MuscleName",
+        "AnimationMode.SampleAnimationClip",
+        "Humanoid sampling",
         "director.SetGenericBinding(track, AnimatorFor(actors[body.actor_binding_id]",
         "director.SetGenericBinding(track, AnimatorFor(actors[face.actor_binding_id]",
         "actorFaceTracks.Length == 0",
@@ -138,6 +143,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert ".Where(item => item.transform != null).Select" not in script
     assert 'throw new InvalidOperationException("Humanoid bone is not mapped: "' not in script
     assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
+    assert 'typeof(Transform), "m_LocalRotation.x"' not in script
     assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
