@@ -126,6 +126,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "SetPositionAndRotation",
         "instance.transform.localScale",
         "ReferenceComponentRotation(animator, transform)",
+        "Quaternion.Inverse(animator.avatarRoot.rotation) * bone.rotation",
+        "animator.avatarRoot.InverseTransformPoint(transform.position)",
         "Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent",
         "return parentDelta * referenceLocal",
         'retargeting_method = "parent-component-bind-conjugation-v1"',
@@ -154,6 +156,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
     assert 'SetCurve(clip, path, typeof(Transform), "m_LocalRotation.x"' not in script
     assert "reference * QuaternionValueOf" not in script
+    assert "Quaternion.Inverse(animator.transform.rotation) * bone.rotation" not in script
+    assert "animator.transform.InverseTransformPoint(transform.position)" not in script
     assert "GetComponent<AudioSource>() ??" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
