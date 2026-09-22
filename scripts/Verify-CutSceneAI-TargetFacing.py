@@ -8,6 +8,10 @@ from pathlib import Path
 from cutsceneai_cir import Project
 from cutsceneai_parity import compile_semantics
 from cutsceneai_performance._geometry import Quaternion, Vector3
+from cutsceneai_performance.bundle import (
+    decode_performance_bundle,
+    load_performance_bundle,
+)
 from cutsceneai_performance.composition import (
     CanonicalSceneTransform,
     compose_body_sequence,
@@ -141,6 +145,14 @@ def main() -> int:
     parser.add_argument("--hold-motion", type=Path)
     parser.add_argument("--turn-phase", default="guard_turn_to_door")
     parser.add_argument("--hold-phase", default="guard_hold_at_door")
+    parser.add_argument(
+        "--verify-bundle",
+        action="store_true",
+        help=(
+            "Verify the final body artifacts already stored in performance.bundle.zip "
+            "instead of recomposing saved provider outputs."
+        ),
+    )
     args = parser.parse_args()
 
     run_dir = args.run_dir.resolve()
@@ -150,43 +162,61 @@ def main() -> int:
     plan = PerformanceGenerationPlan.model_validate_json(
         (run_dir / "generation.plan.json").read_text(encoding="utf-8-sig")
     )
-    saved_paths = _saved_body_paths(run_dir)
-
     turn_request = _phase_request(plan, args.turn_phase)
     hold_request = _phase_request(plan, args.hold_phase)
-    if args.turn_motion is not None:
-        saved_paths[turn_request.semantic_id] = args.turn_motion.resolve()
-    if args.hold_motion is not None:
-        saved_paths[hold_request.semantic_id] = args.hold_motion.resolve()
-
-    normalized: dict[str, NormalizedArtifact[BodyMotionArtifact]] = {}
-    for request in plan.body_requests:
-        try:
-            motion_path = saved_paths[request.semantic_id]
-        except KeyError as exc:
-            raise ValueError(
-                f"No saved motion found for '{request.semantic_id}'."
-            ) from exc
-        raw = BodyMotionArtifact.model_validate_json(
-            motion_path.read_text(encoding="utf-8-sig")
-        )
-        artifact = resample_body_motion(
-            raw,
-            target_fps=plan.fps,
-            target_frame_count=request.end_frame - request.start_frame,
-        )
-        normalized[request.semantic_id] = NormalizedArtifact(
-            request_semantic_id=request.semantic_id,
-            artifact=artifact,
-            provenance=_provenance(request),
-        )
-
     transforms = _scene_transforms(project)
-    composed = compose_body_sequence(
-        plan.body_requests,
-        normalized,
-        scene_transforms=transforms,
-    )
+
+    if args.verify_bundle:
+        if args.turn_motion is not None or args.hold_motion is not None:
+            raise ValueError("--verify-bundle cannot be combined with motion overrides.")
+        bundle = load_performance_bundle(
+            (run_dir / "performance.bundle.zip").read_bytes()
+        )
+        if bundle.plan != plan:
+            raise ValueError("Saved generation plan does not match performance bundle.")
+        decoded = decode_performance_bundle(bundle)
+        composed = {
+            request.semantic_id: NormalizedArtifact(
+                request_semantic_id=request.semantic_id,
+                artifact=decoded.body_artifacts[request.semantic_id],
+                provenance=_provenance(request),
+            )
+            for request in plan.body_requests
+        }
+    else:
+        saved_paths = _saved_body_paths(run_dir)
+        if args.turn_motion is not None:
+            saved_paths[turn_request.semantic_id] = args.turn_motion.resolve()
+        if args.hold_motion is not None:
+            saved_paths[hold_request.semantic_id] = args.hold_motion.resolve()
+
+        normalized: dict[str, NormalizedArtifact[BodyMotionArtifact]] = {}
+        for request in plan.body_requests:
+            try:
+                motion_path = saved_paths[request.semantic_id]
+            except KeyError as exc:
+                raise ValueError(
+                    f"No saved motion found for '{request.semantic_id}'."
+                ) from exc
+            raw = BodyMotionArtifact.model_validate_json(
+                motion_path.read_text(encoding="utf-8-sig")
+            )
+            artifact = resample_body_motion(
+                raw,
+                target_fps=plan.fps,
+                target_frame_count=request.end_frame - request.start_frame,
+            )
+            normalized[request.semantic_id] = NormalizedArtifact(
+                request_semantic_id=request.semantic_id,
+                artifact=artifact,
+                provenance=_provenance(request),
+            )
+
+        composed = compose_body_sequence(
+            plan.body_requests,
+            normalized,
+            scene_transforms=transforms,
+        )
 
     turn = composed[turn_request.semantic_id].artifact
     hold = composed[hold_request.semantic_id].artifact
@@ -218,6 +248,7 @@ def main() -> int:
         plan.body_requests,
         key=lambda item: (item.start_frame, item.end_frame, item.semantic_id),
     )
+    print("VERIFY_SOURCE=performance.bundle.zip" if args.verify_bundle else "VERIFY_SOURCE=recomposed-provider-outputs")
     print("TARGET_FACING_VERIFY=PASS" if facing_error <= 0.1 else "TARGET_FACING_VERIFY=FAIL")
     print(f"TURN_PHASE={turn_request.semantic_id}")
     print(f"TARGET={turn_request.target_binding_id}")
