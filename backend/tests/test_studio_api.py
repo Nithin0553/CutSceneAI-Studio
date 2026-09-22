@@ -1008,6 +1008,35 @@ def test_bridge_api_maps_unknown_project_failures_to_422(tmp_path: Path, monkeyp
     assert all(response.status_code == 422 for response in responses)
 
 
+def test_bridge_install_upgrades_managed_config_version(
+    tmp_path: Path, monkeypatch
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    service.install_bridge(record.project_id)
+    config_path = (
+        Path(record.project_path)
+        / "Assets"
+        / "CutSceneAI"
+        / "Bridge"
+        / "cutsceneai-bridge.json"
+    )
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["bridge_version"] = "0.1.0"
+    config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+    service.install_bridge(record.project_id)
+
+    upgraded = json.loads(config_path.read_text(encoding="utf-8"))
+    assert upgraded["bridge_version"] == "0.2.0"
+
+
 def test_bridge_install_is_idempotent_and_refuses_unmanaged_collision(
     tmp_path: Path, monkeypatch
 ) -> None:
