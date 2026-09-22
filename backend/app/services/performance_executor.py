@@ -252,6 +252,7 @@ class StudioPerformanceExecutor:
                 facial_outputs=facial_outputs,
                 camera_outputs=camera_outputs,
                 audio_outputs=audio_outputs,
+                project=request.project,
             )
             bundle_data = render_performance_bundle(bundle)
             bundle_sha = _sha256(bundle_data)
