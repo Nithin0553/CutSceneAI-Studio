@@ -22,7 +22,11 @@ from .camera import (
     resample_camera_curves,
 )
 from .compiler import compile_generation_plan
-from .composition import BODY_ENTRY_BLEND_FRAMES, compose_body_sequence
+from .composition import (
+    BODY_ENTRY_BLEND_FRAMES,
+    CanonicalSceneTransform,
+    compose_body_sequence,
+)
 from .errors import PerformanceError, PerformanceInputError, PerformanceOutputError
 from .facial import (
     ARKIT_52_BLENDSHAPE_NAMES,
@@ -130,6 +134,7 @@ __all__ = [
     "ARKIT_52_BLENDSHAPE_NAMES",
     "ARKIT_52_CURVES",
     "BODY_ENTRY_BLEND_FRAMES",
+    "CanonicalSceneTransform",
     "BODY_MOTION_SCHEMA_ID",
     "CAMERA_CURVE_SCHEMA_ID",
     "CAMERA_RESAMPLING_METHOD",
