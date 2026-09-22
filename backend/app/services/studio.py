@@ -312,6 +312,7 @@ class StudioService:
                 "bridge_connected": True,
                 "capabilities": request.capabilities,
                 "assets": request.assets,
+                "scene_snapshot": request.scene_snapshot,
                 "warnings": request.warnings,
             }
         )
@@ -448,6 +449,7 @@ class StudioService:
                 "bridge_last_seen_utc": _utc_now(),
                 "capabilities": request.capabilities,
                 "assets": list(merged_assets.values()),
+                "scene_snapshot": request.scene_snapshot,
                 "warnings": request.warnings,
             }
         )
