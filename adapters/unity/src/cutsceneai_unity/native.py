@@ -539,6 +539,30 @@ public static class CutSceneAIGeneratedPerformance
         }
     }
 
+    private static HumanPose SnapshotHumanPose(HumanPoseHandler handler)
+    {
+        HumanPose pose = new HumanPose { muscles = new float[HumanTrait.MuscleCount] };
+        handler.GetHumanPose(ref pose);
+        pose.muscles = (float[])pose.muscles.Clone();
+        return pose;
+    }
+
+    private static void SampleHumanoidClip(
+        GameObject root,
+        AnimationClip clip,
+        float time)
+    {
+        AnimationMode.BeginSampling();
+        try
+        {
+            AnimationMode.SampleAnimationClip(root, clip, time);
+        }
+        finally
+        {
+            AnimationMode.EndSampling();
+        }
+    }
+
     private static void ValidateBodyClipSampling(
         AnimationClip clip,
         BodyTrack track,
@@ -547,100 +571,195 @@ public static class CutSceneAIGeneratedPerformance
         int fps)
     {
         if (!BodyTrackHasSourceMotion(track)) return;
+        if (!clip.humanMotion)
+            throw new InvalidOperationException(
+                "Generated body clip does not contain Humanoid muscle motion.");
 
+        GameObject instance = UnityEngine.Object.Instantiate(prefab);
+        instance.hideFlags = HideFlags.HideAndDontSave;
+        bool startedAnimationMode = false;
+        try
+        {
+            Animator animator = AnimatorFor(instance, target);
+            animator.enabled = false;
+            using (HumanPoseHandler handler = new HumanPoseHandler(
+                animator.avatar, animator.transform))
+            {
+                if (!AnimationMode.InAnimationMode())
+                {
+                    AnimationMode.StartAnimationMode();
+                    startedAnimationMode = true;
+                }
+
+                float[] times = new[] {
+                    0.0f,
+                    Mathf.Max(0.0f, clip.length / 3.0f),
+                    Mathf.Max(0.0f, clip.length * 2.0f / 3.0f),
+                    Mathf.Max(0.0f, clip.length),
+                };
+
+                SampleHumanoidClip(animator.gameObject, clip, times[0]);
+                HumanPose reference = SnapshotHumanPose(handler);
+                float maxPositionDelta = 0.0f;
+                float maxRotationDelta = 0.0f;
+                float maxMuscleDelta = 0.0f;
+
+                foreach (float time in times.Skip(1))
+                {
+                    SampleHumanoidClip(animator.gameObject, clip, time);
+                    HumanPose sampled = SnapshotHumanPose(handler);
+                    maxPositionDelta = Mathf.Max(
+                        maxPositionDelta,
+                        Vector3.Distance(reference.bodyPosition, sampled.bodyPosition));
+                    maxRotationDelta = Mathf.Max(
+                        maxRotationDelta,
+                        Quaternion.Angle(reference.bodyRotation, sampled.bodyRotation));
+                    for (int muscleIndex = 0; muscleIndex < sampled.muscles.Length; muscleIndex++)
+                        maxMuscleDelta = Mathf.Max(
+                            maxMuscleDelta,
+                            Mathf.Abs(reference.muscles[muscleIndex] - sampled.muscles[muscleIndex]));
+                }
+
+                if (maxPositionDelta <= 1e-6f
+                    && maxRotationDelta <= 0.001f
+                    && maxMuscleDelta <= 1e-5f)
+                    throw new InvalidOperationException(
+                        "Generated body clip contains source motion but Humanoid sampling "
+                        + "produced no target pose change. Refusing to save a structurally valid "
+                        + "but non-playing AnimationClip.");
+            }
+        }
+        finally
+        {
+            if (startedAnimationMode && AnimationMode.InAnimationMode())
+                AnimationMode.StopAnimationMode();
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+    }
+
+    private static AnimationClip CreateBodyClip(
+        BodyTrack track,
+        GameObject prefab,
+        ActorTarget target,
+        int fps)
+    {
         GameObject instance = UnityEngine.Object.Instantiate(prefab);
         instance.hideFlags = HideFlags.HideAndDontSave;
         try
         {
             Animator animator = AnimatorFor(instance, target);
             animator.enabled = false;
-            Transform[] bones = track.joint_bindings.Select(binding =>
+
+            int jointCount = track.joint_bindings.Length;
+            Transform[] transforms = new Transform[jointCount];
+            Vector3[] referencePositions = new Vector3[jointCount];
+            Quaternion[] referenceRotations = new Quaternion[jointCount];
+            Quaternion[] referenceComponents = new Quaternion[jointCount];
+            Quaternion[] parentComponents = new Quaternion[jointCount];
+
+            for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
             {
                 HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
-                    typeof(HumanBodyBones), binding.target_human_bone);
+                    typeof(HumanBodyBones),
+                    track.joint_bindings[jointIndex].target_human_bone);
                 Transform transform = animator.GetBoneTransform(bone);
-                if (transform == null && IsRequiredHumanoidBone(bone))
-                    throw new InvalidOperationException(
-                        "Generated clip sampling is missing required Humanoid bone: "
-                        + binding.target_human_bone);
-                return transform;
-            }).Where(transform => transform != null).ToArray();
+                if (transform == null)
+                {
+                    if (IsRequiredHumanoidBone(bone))
+                        throw new InvalidOperationException(
+                            "Required Humanoid bone is not mapped: "
+                            + track.joint_bindings[jointIndex].target_human_bone);
+                    continue;
+                }
 
-            float[] times = new[] {
-                0.0f,
-                Mathf.Max(0.0f, clip.length / 3.0f),
-                Mathf.Max(0.0f, clip.length * 2.0f / 3.0f),
-                Mathf.Max(0.0f, clip.length),
-            };
-            clip.SampleAnimation(animator.gameObject, times[0]);
-            Vector3 rootReference = bones[0].localPosition;
-            Quaternion[] rotationReference = bones
-                .Select(item => item.localRotation).ToArray();
-            float maxPositionDelta = 0.0f;
-            float maxRotationDelta = 0.0f;
-
-            foreach (float time in times.Skip(1))
-            {
-                clip.SampleAnimation(animator.gameObject, time);
-                maxPositionDelta = Mathf.Max(
-                    maxPositionDelta,
-                    Vector3.Distance(rootReference, bones[0].localPosition));
-                for (int index = 0; index < bones.Length; index++)
-                    maxRotationDelta = Mathf.Max(
-                        maxRotationDelta,
-                        Quaternion.Angle(rotationReference[index], bones[index].localRotation));
+                transforms[jointIndex] = transform;
+                referencePositions[jointIndex] = transform.localPosition;
+                referenceRotations[jointIndex] = transform.localRotation;
+                referenceComponents[jointIndex] =
+                    ReferenceComponentRotation(animator, transform);
+                parentComponents[jointIndex] = ParentComponentRotation(
+                    referenceRotations[jointIndex],
+                    referenceComponents[jointIndex]);
             }
 
-            if (maxPositionDelta <= 1e-6f && maxRotationDelta <= 0.001f)
-                throw new InvalidOperationException(
-                    "Generated body clip contains source motion but direct Unity sampling "
-                    + "produced no target pose change. Refusing to save a structurally valid "
-                    + "but non-playing AnimationClip.");
+            List<Tuple<int, float>> rootTx = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootTy = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootTz = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootQx = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootQy = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootQz = new List<Tuple<int, float>>();
+            List<Tuple<int, float>> rootQw = new List<Tuple<int, float>>();
+            List<Tuple<int, float>>[] muscles = Enumerable.Range(0, HumanTrait.MuscleCount)
+                .Select(_ => new List<Tuple<int, float>>()).ToArray();
+
+            using (HumanPoseHandler handler = new HumanPoseHandler(
+                animator.avatar, animator.transform))
+            {
+                foreach (BodyKeyframe frame in track.keyframes)
+                {
+                    for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
+                    {
+                        Transform transform = transforms[jointIndex];
+                        if (transform == null) continue;
+
+                        transform.localPosition = referencePositions[jointIndex];
+                        transform.localRotation = RetargetRotation(
+                            referenceRotations[jointIndex],
+                            referenceComponents[jointIndex],
+                            QuaternionValueOf(frame.joint_rotations[jointIndex]));
+
+                        if (jointIndex == 0)
+                            transform.localPosition =
+                                referencePositions[jointIndex]
+                                + Quaternion.Inverse(parentComponents[jointIndex])
+                                * Vector(frame.root_position_m);
+                    }
+
+                    HumanPose pose = SnapshotHumanPose(handler);
+                    int timelineFrame = frame.timeline_frame;
+                    rootTx.Add(Tuple.Create(timelineFrame, pose.bodyPosition.x));
+                    rootTy.Add(Tuple.Create(timelineFrame, pose.bodyPosition.y));
+                    rootTz.Add(Tuple.Create(timelineFrame, pose.bodyPosition.z));
+                    rootQx.Add(Tuple.Create(timelineFrame, pose.bodyRotation.x));
+                    rootQy.Add(Tuple.Create(timelineFrame, pose.bodyRotation.y));
+                    rootQz.Add(Tuple.Create(timelineFrame, pose.bodyRotation.z));
+                    rootQw.Add(Tuple.Create(timelineFrame, pose.bodyRotation.w));
+                    for (int muscleIndex = 0; muscleIndex < HumanTrait.MuscleCount; muscleIndex++)
+                        muscles[muscleIndex].Add(
+                            Tuple.Create(timelineFrame, pose.muscles[muscleIndex]));
+                }
+            }
+
+            AnimationClip clip = new AnimationClip {
+                name = Path.GetFileNameWithoutExtension(track.target_animation_path),
+                frameRate = fps,
+            };
+            SetCurve(clip, "", typeof(Animator), "RootT.x", Keys(track.start_frame, fps, rootTx));
+            SetCurve(clip, "", typeof(Animator), "RootT.y", Keys(track.start_frame, fps, rootTy));
+            SetCurve(clip, "", typeof(Animator), "RootT.z", Keys(track.start_frame, fps, rootTz));
+            SetCurve(clip, "", typeof(Animator), "RootQ.x", Keys(track.start_frame, fps, rootQx));
+            SetCurve(clip, "", typeof(Animator), "RootQ.y", Keys(track.start_frame, fps, rootQy));
+            SetCurve(clip, "", typeof(Animator), "RootQ.z", Keys(track.start_frame, fps, rootQz));
+            SetCurve(clip, "", typeof(Animator), "RootQ.w", Keys(track.start_frame, fps, rootQw));
+            for (int muscleIndex = 0; muscleIndex < HumanTrait.MuscleCount; muscleIndex++)
+                SetCurve(
+                    clip,
+                    "",
+                    typeof(Animator),
+                    HumanTrait.MuscleName[muscleIndex],
+                    Keys(track.start_frame, fps, muscles[muscleIndex]));
+
+            clip.EnsureQuaternionContinuity();
+            ValidateClipBindingPaths(clip, prefab, target);
+            ValidateBodyClipSampling(clip, track, prefab, target, fps);
+            EnsureFolder(track.target_animation_path);
+            AssetDatabase.CreateAsset(clip, track.target_animation_path);
+            return clip;
         }
         finally
         {
             UnityEngine.Object.DestroyImmediate(instance);
         }
-    }
-
-    private static AnimationClip CreateBodyClip(BodyTrack track, GameObject prefab, ActorTarget target, int fps)
-    {
-        Animator animator = AnimatorFor(prefab, target);
-        AnimationClip clip = new AnimationClip { name = Path.GetFileNameWithoutExtension(track.target_animation_path), frameRate = fps };
-        for (int jointIndex = 0; jointIndex < track.joint_bindings.Length; jointIndex++)
-        {
-            HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), track.joint_bindings[jointIndex].target_human_bone);
-            Transform transform = animator.GetBoneTransform(bone);
-            if (transform == null)
-            {
-                if (IsRequiredHumanoidBone(bone))
-                    throw new InvalidOperationException("Required Humanoid bone is not mapped: " + track.joint_bindings[jointIndex].target_human_bone);
-                continue;
-            }
-            string path = AnimationUtility.CalculateTransformPath(transform, animator.transform);
-            Quaternion reference = transform.localRotation;
-            Quaternion referenceComponent = ReferenceComponentRotation(animator, transform);
-            Quaternion parentComponent = ParentComponentRotation(reference, referenceComponent);
-            Quaternion[] rotations = track.keyframes.Select(frame => RetargetRotation(reference, referenceComponent, QuaternionValueOf(frame.joint_rotations[jointIndex]))).ToArray();
-            SetCurve(clip, path, typeof(Transform), "m_LocalRotation.x", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].x))));
-            SetCurve(clip, path, typeof(Transform), "m_LocalRotation.y", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].y))));
-            SetCurve(clip, path, typeof(Transform), "m_LocalRotation.z", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].z))));
-            SetCurve(clip, path, typeof(Transform), "m_LocalRotation.w", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, rotations[index].w))));
-            if (jointIndex == 0)
-            {
-                Vector3 referencePosition = transform.localPosition;
-                Vector3[] positions = track.keyframes.Select(frame => referencePosition + Quaternion.Inverse(parentComponent) * Vector(frame.root_position_m)).ToArray();
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.x", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].x))));
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.y", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].y))));
-                SetCurve(clip, path, typeof(Transform), "m_LocalPosition.z", Keys(track.start_frame, fps, track.keyframes.Select((frame, index) => Tuple.Create(frame.timeline_frame, positions[index].z))));
-            }
-        }
-        clip.EnsureQuaternionContinuity();
-        ValidateClipBindingPaths(clip, prefab, target);
-        ValidateBodyClipSampling(clip, track, prefab, target, fps);
-        EnsureFolder(track.target_animation_path);
-        AssetDatabase.CreateAsset(clip, track.target_animation_path);
-        return clip;
     }
 
     private static void CaptureRetargetProfile(Mapping mapping, Target target)
