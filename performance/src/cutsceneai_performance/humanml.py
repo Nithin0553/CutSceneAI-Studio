@@ -129,6 +129,44 @@ class HumanMLXYZMotion(PerformanceModel):
         return self
 
 
+def repair_humanml_v02_canonical_basis(motion: BodyMotionArtifact) -> BodyMotionArtifact:
+    """Migrate persisted HumanML v0.2 canonical motion into the v0.3 basis.
+
+    The v0.2 converter reflected only Z when mapping HumanML +Z-forward data into
+    CutSceneAI -Z-forward space, changing handedness. v0.3 uses a 180-degree Y
+    rotation instead. Persisted canonical v0.2 artifacts can be repaired without
+    the original HumanML XYZ samples by reflecting X translations and conjugating
+    each joint rotation by that X reflection.
+    """
+
+    samples: list[BodyMotionSample] = []
+    for sample in motion.samples:
+        root = sample.root_translation
+        rotations = [
+            Quaternion(
+                x=rotation.x,
+                y=-rotation.y,
+                z=-rotation.z,
+                w=rotation.w,
+            )
+            for rotation in sample.joint_rotations
+        ]
+        samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": Vector3(
+                        x=-root.x,
+                        y=root.y,
+                        z=root.z,
+                    ),
+                    "joint_rotations": rotations,
+                },
+                deep=True,
+            )
+        )
+    return motion.model_copy(update={"samples": samples}, deep=True)
+
+
 def humanml_xyz_to_canonical(motion: HumanMLXYZMotion) -> BodyMotionArtifact:
     """Convert MDM HumanML XYZ joints to CutSceneAI parent-local canonical motion.
 
