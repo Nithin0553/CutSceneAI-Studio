@@ -56,8 +56,19 @@ public static class CutSceneAIRobotKyleHumanoidPoseDiagnostic
             animator.runtimeAnimatorController = null;
             animator.applyRootMotion = false;
 
+            Transform avatarRoot = animator.avatarRoot;
+            if (avatarRoot == null)
+                throw new InvalidOperationException(
+                    "RobotKyle Animator did not expose an Avatar root transform.");
+
+            Debug.Log(
+                "CUTSCENEAI_HUMANOID_ROOT_DIAGNOSTIC "
+                + "animator='" + animator.transform.name + "' "
+                + "avatar_root='" + avatarRoot.name + "' "
+                + "same_transform=" + ReferenceEquals(animator.transform, avatarRoot));
+
             HumanPoseHandler handler =
-                new HumanPoseHandler(animator.avatar, animator.transform);
+                new HumanPoseHandler(animator.avatar, avatarRoot);
 
             HumanPose before = new HumanPose();
             handler.GetHumanPose(ref before);
