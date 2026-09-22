@@ -139,6 +139,9 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "lifecycle.import_process_id == ProcessId",
         "camera.Render()",
         "UnityEngine.Timeline.AudioTrack track = timeline.CreateTrack<UnityEngine.Timeline.AudioTrack>",
+        "AudioSource source = audioActor.GetComponent<AudioSource>();",
+        "if (source == null)",
+        "source = audioActor.AddComponent<AudioSource>();",
         "track is UnityEngine.Timeline.AudioTrack",
         "GeneratedAssetPaths(mapping, target)",
         "CleanupGeneratedAssets(generatedAssets)",
@@ -151,6 +154,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
     assert 'SetCurve(clip, path, typeof(Transform), "m_LocalRotation.x"' not in script
     assert "reference * QuaternionValueOf" not in script
+    assert "GetComponent<AudioSource>() ??" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
     assert "Get-Content -Raw -Path $importLog, $readbackLog" in runner
