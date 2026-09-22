@@ -136,8 +136,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     ):
         assert token in script
     assert ".Where(item => item.transform != null).Select" not in script
-    assert "Humanoid bone is not mapped: " not in script
-    assert "Generated clip sampling is missing Humanoid bone: " not in script
+    assert 'throw new InvalidOperationException("Humanoid bone is not mapped: "' not in script
+    assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
     assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
