@@ -5,7 +5,7 @@ import math
 import pytest
 
 from cutsceneai_performance._geometry import Quaternion, Vector3
-from cutsceneai_performance.composition import compose_body_sequence
+from cutsceneai_performance.composition import CanonicalSceneTransform, compose_body_sequence
 from cutsceneai_performance.models import BodyGenerationRequest, ModelProvenance
 from cutsceneai_performance.motion import (
     CANONICAL_HUMANOID_JOINTS,
@@ -84,6 +84,47 @@ def _normalized(
             deterministic_algorithms=True,
         ),
     )
+
+
+
+
+def _rotate(rotation: Quaternion, vector: Vector3) -> Vector3:
+    ux, uy, uz = rotation.x, rotation.y, rotation.z
+    vx, vy, vz = vector.x, vector.y, vector.z
+    dot_uv = ux * vx + uy * vy + uz * vz
+    dot_uu = ux * ux + uy * uy + uz * uz
+    cross_x = uy * vz - uz * vy
+    cross_y = uz * vx - ux * vz
+    cross_z = ux * vy - uy * vx
+    scale = rotation.w * rotation.w - dot_uu
+    return Vector3(
+        x=2.0 * dot_uv * ux + scale * vx + 2.0 * rotation.w * cross_x,
+        y=2.0 * dot_uv * uy + scale * vy + 2.0 * rotation.w * cross_y,
+        z=2.0 * dot_uv * uz + scale * vz + 2.0 * rotation.w * cross_z,
+    )
+
+
+def _multiply(first: Quaternion, second: Quaternion) -> Quaternion:
+    ax, ay, az, aw = first.x, first.y, first.z, first.w
+    bx, by, bz, bw = second.x, second.y, second.z, second.w
+    values = (
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    )
+    length = math.sqrt(sum(value * value for value in values))
+    return Quaternion(
+        x=values[0] / length,
+        y=values[1] / length,
+        z=values[2] / length,
+        w=values[3] / length,
+    )
+
+
+def _ground_direction(value: Vector3) -> tuple[float, float]:
+    length = math.hypot(value.x, value.z)
+    return value.x / length, value.z / length
 
 
 def test_compositor_rebases_root_and_blends_entry_pose() -> None:
@@ -229,3 +270,143 @@ def test_compositor_rejects_missing_artifact() -> None:
 
     with pytest.raises(ValueError, match="Missing normalized body artifacts"):
         compose_body_sequence([request], {})
+
+
+def test_target_facing_turn_ends_facing_canonical_target() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    turn = _request(
+        "body:scene:beat:guard:01:turn",
+        start=0,
+        end=3,
+        target="actor:door",
+        prompt="Action: turn toward the door Style: cautious.",
+    )
+    source = _motion(
+        [(0.0, 0.0, 0.0), (0.05, 0.0, 0.0), (0.1, 0.0, 0.0)],
+        [identity, identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=-5.0),
+            rotation=identity,
+        ),
+        "actor:door": CanonicalSceneTransform(
+            position=Vector3(x=2.0, y=0.0, z=1.0),
+            rotation=identity,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [turn],
+        {turn.semantic_id: _normalized(turn, source)},
+        scene_transforms=transforms,
+    )[turn.semantic_id].artifact
+
+    assert result.samples[0].joint_rotations[0] == identity
+    final = result.samples[-1]
+    world_root = Vector3(
+        x=transforms["actor:guard"].position.x + final.root_translation.x,
+        y=transforms["actor:guard"].position.y + final.root_translation.y,
+        z=transforms["actor:guard"].position.z + final.root_translation.z,
+    )
+    desired = Vector3(
+        x=transforms["actor:door"].position.x - world_root.x,
+        y=0.0,
+        z=transforms["actor:door"].position.z - world_root.z,
+    )
+    actual = _rotate(
+        final.joint_rotations[0],
+        Vector3(x=0.0, y=0.0, z=-1.0),
+    )
+    actual_xz = _ground_direction(actual)
+    desired_xz = _ground_direction(desired)
+    assert actual_xz[0] == pytest.approx(desired_xz[0], abs=1e-6)
+    assert actual_xz[1] == pytest.approx(desired_xz[1], abs=1e-6)
+
+
+def test_target_facing_turn_respects_actor_initial_rotation() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    half = math.radians(90.0) / 2.0
+    actor_rotation = Quaternion(
+        x=0.0,
+        y=math.sin(half),
+        z=0.0,
+        w=math.cos(half),
+    )
+    turn = _request(
+        "body:scene:beat:guard:01:turn-rotated",
+        start=0,
+        end=3,
+        target="actor:door",
+        prompt="Action: pivot toward the door Style: cautious.",
+    )
+    source = _motion(
+        [(0.0, 0.0, 0.0), (0.0, 0.0, -0.5), (0.0, 0.0, -1.0)],
+        [identity, identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=3.0, y=0.0, z=4.0),
+            rotation=actor_rotation,
+        ),
+        "actor:door": CanonicalSceneTransform(
+            position=Vector3(x=-2.0, y=0.0, z=6.0),
+            rotation=identity,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [turn],
+        {turn.semantic_id: _normalized(turn, source)},
+        scene_transforms=transforms,
+    )[turn.semantic_id].artifact
+    final = result.samples[-1]
+    world_offset = _rotate(actor_rotation, final.root_translation)
+    world_root = Vector3(
+        x=transforms["actor:guard"].position.x + world_offset.x,
+        y=transforms["actor:guard"].position.y + world_offset.y,
+        z=transforms["actor:guard"].position.z + world_offset.z,
+    )
+    world_pelvis = _multiply(actor_rotation, final.joint_rotations[0])
+    actual = _rotate(world_pelvis, Vector3(x=0.0, y=0.0, z=-1.0))
+    desired = Vector3(
+        x=transforms["actor:door"].position.x - world_root.x,
+        y=0.0,
+        z=transforms["actor:door"].position.z - world_root.z,
+    )
+    actual_xz = _ground_direction(actual)
+    desired_xz = _ground_direction(desired)
+    assert actual_xz[0] == pytest.approx(desired_xz[0], abs=1e-6)
+    assert actual_xz[1] == pytest.approx(desired_xz[1], abs=1e-6)
+
+
+def test_target_facing_turn_rejects_coincident_target() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    turn = _request(
+        "body:scene:beat:guard:01:turn-coincident",
+        start=0,
+        end=2,
+        target="actor:door",
+        prompt="Action: turn toward the door Style: cautious.",
+    )
+    source = _motion(
+        [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)],
+        [identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=1.0, y=0.0, z=2.0),
+            rotation=identity,
+        ),
+        "actor:door": CanonicalSceneTransform(
+            position=Vector3(x=1.0, y=0.0, z=2.0),
+            rotation=identity,
+        ),
+    }
+
+    with pytest.raises(ValueError, match="target direction"):
+        compose_body_sequence(
+            [turn],
+            {turn.semantic_id: _normalized(turn, source)},
+            scene_transforms=transforms,
+        )
