@@ -103,7 +103,6 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "IsRequiredHumanoidBone",
         "HumanTrait.RequiredBone",
         "Required Humanoid bone is not mapped",
-        "Where(transform => transform != null)",
         "mapped = false",
         "mapped = true",
         "EvidenceRoot(Target target)",
@@ -111,6 +110,9 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "ValidateBodyClipSampling",
         "BodyTrackHasSourceMotion",
         "HumanPoseHandler",
+        "SnapshotHumanPose",
+        "clip.humanMotion",
+        "AnimationMode.BeginSampling",
         'typeof(Animator), "RootT.x"',
         'typeof(Animator), "RootQ.w"',
         "HumanTrait.MuscleName",
@@ -143,7 +145,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert ".Where(item => item.transform != null).Select" not in script
     assert 'throw new InvalidOperationException("Humanoid bone is not mapped: "' not in script
     assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
-    assert 'typeof(Transform), "m_LocalRotation.x"' not in script
+    assert 'SetCurve(clip, path, typeof(Transform), "m_LocalRotation.x"' not in script
     assert "reference * QuaternionValueOf" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
