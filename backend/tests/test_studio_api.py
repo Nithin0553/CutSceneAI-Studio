@@ -656,6 +656,9 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     assert "blendshape_names" in bridge_source
     assert "canonical_world_position_meters" in bridge_source
     assert "cutsceneai-rh-yup-negative-z-forward" in bridge_source
+    assert "scene_snapshot" in bridge_source
+    assert "CaptureSceneSnapshot" in bridge_source
+    assert "scene-context:v0.1" in bridge_source
     config_path = project_root / "Assets/CutSceneAI/Bridge/cutsceneai-bridge.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["project_id"] == record.project_id
@@ -713,6 +716,99 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
         .result["current_scene"]
         .endswith("Main.unity")
     )
+
+
+def test_bridge_heartbeat_persists_canonical_scene_snapshot(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    updated = service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="scene-context-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.2.0",
+            current_scene="Assets/Scenes/Hallway.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "scene-context:v0.1"],
+            assets=[],
+            scene_snapshot={
+                "snapshot_version": "0.1.0",
+                "scene_ref": "Assets/Scenes/Hallway.unity",
+                "coordinate_space": "cutsceneai-rh-yup-negative-z-forward",
+                "distance_unit": "meter",
+                "objects": [
+                    {
+                        "object_id": "GlobalObjectId:guard",
+                        "display_name": "Guard",
+                        "hierarchy_path": "Environment/Guard",
+                        "parent_object_id": "GlobalObjectId:environment",
+                        "kind": "character",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Player",
+                        "layer": "Default",
+                        "prefab_asset_path": "Assets/Characters/Guard.prefab",
+                        "transform": {
+                            "position_m": {"x": 0.0, "y": 0.0, "z": -5.0},
+                            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": {
+                            "center_m": {"x": 0.0, "y": 1.0, "z": -5.0},
+                            "extents_m": {"x": 0.4, "y": 1.0, "z": 0.4},
+                        },
+                        "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
+                    },
+                    {
+                        "object_id": "GlobalObjectId:door",
+                        "display_name": "Door",
+                        "hierarchy_path": "Environment/Door",
+                        "parent_object_id": "GlobalObjectId:environment",
+                        "kind": "collider",
+                        "active": True,
+                        "is_static": True,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": None,
+                        "transform": {
+                            "position_m": {"x": 2.0, "y": 0.0, "z": 1.0},
+                            "rotation": {
+                                "x": 0.0,
+                                "y": -0.7071068,
+                                "z": 0.0,
+                                "w": 0.7071068,
+                            },
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.BoxCollider"],
+                    },
+                ],
+            },
+            warnings=[],
+        ),
+    )
+
+    snapshot = updated.manifest.scene_snapshot
+    assert snapshot is not None
+    assert snapshot.scene_ref == "Assets/Scenes/Hallway.unity"
+    assert snapshot.coordinate_space == "cutsceneai-rh-yup-negative-z-forward"
+    assert len(snapshot.objects) == 2
+    guard = next(item for item in snapshot.objects if item.display_name == "Guard")
+    door = next(item for item in snapshot.objects if item.display_name == "Door")
+    assert guard.transform.position_m.z == -5.0
+    assert guard.prefab_asset_path == "Assets/Characters/Guard.prefab"
+    assert door.transform.position_m.x == 2.0
+    assert door.parent_object_id == "GlobalObjectId:environment"
 
 
 def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -> None:
