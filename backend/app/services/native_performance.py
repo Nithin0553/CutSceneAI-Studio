@@ -353,7 +353,7 @@ class NativePerformanceRealizer:
         bundle,
         token: str,
     ) -> tuple[str, str, list[str]]:
-        selected = _selected_assets(record, bindings)
+        selected = _selected_assets(self.studio, record, bindings)
         package_path = f"/Game/CutSceneAI/Studio/{token}/Sequences"
         base_plan = compile_unreal_project(project, package_path=package_path)
         sequence = base_plan.sequences[0]
