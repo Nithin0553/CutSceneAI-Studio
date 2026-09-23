@@ -1179,7 +1179,10 @@ public static class CutSceneAIGeneratedPerformance
             {
                 director.time = (double)frame / mapping.fps; director.Evaluate();
                 Camera[] active = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)
-                    .Where(item => item.gameObject.activeInHierarchy && item.enabled).ToArray();
+                    .Where(item => item.gameObject.activeInHierarchy
+                        && item.enabled
+                        && item.gameObject.name.StartsWith(CameraPrefix, StringComparison.Ordinal))
+                    .ToArray();
                 if (active.Length != 1) throw new InvalidOperationException("Expected exactly one active generated camera at frame " + frame + ".");
                 Camera camera = active[0]; camera.targetTexture = texture; RenderTexture.active = texture; camera.Render();
                 pixels.ReadPixels(new Rect(0, 0, target.render.width, target.render.height), 0, 0); pixels.Apply();
