@@ -98,17 +98,32 @@ def _character_capability_rank(candidate: StudioAsset) -> int:
 
 
 def _candidate_score(label: str, description: str | None, candidate: StudioAsset) -> float:
-    role_words = _words(" ".join(item for item in (label, description) if item))
+    label_words = _words(label)
+    description_words = _words(description or "")
+    display_words = _words(candidate.display_name)
     candidate_words = _words(
         f"{candidate.display_name} {candidate.relative_path} "
         + " ".join(str(value) for value in candidate.metadata.values())
     )
-    if not role_words:
+    if not label_words and not description_words:
         return 0.0
-    overlap = len(role_words & candidate_words)
-    base = overlap / len(role_words)
-    exact_bonus = 0.25 if label.lower() in candidate.display_name.lower() else 0.0
-    return min(1.0, round(base + exact_bonus, 4))
+
+    label_overlap = len(label_words & display_words) / max(1, len(label_words))
+    display_precision = len(label_words & display_words) / max(1, len(display_words))
+    description_overlap = len(description_words & candidate_words) / max(
+        1, len(description_words)
+    )
+    normalized_label = re.sub(r"[^a-z0-9]+", "", label.lower())
+    normalized_display = re.sub(r"[^a-z0-9]+", "", candidate.display_name.lower())
+    exact_name_bonus = 0.2 if normalized_label == normalized_display else 0.0
+
+    score = (
+        (0.55 * label_overlap)
+        + (0.20 * display_precision)
+        + (0.15 * description_overlap)
+        + exact_name_bonus
+    )
+    return min(1.0, round(score, 4))
 
 
 class StudioService:
@@ -955,8 +970,30 @@ class StudioService:
             for item in record.manifest.assets
             if item.verified
         }
+        object_by_id = {item.object_id: item for item in snapshot.objects}
+
+        def has_character_ancestor(item) -> bool:
+            parent_id = item.parent_object_id
+            seen: set[str] = set()
+            while parent_id:
+                if parent_id in seen:
+                    break
+                seen.add(parent_id)
+                parent = object_by_id.get(parent_id)
+                if parent is None:
+                    break
+                if parent.kind == "character":
+                    return True
+                parent_id = parent.parent_object_id
+            return False
+
         result: list[StudioAsset] = []
         for item in snapshot.objects:
+            # Keep the complete hierarchy in the snapshot, but do not expose rig bones,
+            # nested Animator objects, or other character internals as semantic bindings.
+            if has_character_ancestor(item):
+                continue
+
             prefab_path = item.prefab_asset_path or ""
             verified_prefab = verified_by_ref.get(prefab_path)
             metadata: dict[str, Any] = {
@@ -1186,6 +1223,12 @@ class StudioService:
                 "scene_object",
             }
         candidates = [item for item in assets if item.kind in allowed]
+        if not character:
+            candidates = [
+                item
+                for item in candidates
+                if item.metadata.get("scene_kind") not in {"camera", "light"}
+            ]
         ranked = sorted(
             candidates,
             key=lambda item: (
