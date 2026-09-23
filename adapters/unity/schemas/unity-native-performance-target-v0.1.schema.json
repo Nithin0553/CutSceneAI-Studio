@@ -61,6 +61,30 @@
       },
       "title": "UnityNativeRenderSettings",
       "type": "object"
+    },
+    "UnityNativeSceneBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "hierarchy_path": {
+          "title": "Hierarchy Path",
+          "type": "string"
+        },
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        },
+        "source_object_id": {
+          "title": "Source Object Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_entity_id",
+        "source_object_id",
+        "hierarchy_path"
+      ],
+      "title": "UnityNativeSceneBinding",
+      "type": "object"
     }
   },
   "$id": "https://schemas.cutsceneai.dev/adapters/unity/generated-performance/v0.1/native-target.schema.json",
@@ -94,10 +118,30 @@
       "title": "Scene Asset Path",
       "type": "string"
     },
+    "scene_bindings": {
+      "items": {
+        "$ref": "#/$defs/UnityNativeSceneBinding"
+      },
+      "title": "Scene Bindings",
+      "type": "array"
+    },
     "source_mapping_sha256": {
       "pattern": "^[0-9a-f]{64}$",
       "title": "Source Mapping Sha256",
       "type": "string"
+    },
+    "source_scene_asset_path": {
+      "anyOf": [
+        {
+          "pattern": "^Assets(?:/[A-Za-z0-9_. -]+)+\\.unity$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Scene Asset Path"
     },
     "target_engine": {
       "const": "Unity",
