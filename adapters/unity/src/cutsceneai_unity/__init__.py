@@ -40,6 +40,7 @@ from .native_models import (
     UnityNativeActorTarget,
     UnityNativeRealizationTarget,
     UnityNativeRenderSettings,
+    UnityNativeSceneBinding,
 )
 from .performance import (
     DEFAULT_GENERATED_PERFORMANCE_PATH,
@@ -119,6 +120,7 @@ __all__ = [
     "UnityNativePerformancePackage",
     "UnityNativeRealizationTarget",
     "UnityNativeRenderSettings",
+    "UnityNativeSceneBinding",
     "UnityPerformanceMapping",
     "UnityPrimitive",
     "UnityQuaternion",
