@@ -1042,10 +1042,10 @@ class StudioService:
     ) -> StudioRealizationResponse:
         record = self.get_project(project_id)
         binding_manifest = self.validate_bindings(project_id, project, bindings)
-        conditioned_project = self.scene_conditioned_project(
-            project_id,
-            project,
-            bindings,
+        conditioned_project = (
+            self.scene_conditioned_project(project_id, project, bindings)
+            if record.manifest.scene_snapshot is not None
+            else project
         )
         if not binding_manifest.valid:
             return StudioRealizationResponse(
