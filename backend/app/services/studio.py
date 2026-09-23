@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cutsceneai_cir import Project
+from cutsceneai_cir import Project, Quaternion, Transform, Vector3
 from cutsceneai_performance import compile_generation_plan
 from cutsceneai_unity import (
     UnityAssetMap,
@@ -792,7 +792,7 @@ class StudioService:
 
     def binding_options(self, project_id: str, project: Project) -> StudioBindingOptionsResponse:
         record = self.get_project(project_id)
-        assets = record.manifest.assets
+        assets = [*record.manifest.assets, *self._scene_snapshot_assets(record)]
         roles: list[StudioBindingRole] = []
 
         for character in project.characters:
@@ -846,10 +846,16 @@ class StudioService:
         bindings: list[StudioBindingSelection],
     ) -> StudioBindingManifest:
         record = self.get_project(project_id)
-        asset_ids = {asset.object_id for asset in record.manifest.assets}
+        known_object_ids = {asset.object_id for asset in record.manifest.assets}
+        if record.manifest.scene_snapshot is not None:
+            known_object_ids.update(
+                item.object_id for item in record.manifest.scene_snapshot.objects
+            )
         selection_by_id = {item.cir_id: item for item in bindings}
         unknown_objects = [
-            item.project_object_id for item in bindings if item.project_object_id not in asset_ids
+            item.project_object_id
+            for item in bindings
+            if item.project_object_id not in known_object_ids
         ]
         if unknown_objects:
             raise ValueError(
@@ -870,12 +876,123 @@ class StudioService:
             valid=not unresolved_required,
         )
 
-    def performance_plan(self, project: Project, experiment_seed: int) -> dict[str, Any]:
+    def performance_plan(
+        self,
+        project: Project,
+        experiment_seed: int,
+        *,
+        project_id: str | None = None,
+        bindings: list[StudioBindingSelection] | None = None,
+    ) -> dict[str, Any]:
+        conditioned = project
+        if project_id is not None:
+            conditioned = self.scene_conditioned_project(
+                project_id,
+                project,
+                bindings or [],
+            )
         plan = compile_generation_plan(
-            project,
+            conditioned,
             config=performance_compiler_config(experiment_seed),
         )
         return plan.model_dump(mode="json")
+
+    def scene_conditioned_project(
+        self,
+        project_id: str,
+        project: Project,
+        bindings: list[StudioBindingSelection],
+    ) -> Project:
+        record = self.get_project(project_id)
+        snapshot = record.manifest.scene_snapshot
+        if snapshot is None:
+            raise ValueError(
+                "Scene-conditioned planning requires a live engine scene snapshot."
+            )
+
+        self.validate_bindings(project_id, project, bindings)
+        scene_by_id = {item.object_id: item for item in snapshot.objects}
+        result = project.model_copy(deep=True)
+        entity_by_id = {
+            **{item.id: item for item in result.characters},
+            **{item.id: item for item in result.environment},
+        }
+
+        for binding in bindings:
+            scene_object = scene_by_id.get(binding.project_object_id)
+            entity = entity_by_id.get(binding.cir_id)
+            if scene_object is None or entity is None:
+                continue
+
+            position = scene_object.transform.position_m
+            rotation = scene_object.transform.rotation
+            scale = scene_object.transform.scale
+            entity.initial_transform = Transform(
+                position=Vector3(x=position.x, y=position.y, z=position.z),
+                rotation=Quaternion(
+                    x=rotation.x,
+                    y=rotation.y,
+                    z=rotation.z,
+                    w=rotation.w,
+                ),
+                scale=Vector3(x=scale.x, y=scale.y, z=scale.z),
+            )
+
+            prefab_path = scene_object.prefab_asset_path
+            if prefab_path:
+                entity.asset_uri = prefab_path
+
+        return result
+
+    @staticmethod
+    def _scene_snapshot_assets(record: StudioProjectRecord) -> list[StudioAsset]:
+        snapshot = record.manifest.scene_snapshot
+        if snapshot is None:
+            return []
+
+        verified_by_ref = {
+            item.engine_ref: item
+            for item in record.manifest.assets
+            if item.verified
+        }
+        result: list[StudioAsset] = []
+        for item in snapshot.objects:
+            prefab_path = item.prefab_asset_path or ""
+            verified_prefab = verified_by_ref.get(prefab_path)
+            metadata: dict[str, Any] = {
+                "source": "scene_snapshot",
+                "scene_ref": snapshot.scene_ref,
+                "hierarchy_path": item.hierarchy_path,
+                "scene_kind": item.kind,
+                "prefab_asset_path": item.prefab_asset_path,
+                "canonical_world_position_meters": item.transform.position_m.model_dump(
+                    mode="json"
+                ),
+                "canonical_world_rotation": item.transform.rotation.model_dump(mode="json"),
+                "canonical_world_scale": item.transform.scale.model_dump(mode="json"),
+                "components": item.components,
+            }
+            if item.bounds is not None:
+                metadata["canonical_world_bounds"] = item.bounds.model_dump(mode="json")
+            if verified_prefab is not None:
+                metadata.update(verified_prefab.metadata)
+
+            result.append(
+                StudioAsset(
+                    object_id=item.object_id,
+                    kind=(
+                        "scene_character"
+                        if item.kind == "character"
+                        else "scene_object"
+                    ),
+                    display_name=item.display_name,
+                    engine_ref=prefab_path or item.object_id,
+                    relative_path=item.hierarchy_path,
+                    verified=True,
+                    metadata=metadata,
+                )
+            )
+        return result
 
     def compile_realization(
         self,
@@ -1057,6 +1174,7 @@ class StudioService:
                 "model",
                 "character_asset",
                 "scene_actor",
+                "scene_character",
             }
         else:
             allowed = {
@@ -1065,6 +1183,7 @@ class StudioService:
                 "asset",
                 "prop",
                 "scene_actor",
+                "scene_object",
             }
         candidates = [item for item in assets if item.kind in allowed]
         ranked = sorted(
