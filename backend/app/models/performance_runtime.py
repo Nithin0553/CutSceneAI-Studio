@@ -6,6 +6,8 @@ from cutsceneai_cir import Project
 from cutsceneai_dialogue import VoiceProfile
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.studio import StudioBindingSelection
+
 
 class PerformanceRuntimeModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -30,6 +32,8 @@ class PerformanceReadinessResponse(PerformanceRuntimeModel):
 
 class PerformanceGenerateRequest(PerformanceRuntimeModel):
     project: Project
+    project_id: str | None = None
+    bindings: list[StudioBindingSelection] = Field(default_factory=list)
     experiment_seed: int = 20260812
     default_voice: VoiceProfile = Field(default_factory=lambda: VoiceProfile(voice="marin"))
     voices: dict[str, VoiceProfile] = Field(default_factory=dict)
