@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from .models import UnityModel
 
@@ -50,6 +50,13 @@ class UnityNativeActorTarget(UnityModel):
     )
     animator_path: str = ""
     facial_renderer_path: str = ""
+
+    @field_validator("prefab_path", mode="before")
+    @classmethod
+    def validate_prefab_extension(cls, value):
+        if isinstance(value, str) and not value.endswith(".prefab"):
+            raise ValueError("prefab_path must reference a Unity .prefab asset")
+        return value
 
     @model_validator(mode="after")
     def validate_component_paths(self) -> Self:
