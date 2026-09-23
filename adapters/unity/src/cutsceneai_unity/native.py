@@ -107,6 +107,17 @@ def compile_unity_native_performance_package(
     ):
         raise ValueError("Unity native target paths or scene do not match the plan.")
 
+    scene_binding_ids = {item.source_entity_id for item in target.scene_bindings}
+    plan_source_entity_ids = {
+        item.source_entity_id for item in sequence.actors
+    }
+    unknown_scene_bindings = sorted(scene_binding_ids - plan_source_entity_ids)
+    if unknown_scene_bindings:
+        raise ValueError(
+            "Unity native target scene bindings reference unknown plan entities: "
+            + ", ".join(unknown_scene_bindings)
+        )
+
     actor_targets = {item.actor_binding_id: item for item in target.actors}
     expected_actor_ids = {item.actor_binding_id for item in mapping.body_tracks} | {
         item.actor_binding_id for item in mapping.facial_tracks
