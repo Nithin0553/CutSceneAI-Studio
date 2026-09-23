@@ -120,7 +120,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "HumanTrait.MuscleName",
         "AnimationMode.SampleAnimationClip",
         "Humanoid sampling",
-        "director.SetGenericBinding(track, AnimatorFor(actors[body.actor_binding_id]",
+        "director.SetGenericBinding(rootTrack, AnimatorFor(instance, actorTarget))",
         "director.SetGenericBinding(track, AnimatorFor(actors[face.actor_binding_id]",
         "actorFaceTracks.Length == 0",
         "required facial blendshapes for",
