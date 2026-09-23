@@ -129,12 +129,17 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "ReferenceComponentRotation(animator, transform)",
         "Quaternion.Inverse(animator.avatarRoot.rotation) * bone.rotation",
         "animator.avatarRoot.InverseTransformPoint(transform.position)",
+        "if (!isRootJoint)",
+        "return canonicalDelta * referenceLocal",
         "Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent",
         "return parentDelta * referenceLocal",
-        'retargeting_method = "parent-component-bind-conjugation-v1"',
+        'retargeting_method = "canonical-parent-local-with-root-basis-v2"',
         '"retarget-profile.json"',
         "frame.weights[curveIndex] * 100.0f",
-        "timeline.CreateTrack<AnimationTrack>(animationRoots",
+        "BodyActorPrefix + actorTarget.actor_binding_id",
+        "rootTrack.trackOffset = TrackOffset.ApplySceneOffsets",
+        "AnimationTrack track = animationRoots[body.actor_binding_id]",
+        "removeStartOffset = false",
         "foreach (ActorPlan actorPlan in plan.sequences.Single().actors)",
         "GameObject.CreatePrimitive(primitive)",
         "SceneManager.MoveGameObjectToScene(instance, scene)",
@@ -163,6 +168,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert "reference * QuaternionValueOf" not in script
     assert "Quaternion.Inverse(animator.transform.rotation) * bone.rotation" not in script
     assert "animator.transform.InverseTransformPoint(transform.position)" not in script
+    assert "timeline.CreateTrack<AnimationTrack>(animationRoots[body.actor_binding_id]" not in script
     assert "GetComponent<AudioSource>() ??" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
