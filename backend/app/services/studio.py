@@ -455,6 +455,13 @@ class StudioService:
         target.write_text(content, encoding="utf-8", newline="\n")
         return relative.as_posix()
 
+    @staticmethod
+    def _is_generated_realization_scene(scene_ref: str | None) -> bool:
+        if not scene_ref:
+            return False
+        normalized = scene_ref.replace("\\", "/")
+        return normalized.startswith("Assets/CutSceneAI/Studio/Run_")
+
     def bridge_heartbeat(
         self,
         project_id: str,
@@ -469,6 +476,13 @@ class StudioService:
         for item in request.assets:
             merged_assets[item.object_id] = item
 
+        scene_snapshot = request.scene_snapshot
+        if (
+            self._is_generated_realization_scene(request.current_scene)
+            and record.manifest.scene_snapshot is not None
+        ):
+            scene_snapshot = record.manifest.scene_snapshot
+
         manifest = record.manifest.model_copy(
             update={
                 "engine_version": request.engine_version or record.manifest.engine_version,
@@ -481,7 +495,7 @@ class StudioService:
                 "bridge_last_seen_utc": _utc_now(),
                 "capabilities": request.capabilities,
                 "assets": list(merged_assets.values()),
-                "scene_snapshot": request.scene_snapshot,
+                "scene_snapshot": scene_snapshot,
                 "warnings": request.warnings,
             }
         )
