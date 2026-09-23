@@ -212,10 +212,14 @@ public static class CutSceneAIGeneratedPerformance
         public string actor_binding_id; public string prefab_path; public string animator_path;
         public string facial_renderer_path;
     }
+    [Serializable] private sealed class SceneBinding {
+        public string source_entity_id; public string source_object_id; public string hierarchy_path;
+    }
     [Serializable] private sealed class RenderTarget { public int width; public int height; public string output_directory; }
     [Serializable] private sealed class Target {
         public string project_id; public string source_mapping_sha256; public string timeline_asset_path;
-        public string scene_asset_path; public ActorTarget[] actors; public RenderTarget render;
+        public string scene_asset_path; public string source_scene_asset_path;
+        public SceneBinding[] scene_bindings; public ActorTarget[] actors; public RenderTarget render;
     }
     [Serializable] private sealed class Plan {
         public string adapter_version; public string project_id; public int fps;
@@ -385,6 +389,44 @@ public static class CutSceneAIGeneratedPerformance
         if (value == null) throw new InvalidOperationException("Missing native actor target: " + bindingId);
         return value;
     }
+    private static SceneBinding SceneBindingFor(Target target, string sourceEntityId)
+        => (target.scene_bindings ?? Array.Empty<SceneBinding>())
+            .SingleOrDefault(item => item.source_entity_id == sourceEntityId);
+
+    private static GameObject SceneObjectAtPath(Scene scene, SceneBinding binding)
+    {
+        string[] parts = binding.hierarchy_path.Split('/');
+        GameObject current = scene.GetRootGameObjects()
+            .SingleOrDefault(item => item.name == parts[0]);
+        if (current == null)
+            throw new InvalidOperationException(
+                "Bound source scene object root is missing: " + binding.hierarchy_path);
+        Transform transform = current.transform;
+        for (int index = 1; index < parts.Length; index++)
+        {
+            Transform child = transform.Cast<Transform>()
+                .SingleOrDefault(item => item.name == parts[index]);
+            if (child == null)
+                throw new InvalidOperationException(
+                    "Bound source scene object is missing: " + binding.hierarchy_path);
+            transform = child;
+        }
+        return transform.gameObject;
+    }
+
+    private static Scene CreateRealizationScene(Target target)
+    {
+        if (string.IsNullOrEmpty(target.source_scene_asset_path))
+            return EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        EnsureFolder(target.scene_asset_path);
+        if (!AssetDatabase.CopyAsset(target.source_scene_asset_path, target.scene_asset_path))
+            throw new InvalidOperationException(
+                "Failed to copy authored source scene into generated realization scene: "
+                + target.source_scene_asset_path);
+        AssetDatabase.Refresh();
+        return EditorSceneManager.OpenScene(target.scene_asset_path, OpenSceneMode.Single);
+    }
     private static GameObject LoadPrefab(ActorTarget target)
     {
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(target.prefab_path);
@@ -466,6 +508,20 @@ public static class CutSceneAIGeneratedPerformance
         foreach (string path in generatedAssets)
             if (AssetDatabase.LoadMainAssetAtPath(path) != null || File.Exists(AbsoluteAssetPath(path)))
                 throw new InvalidOperationException("Refusing to replace existing generated asset: " + path);
+
+        if (!string.IsNullOrEmpty(target.source_scene_asset_path))
+        {
+            SceneAsset sourceScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(
+                target.source_scene_asset_path);
+            if (sourceScene == null)
+                throw new InvalidOperationException(
+                    "Authored source scene is missing: " + target.source_scene_asset_path);
+            string[] entityIds = (target.scene_bindings ?? Array.Empty<SceneBinding>())
+                .Select(item => item.source_entity_id).ToArray();
+            if (entityIds.Distinct().Count() != entityIds.Length)
+                throw new InvalidOperationException(
+                    "Native target contains duplicate source scene entity bindings.");
+        }
 
         foreach (ActorTarget actorTarget in target.actors)
         {
@@ -896,8 +952,9 @@ public static class CutSceneAIGeneratedPerformance
     private static void ImportCore(Plan plan, Mapping mapping, Target target)
     {
         CaptureRetargetProfile(mapping, target);
-        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        Scene scene = CreateRealizationScene(target);
         GameObject root = new GameObject("CutSceneAI_" + mapping.source_scene_id);
+        SceneManager.MoveGameObjectToScene(root, scene);
         PlayableDirector director = root.AddComponent<PlayableDirector>();
         TimelineAsset timeline = ScriptableObject.CreateInstance<TimelineAsset>();
         timeline.name = Path.GetFileNameWithoutExtension(target.timeline_asset_path);
@@ -912,10 +969,20 @@ public static class CutSceneAIGeneratedPerformance
         Dictionary<string, AnimationTrack> animationRoots = new Dictionary<string, AnimationTrack>();
         foreach (ActorTarget actorTarget in target.actors)
         {
-            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(LoadPrefab(actorTarget), scene);
-            instance.name = ActorPrefix + actorTarget.actor_binding_id;
             ActorPlan actorPlan = plan.sequences.Single().actors.Single(
                 item => item.binding_id == actorTarget.actor_binding_id);
+            SceneBinding sceneBinding = SceneBindingFor(target, actorPlan.source_entity_id);
+            GameObject instance;
+            if (sceneBinding != null)
+            {
+                instance = SceneObjectAtPath(scene, sceneBinding);
+            }
+            else
+            {
+                instance = (GameObject)PrefabUtility.InstantiatePrefab(
+                    LoadPrefab(actorTarget), scene);
+                instance.name = ActorPrefix + actorTarget.actor_binding_id;
+            }
             ApplyActorTransform(instance, actorPlan);
             actors.Add(actorTarget.actor_binding_id, instance);
             AnimationTrack rootTrack = timeline.CreateTrack<AnimationTrack>(null, ActorPrefix + "ANIMATION|" + actorTarget.actor_binding_id);
@@ -926,8 +993,13 @@ public static class CutSceneAIGeneratedPerformance
         {
             if (actors.ContainsKey(actorPlan.binding_id)) continue;
 
+            SceneBinding sceneBinding = SceneBindingFor(target, actorPlan.source_entity_id);
             GameObject instance;
-            if (!string.IsNullOrEmpty(actorPlan.prefab_path))
+            if (sceneBinding != null)
+            {
+                instance = SceneObjectAtPath(scene, sceneBinding);
+            }
+            else if (!string.IsNullOrEmpty(actorPlan.prefab_path))
             {
                 GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(actorPlan.prefab_path);
                 if (prefab == null)
@@ -945,7 +1017,8 @@ public static class CutSceneAIGeneratedPerformance
                 SceneManager.MoveGameObjectToScene(instance, scene);
             }
 
-            instance.name = ActorPrefix + actorPlan.binding_id;
+            if (sceneBinding == null)
+                instance.name = ActorPrefix + actorPlan.binding_id;
             ApplyActorTransform(instance, actorPlan);
             actors.Add(actorPlan.binding_id, instance);
         }
