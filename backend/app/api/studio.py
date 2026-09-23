@@ -333,10 +333,14 @@ def _render_bound_importer(
 
     asset_by_id = {item.object_id: item for item in service.binding_assets(record)}
     selected = {item.cir_id: item for item in request.bindings}
-    conditioned_project = service.scene_conditioned_project(
-        request.project_id,
-        request.project,
-        request.bindings,
+    conditioned_project = (
+        service.scene_conditioned_project(
+            request.project_id,
+            request.project,
+            request.bindings,
+        )
+        if record.manifest.scene_snapshot is not None
+        else request.project
     )
 
     if record.engine.value == "unity":
