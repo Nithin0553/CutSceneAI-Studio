@@ -888,6 +888,44 @@ def test_scene_snapshot_objects_drive_binding_and_conditioned_cir(
                         "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
                     },
                     {
+                        "object_id": "scene:mina-bone",
+                        "display_name": "LeftUpperArm",
+                        "hierarchy_path": "Environment/Characters/Mina/Armature/LeftUpperArm",
+                        "parent_object_id": "scene:mina",
+                        "kind": "scene_object",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": "Assets/Characters/Mina.prefab",
+                        "transform": {
+                            "position_m": {"x": 4.1, "y": 1.4, "z": -7.0},
+                            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform"],
+                    },
+                    {
+                        "object_id": "scene:door-light",
+                        "display_name": "Door Practical Light",
+                        "hierarchy_path": "Environment/Lighting/Door Practical Light",
+                        "parent_object_id": "scene:lighting",
+                        "kind": "light",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": None,
+                        "transform": {
+                            "position_m": {"x": 2.0, "y": 2.2, "z": -1.0},
+                            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.Light"],
+                    },
+                    {
                         "object_id": "scene:table",
                         "display_name": "Conference Table",
                         "hierarchy_path": "Environment/Props/Conference Table",
@@ -918,7 +956,15 @@ def test_scene_snapshot_objects_drive_binding_and_conditioned_cir(
     table_role = next(item for item in options.roles if item.cir_id == "conference-table")
     assert mina_role.candidates[0].project_object_id == "scene:mina"
     assert mina_role.candidates[0].metadata["source"] == "scene_snapshot"
+    assert all(
+        item.project_object_id != "scene:mina-bone"
+        for item in mina_role.candidates
+    )
     assert table_role.candidates[0].project_object_id == "scene:table"
+    assert all(
+        item.project_object_id != "scene:door-light"
+        for item in table_role.candidates
+    )
 
     bindings = [
         StudioBindingSelection(cir_id="mina", project_object_id="scene:mina"),
