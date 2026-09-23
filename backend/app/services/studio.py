@@ -807,7 +807,7 @@ class StudioService:
 
     def binding_options(self, project_id: str, project: Project) -> StudioBindingOptionsResponse:
         record = self.get_project(project_id)
-        assets = [*record.manifest.assets, *self._scene_snapshot_assets(record)]
+        assets = self.binding_assets(record)
         roles: list[StudioBindingRole] = []
 
         for character in project.characters:
@@ -1031,6 +1031,9 @@ class StudioService:
             )
         return result
 
+    def binding_assets(self, record: StudioProjectRecord) -> list[StudioAsset]:
+        return [*record.manifest.assets, *self._scene_snapshot_assets(record)]
+
     def compile_realization(
         self,
         project_id: str,
@@ -1039,6 +1042,11 @@ class StudioService:
     ) -> StudioRealizationResponse:
         record = self.get_project(project_id)
         binding_manifest = self.validate_bindings(project_id, project, bindings)
+        conditioned_project = self.scene_conditioned_project(
+            project_id,
+            project,
+            bindings,
+        )
         if not binding_manifest.valid:
             return StudioRealizationResponse(
                 project_id=project_id,
@@ -1050,7 +1058,7 @@ class StudioService:
                 ],
             )
 
-        asset_by_id = {item.object_id: item for item in record.manifest.assets}
+        asset_by_id = {item.object_id: item for item in self.binding_assets(record)}
         selection_by_cir = {item.cir_id: item for item in bindings}
         required_character_ids = {item.id for item in project.characters}
         warnings: list[str] = []
@@ -1143,11 +1151,11 @@ class StudioService:
                     )
                 )
             asset_map = UnityAssetMap(project_id=project.id, entities=entity_assets)
-            unity_plan = compile_unity_project(project, asset_map=asset_map)
+            unity_plan = compile_unity_project(conditioned_project, asset_map=asset_map)
             plan_json = unity_plan.model_dump(mode="json")
             adapter_warnings = [warning.message for warning in unity_plan.warnings]
         else:
-            bound_project = project.model_copy(deep=True)
+            bound_project = conditioned_project.model_copy(deep=True)
             character_by_id = {item.id: item for item in bound_project.characters}
             environment_by_id = {item.id: item for item in bound_project.environment}
             for cir_id, selection in selection_by_cir.items():
@@ -1183,8 +1191,8 @@ class StudioService:
         record = self.get_project(project_id)
         if record.engine is not StudioEngine.UNREAL:
             return project
-        asset_by_id = {item.object_id: item for item in record.manifest.assets}
-        result = project.model_copy(deep=True)
+        asset_by_id = {item.object_id: item for item in self.binding_assets(record)}
+        result = self.scene_conditioned_project(project_id, project, bindings)
         characters = {item.id: item for item in result.characters}
         environment = {item.id: item for item in result.environment}
         for binding in bindings:
