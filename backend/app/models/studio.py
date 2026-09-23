@@ -250,6 +250,8 @@ class StudioBindingManifest(StudioModel):
 class StudioPerformancePlanRequest(StudioModel):
     project: Project
     experiment_seed: int = 20260812
+    project_id: str | None = None
+    bindings: list[StudioBindingSelection] = Field(default_factory=list)
 
 
 class StudioRealizationRequest(StudioModel):
