@@ -819,6 +819,140 @@ def test_bridge_heartbeat_persists_canonical_scene_snapshot(
     assert door.parent_object_id == "GlobalObjectId:environment"
 
 
+def test_scene_snapshot_objects_drive_binding_and_conditioned_cir(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+    project = _project()
+
+    updated = service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="scene-binding-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.2.0",
+            current_scene="Assets/Scenes/OfficeSource.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "scene-context:v0.1"],
+            assets=[
+                {
+                    "object_id": "verified-mina-prefab",
+                    "kind": "prefab",
+                    "display_name": "Mina",
+                    "engine_ref": "Assets/Characters/Mina.prefab",
+                    "relative_path": "Assets/Characters/Mina.prefab",
+                    "verified": True,
+                    "metadata": {
+                        "humanoid": True,
+                        "animator_path": "Armature",
+                    },
+                }
+            ],
+            scene_snapshot={
+                "snapshot_version": "0.1.0",
+                "scene_ref": "Assets/Scenes/OfficeSource.unity",
+                "coordinate_space": "cutsceneai-rh-yup-negative-z-forward",
+                "distance_unit": "meter",
+                "objects": [
+                    {
+                        "object_id": "scene:mina",
+                        "display_name": "Mina",
+                        "hierarchy_path": "Environment/Characters/Mina",
+                        "parent_object_id": "scene:characters",
+                        "kind": "character",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Player",
+                        "layer": "Default",
+                        "prefab_asset_path": "Assets/Characters/Mina.prefab",
+                        "transform": {
+                            "position_m": {"x": 4.0, "y": 0.0, "z": -7.0},
+                            "rotation": {
+                                "x": 0.0,
+                                "y": 0.7071068,
+                                "z": 0.0,
+                                "w": 0.7071068,
+                            },
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
+                    },
+                    {
+                        "object_id": "scene:table",
+                        "display_name": "Conference Table",
+                        "hierarchy_path": "Environment/Props/Conference Table",
+                        "parent_object_id": "scene:props",
+                        "kind": "collider",
+                        "active": True,
+                        "is_static": True,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": None,
+                        "transform": {
+                            "position_m": {"x": 1.25, "y": 0.45, "z": -2.5},
+                            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                            "scale": {"x": 2.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.BoxCollider"],
+                    },
+                ],
+            },
+            warnings=[],
+        ),
+    )
+    assert updated.manifest.scene_snapshot is not None
+
+    options = service.binding_options(record.project_id, project)
+    mina_role = next(item for item in options.roles if item.cir_id == "mina")
+    table_role = next(item for item in options.roles if item.cir_id == "conference-table")
+    assert mina_role.candidates[0].project_object_id == "scene:mina"
+    assert mina_role.candidates[0].metadata["source"] == "scene_snapshot"
+    assert table_role.candidates[0].project_object_id == "scene:table"
+
+    bindings = [
+        StudioBindingSelection(cir_id="mina", project_object_id="scene:mina"),
+        StudioBindingSelection(cir_id="conference-table", project_object_id="scene:table"),
+    ]
+    conditioned = service.scene_conditioned_project(
+        record.project_id,
+        project,
+        bindings,
+    )
+    mina = next(item for item in conditioned.characters if item.id == "mina")
+    table = next(
+        item for item in conditioned.environment if item.id == "conference-table"
+    )
+    assert mina.initial_transform.position.model_dump() == {
+        "x": 4.0,
+        "y": 0.0,
+        "z": -7.0,
+    }
+    assert mina.initial_transform.rotation.y == pytest.approx(0.7071068)
+    assert mina.asset_uri == "Assets/Characters/Mina.prefab"
+    assert table.initial_transform.position.model_dump() == {
+        "x": 1.25,
+        "y": 0.45,
+        "z": -2.5,
+    }
+
+    plan = service.performance_plan(
+        project,
+        20260812,
+        project_id=record.project_id,
+        bindings=bindings,
+    )
+    assert plan["project_id"] == project.id
+
+
 def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
     record = service.connect_project(
