@@ -114,6 +114,11 @@ class UnityNativeRealizationTarget(UnityModel):
                     "source_scene_asset_path must differ from generated scene_asset_path"
                 )
 
+        if self.scene_bindings and self.source_scene_asset_path is None:
+            raise ValueError(
+                "scene_bindings require source_scene_asset_path"
+            )
+
         scene_entity_ids = [item.source_entity_id for item in self.scene_bindings]
         if len(scene_entity_ids) != len(set(scene_entity_ids)):
             raise ValueError("scene_bindings must contain unique source_entity_id values")
