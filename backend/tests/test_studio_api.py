@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 from app.api.studio import get_studio_service
