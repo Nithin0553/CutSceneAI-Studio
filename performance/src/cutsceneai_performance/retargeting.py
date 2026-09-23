@@ -6,9 +6,6 @@ from ._geometry import Quaternion
 from ._resampling import stable_float
 
 PARENT_COMPONENT_BIND_RETARGETING_METHOD = "parent-component-bind-conjugation-v1"
-CANONICAL_PARENT_LOCAL_RETARGETING_METHOD = (
-    "canonical-parent-local-with-root-basis-v2"
-)
 
 
 def multiply_quaternions(first: Quaternion, second: Quaternion) -> Quaternion:
@@ -37,18 +34,14 @@ def retarget_parent_local_rotation(
     canonical_delta: Quaternion,
     target_reference_local: Quaternion,
     target_reference_component: Quaternion,
-    is_root_joint: bool = False,
 ) -> Quaternion:
-    """Apply canonical humanoid motion to a target bind pose.
+    """Apply a canonical parent-space delta to a target bind pose.
 
-    Non-root CutSceneAI joint rotations are parent-local rotations whose reference
-    pose is identity, so they pre-multiply the target bone local bind rotation
-    directly. The root/pelvis rotation is actor-space rather than parent-local;
-    only that joint requires conjugation through the target root parent bind basis.
+    CutSceneAI canonical joint rotations use axis-aligned parent-space frames.
+    Conjugating through the target parent component bind rotation expresses the
+    same delta in the target parent bone basis before it is applied to the
+    target local bind rotation.
     """
-
-    if not is_root_joint:
-        return multiply_quaternions(canonical_delta, target_reference_local)
 
     target_parent_component = multiply_quaternions(
         target_reference_component,
