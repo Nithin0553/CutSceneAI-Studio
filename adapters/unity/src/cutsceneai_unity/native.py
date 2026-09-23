@@ -352,12 +352,8 @@ public static class CutSceneAIGeneratedPerformance
     private static Quaternion RetargetRotation(
         Quaternion referenceLocal,
         Quaternion referenceComponent,
-        Quaternion canonicalDelta,
-        bool isRootJoint)
+        Quaternion canonicalDelta)
     {
-        if (!isRootJoint)
-            return canonicalDelta * referenceLocal;
-
         Quaternion parentComponent = ParentComponentRotation(
             referenceLocal,
             referenceComponent);
@@ -807,8 +803,7 @@ public static class CutSceneAIGeneratedPerformance
                         transform.localRotation = RetargetRotation(
                             referenceRotations[jointIndex],
                             referenceComponents[jointIndex],
-                            QuaternionValueOf(frame.joint_rotations[jointIndex]),
-                            jointIndex == 0);
+                            QuaternionValueOf(frame.joint_rotations[jointIndex]));
 
                         if (jointIndex == 0)
                             transform.localPosition =
@@ -915,7 +910,7 @@ public static class CutSceneAIGeneratedPerformance
         }).ToArray();
         RetargetProfile profile = new RetargetProfile {
             profile_version = "0.1.0",
-            retargeting_method = "canonical-parent-local-with-root-basis-v2",
+            retargeting_method = "parent-component-bind-conjugation-v1",
             canonical_reference_frame = "axis-aligned-parent-frame-v1",
             engine = "Unity",
             engine_version = Application.unityVersion,
@@ -1118,7 +1113,7 @@ public static class CutSceneAIGeneratedPerformance
         Directory.CreateDirectory(evidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "canonical-parent-local-with-root-basis-v2",
+            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
