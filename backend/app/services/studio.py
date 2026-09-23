@@ -1190,6 +1190,7 @@ class StudioService:
             candidates,
             key=lambda item: (
                 _candidate_score(label, description, item),
+                int(item.metadata.get("source") == "scene_snapshot"),
                 _character_capability_rank(item) if character else int(item.verified),
                 item.verified,
                 item.display_name.lower(),
