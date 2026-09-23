@@ -11,7 +11,7 @@ from cutsceneai_performance import load_performance_bundle
 from fastapi.testclient import TestClient
 import pytest
 
-from app.api.performance_runtime import get_performance_executor
+from app.api.performance_runtime import get_native_studio_service, get_performance_executor
 from app.main import app
 from app.models.performance_runtime import PerformanceGenerateRequest, PerformanceRunStatus
 from app.services.performance_executor import StudioPerformanceExecutor
@@ -455,6 +455,56 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert bundle.status_code == 200
     assert bundle.headers["content-type"].startswith("application/zip")
     load_performance_bundle(bundle.content)
+
+
+def test_performance_runtime_api_applies_scene_conditioned_project(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+
+    class FakeStudio:
+        def scene_conditioned_project(self, project_id, project, bindings):
+            assert project_id == "studio-project-scene"
+            assert bindings[0].cir_id == "mina"
+            conditioned = project.model_copy(deep=True)
+            mina = next(item for item in conditioned.characters if item.id == "mina")
+            mina.initial_transform.position.x = 9.0
+            mina.initial_transform.position.z = -11.0
+            return conditioned
+
+    app.dependency_overrides[get_performance_executor] = lambda: executor
+    app.dependency_overrides[get_native_studio_service] = lambda: FakeStudio()
+
+    try:
+        client = TestClient(app)
+        generated = client.post(
+            "/api/v1/studio/performance/generate",
+            json={
+                "project": _project_without_dialogue().model_dump(mode="json"),
+                "project_id": "studio-project-scene",
+                "bindings": [
+                    {
+                        "cir_id": "mina",
+                        "project_object_id": "scene:mina",
+                    }
+                ],
+                "experiment_seed": 20260812,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert generated.status_code == 200
+    assert generated.json()["status"] == "succeeded"
+    run_id = generated.json()["run_id"]
+    input_payload = json.loads(
+        (tmp_path / "runs" / run_id / "input.cir.json").read_text(encoding="utf-8")
+    )
+    mina = next(item for item in input_payload["characters"] if item["id"] == "mina")
+    assert mina["initial_transform"]["position"]["x"] == 9.0
+    assert mina["initial_transform"]["position"]["z"] == -11.0
 
 
 def test_performance_runtime_api_maps_configuration_and_missing_run_errors(
