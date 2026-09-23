@@ -1000,6 +1000,40 @@ def test_scene_snapshot_objects_drive_binding_and_conditioned_cir(
     )
     assert plan["project_id"] == project.id
 
+    client = _client_with_service(service)
+    try:
+        conditioned_response = client.post(
+            "/api/v1/studio/scene/condition",
+            json={
+                "project_id": record.project_id,
+                "project": project.model_dump(mode="json"),
+                "bindings": [item.model_dump(mode="json") for item in bindings],
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert conditioned_response.status_code == 200
+    conditioned_payload = conditioned_response.json()
+    api_mina = next(
+        item for item in conditioned_payload["characters"] if item["id"] == "mina"
+    )
+    api_table = next(
+        item
+        for item in conditioned_payload["environment"]
+        if item["id"] == "conference-table"
+    )
+    assert api_mina["initial_transform"]["position"] == {
+        "x": 4.0,
+        "y": 0.0,
+        "z": -7.0,
+    }
+    assert api_table["initial_transform"]["position"] == {
+        "x": 1.25,
+        "y": 0.45,
+        "z": -2.5,
+    }
+
 
 def test_unreal_bridge_installs_as_project_plugin(tmp_path: Path, monkeypatch) -> None:
     service = _service(tmp_path, monkeypatch)
