@@ -30,6 +30,7 @@ from cutsceneai_unity import (
     UnityNativeActorTarget,
     UnityNativeRealizationTarget,
     UnityNativeRenderSettings,
+    UnityNativeSceneBinding,
     compile_performance_bundle,
     compile_unity_native_performance_package,
     render_unity_native_performance_package,
@@ -149,6 +150,10 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "CleanupGeneratedAssets(generatedAssets)",
         "AssetDatabase.DeleteAsset(path)",
         "Refusing to replace existing generated asset",
+        "AssetDatabase.CopyAsset",
+        "source_scene_asset_path",
+        "SceneBindingFor",
+        "SceneObjectAtPath",
     ):
         assert token in script
     assert ".Where(item => item.transform != null).Select" not in script
@@ -308,6 +313,33 @@ def test_compile_rejects_native_target_or_plan_drift(
             mapping=mapping,
             target=target,
         )
+
+
+def test_native_target_accepts_authored_source_scene_bindings() -> None:
+    _, _, _, target = _components()
+    target = target.model_copy(
+        update={
+            "source_scene_asset_path": (
+                "Assets/CutSceneAI/Research/Scenes/SC_HallwaySource.unity"
+            ),
+            "scene_bindings": [
+                UnityNativeSceneBinding(
+                    source_entity_id="mina",
+                    source_object_id="GlobalObjectId:mina",
+                    hierarchy_path="HallwayEnvironment/Characters/Mina",
+                )
+            ],
+        }
+    )
+
+    rendered = render_unity_native_target(target)
+    payload = json.loads(rendered)
+
+    assert payload["source_scene_asset_path"].endswith("SC_HallwaySource.unity")
+    assert payload["scene_bindings"][0]["source_entity_id"] == "mina"
+    assert payload["scene_bindings"][0]["hierarchy_path"] == (
+        "HallwayEnvironment/Characters/Mina"
+    )
 
 
 def test_native_actor_target_accepts_valid_prefab_path_with_spaces() -> None:
