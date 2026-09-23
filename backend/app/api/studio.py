@@ -276,7 +276,12 @@ def performance_plan(
     service: StudioService = Depends(get_studio_service),
 ) -> dict[str, Any]:
     try:
-        return service.performance_plan(request.project, request.experiment_seed)
+        return service.performance_plan(
+            request.project,
+            request.experiment_seed,
+            project_id=request.project_id,
+            bindings=request.bindings,
+        )
     except ValueError as exc:
         raise _bad_request(exc) from exc
 
