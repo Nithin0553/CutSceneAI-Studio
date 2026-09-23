@@ -36,6 +36,7 @@ from cutsceneai_performance.motion import (
 from cutsceneai_performance.providers import NormalizedArtifact
 from cutsceneai_performance.serialization import (
     render_body_motion,
+    render_generation_plan,
     render_performance_package,
 )
 from app.models.performance_runtime import (
@@ -77,6 +78,29 @@ def _scene_transforms(project: Project) -> dict[str, CanonicalSceneTransform]:
             ),
         )
     return output
+
+
+def _semantics_without_fingerprint(project: Project) -> dict[str, object]:
+    payload = compile_semantics(project).model_dump(mode="json")
+    payload["cir_fingerprint_sha256"] = "<ignored>"
+    return payload
+
+
+def _validate_conditioned_project_compatibility(
+    source_project: Project,
+    conditioned_project: Project,
+) -> None:
+    if source_project.id != conditioned_project.id:
+        raise ValueError(
+            "Conditioned CIR project id must match the source performance run."
+        )
+    if _semantics_without_fingerprint(source_project) != _semantics_without_fingerprint(
+        conditioned_project
+    ):
+        raise ValueError(
+            "Conditioned CIR may change scene transforms/assets only; timeline semantics "
+            "must remain identical to the source performance run."
+        )
 
 
 def _saved_body_paths(run_dir: Path) -> dict[str, Path]:
@@ -132,6 +156,15 @@ def main() -> int:
         )
     )
     parser.add_argument("--source-run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--project",
+        type=Path,
+        help=(
+            "Optional scene-conditioned CIR to use for deterministic recomposition. "
+            "Its timeline semantics must match the source run; transforms/assets may differ. "
+            "No body inference is invoked."
+        ),
+    )
     parser.add_argument("--turn-motion", type=Path)
     parser.add_argument("--hold-motion", type=Path)
     parser.add_argument("--turn-phase", default="guard_turn_to_door")
@@ -154,15 +187,33 @@ def main() -> int:
     if source_record.status is not PerformanceRunStatus.SUCCEEDED:
         raise ValueError("Source performance run must have succeeded.")
 
-    project = Project.model_validate_json(
+    source_project = Project.model_validate_json(
         (source_dir / "input.cir.json").read_text(encoding="utf-8-sig")
     )
+    project = source_project
+    if args.project is not None:
+        project = Project.model_validate_json(
+            args.project.resolve().read_text(encoding="utf-8-sig")
+        )
+        _validate_conditioned_project_compatibility(source_project, project)
+
     source_bundle = load_performance_bundle(
         (source_dir / "performance.bundle.zip").read_bytes()
     )
-    plan = source_bundle.plan
-    if project.id != plan.project_id or source_record.project_id != project.id:
+    source_plan = source_bundle.plan
+    if (
+        source_project.id != source_plan.project_id
+        or source_record.project_id != source_project.id
+    ):
         raise ValueError("Source run, CIR, and performance bundle project identities diverge.")
+
+    conditioned_semantics = compile_semantics(project)
+    plan = source_plan.model_copy(
+        update={
+            "cir_fingerprint_sha256": conditioned_semantics.cir_fingerprint_sha256,
+        },
+        deep=True,
+    )
 
     motion_paths = _saved_body_paths(source_dir)
     if args.turn_motion is not None:
@@ -229,11 +280,14 @@ def main() -> int:
         )
 
     package = source_bundle.package.model_copy(
-        update={"body_tracks": rebuilt_body_tracks},
+        update={
+            "cir_fingerprint_sha256": conditioned_semantics.cir_fingerprint_sha256,
+            "body_tracks": rebuilt_body_tracks,
+        },
         deep=True,
     )
     derived_bundle = PerformanceBundle(
-        plan=source_bundle.plan.model_copy(deep=True),
+        plan=plan.model_copy(deep=True),
         package=package,
         artifact_files=artifact_files,
     )
@@ -261,6 +315,14 @@ def main() -> int:
                 f"Derived from performance run {source_record.run_id} by deterministic body recomposition; no body inference was executed.",
                 *(
                     [
+                        "Recomposition used a scene-conditioned CIR with unchanged timeline "
+                        "semantics and updated canonical scene transforms."
+                    ]
+                    if args.project is not None
+                    else []
+                ),
+                *(
+                    [
                         "Persisted HumanML canonical body artifacts were migrated from "
                         "the v0.2 reflected basis to the handedness-preserving v0.3 basis."
                     ]
@@ -273,8 +335,16 @@ def main() -> int:
         deep=True,
     )
 
-    shutil.copy2(source_dir / "input.cir.json", destination / "input.cir.json")
-    shutil.copy2(source_dir / "generation.plan.json", destination / "generation.plan.json")
+    (destination / "input.cir.json").write_text(
+        json.dumps(project.model_dump(mode="json"), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    (destination / "generation.plan.json").write_text(
+        render_generation_plan(plan),
+        encoding="utf-8",
+        newline="\n",
+    )
     _copy_optional(source_dir, destination, "provider-readiness.json")
     _copy_optional(source_dir, destination, "dialogue.manifest.json")
     (destination / "performance.bundle.zip").write_bytes(bundle_bytes)
@@ -291,13 +361,18 @@ def main() -> int:
     (destination / "derived-from.json").write_text(
         json.dumps(
             {
-                "derivation_version": "0.2.0",
+                "derivation_version": "0.3.0",
                 "humanml_basis_repair": (
                     "v0.2-to-v0.3" if args.repair_humanml_v02_basis else None
                 ),
                 "source_run_id": source_record.run_id,
                 "derived_run_id": run_id,
                 "body_inference_executed": False,
+                "conditioned_project": (
+                    str(args.project.resolve()) if args.project is not None else None
+                ),
+                "source_cir_fingerprint_sha256": source_bundle.plan.cir_fingerprint_sha256,
+                "derived_cir_fingerprint_sha256": plan.cir_fingerprint_sha256,
                 "turn_motion_override": (
                     str(args.turn_motion.resolve()) if args.turn_motion is not None else None
                 ),
@@ -320,6 +395,10 @@ def main() -> int:
     print(f"DERIVED_RUN_DIR={destination}")
     print(f"BUNDLE_SHA256={_sha256(bundle_bytes)}")
     print("BODY_INFERENCE_EXECUTED=false")
+    print(
+        "SCENE_CONDITIONED_CIR="
+        + ("true" if args.project is not None else "false")
+    )
     print(
         "HUMANML_BASIS_REPAIR="
         + ("v0.2-to-v0.3" if args.repair_humanml_v02_basis else "none")
