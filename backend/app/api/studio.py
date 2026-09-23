@@ -270,6 +270,21 @@ def validate_bindings(
         raise _bad_request(exc) from exc
 
 
+@router.post("/scene/condition", response_model=Project)
+def scene_condition(
+    request: StudioBindingValidateRequest,
+    service: StudioService = Depends(get_studio_service),
+) -> Project:
+    try:
+        return service.scene_conditioned_project(
+            request.project_id,
+            request.project,
+            request.bindings,
+        )
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
 @router.post("/performance/plan", response_model=dict[str, Any])
 def performance_plan(
     request: StudioPerformancePlanRequest,
@@ -316,8 +331,13 @@ def _render_bound_importer(
             "Engine realization is not ready: " + "; ".join(realization.blocking_issues)
         )
 
-    asset_by_id = {item.object_id: item for item in record.manifest.assets}
+    asset_by_id = {item.object_id: item for item in service.binding_assets(record)}
     selected = {item.cir_id: item for item in request.bindings}
+    conditioned_project = service.scene_conditioned_project(
+        request.project_id,
+        request.project,
+        request.bindings,
+    )
 
     if record.engine.value == "unity":
         entities: list[UnityEntityAsset] = []
@@ -331,7 +351,7 @@ def _render_bound_importer(
                     )
                 )
         unity_plan = compile_unity_project(
-            request.project,
+            conditioned_project,
             asset_map=UnityAssetMap(
                 project_id=request.project.id,
                 entities=entities,
