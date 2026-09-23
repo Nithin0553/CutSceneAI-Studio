@@ -269,6 +269,135 @@ def test_verified_performance_run_stages_native_unity_importer(
     assert plan_actors["conference-table"]["placeholder_primitive"] == "cube"
 
 
+def test_unity_native_realization_uses_authored_scene_objects(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    executor, run = _generate_run(tmp_path, monkeypatch)
+    studio = _service(tmp_path, monkeypatch)
+    record = studio.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    assets = []
+    scene_objects = []
+    selections = []
+    for index, name in enumerate(("Mina", "Arjun")):
+        source_id = name.lower()
+        engine_ref = f"Assets/Characters/{name}.prefab"
+        assets.append(
+            {
+                "object_id": f"verified:{source_id}",
+                "kind": "prefab",
+                "display_name": name,
+                "engine_ref": engine_ref,
+                "relative_path": engine_ref,
+                "verified": True,
+                "metadata": {
+                    "source": "engine_bridge",
+                    "humanoid": True,
+                    "animator_path": "Armature",
+                    "facial_renderer_path": "Geometry/Face",
+                    "blendshape_names": list(ARKIT_52_BLENDSHAPE_NAMES),
+                },
+            }
+        )
+        scene_object_id = f"scene:{source_id}"
+        scene_objects.append(
+            {
+                "object_id": scene_object_id,
+                "display_name": name,
+                "hierarchy_path": f"HallwayEnvironment/Characters/{name}",
+                "parent_object_id": "scene:characters",
+                "kind": "character",
+                "active": True,
+                "is_static": False,
+                "tag": "Untagged",
+                "layer": "Default",
+                "prefab_asset_path": engine_ref,
+                "transform": {
+                    "position_m": {
+                        "x": float(index * 2),
+                        "y": 0.0,
+                        "z": -5.0,
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0,
+                    },
+                    "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                },
+                "bounds": None,
+                "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
+            }
+        )
+        selections.append(
+            StudioBindingSelection(
+                cir_id=source_id,
+                project_object_id=scene_object_id,
+            )
+        )
+
+    studio.bridge_heartbeat(
+        record.project_id,
+        StudioBridgeHeartbeatRequest(
+            agent_id="unity-scene-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.2.0",
+            current_scene="Assets/Scenes/Main.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "scene-context:v0.1", "humanoid-scan"],
+            assets=assets,
+            scene_snapshot={
+                "snapshot_version": "0.1.0",
+                "scene_ref": "Assets/Scenes/Main.unity",
+                "coordinate_space": "cutsceneai-rh-yup-negative-z-forward",
+                "distance_unit": "meter",
+                "objects": scene_objects,
+            },
+            warnings=[],
+        ),
+    )
+
+    command = NativePerformanceRealizer(
+        studio=studio,
+        performance=executor,
+    ).realize(
+        run_id=run.run_id,
+        project_id=record.project_id,
+        project=_project_without_dialogue(),
+        bindings=selections,
+    )
+
+    importer = (
+        Path(record.project_path)
+        / "Assets/Editor/CutSceneAI/Generated/CutSceneAIGeneratedPerformance.cs"
+    )
+    source = importer.read_text(encoding="utf-8")
+    target_match = re.search(r'private const string TargetBase64 = "([^"]+)";', source)
+    assert target_match is not None
+    embedded_target = json.loads(
+        base64.b64decode(target_match.group(1)).decode("utf-8")
+    )
+
+    assert embedded_target["source_scene_asset_path"] == "Assets/Scenes/Main.unity"
+    assert {
+        item["source_entity_id"]: item["hierarchy_path"]
+        for item in embedded_target["scene_bindings"]
+    } == {
+        "mina": "HallwayEnvironment/Characters/Mina",
+        "arjun": "HallwayEnvironment/Characters/Arjun",
+    }
+    assert "AssetDatabase.CopyAsset" in source
+    assert "SceneObjectAtPath" in source
+    assert command.command.value == "run_importer"
+
+
 def test_verified_performance_run_stages_native_unreal_importer(
     tmp_path: Path,
     monkeypatch,
