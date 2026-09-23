@@ -51,8 +51,21 @@ def performance_readiness(
 async def generate_performance(
     request: PerformanceGenerateRequest,
     executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+    studio: StudioService = Depends(get_native_studio_service),
 ) -> PerformanceRunRecord:
-    return await executor.generate(request)
+    if request.project_id is None:
+        return await executor.generate(request)
+
+    conditioned_project = studio.scene_conditioned_project(
+        request.project_id,
+        request.project,
+        request.bindings,
+    )
+    conditioned_request = request.model_copy(
+        update={"project": conditioned_project},
+        deep=True,
+    )
+    return await executor.generate(conditioned_request)
 
 
 @router.get("/runs", response_model=list[PerformanceRunRecord])
