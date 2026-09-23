@@ -45,7 +45,9 @@ class UnityNativeSceneBinding(UnityModel):
 
 class UnityNativeActorTarget(UnityModel):
     actor_binding_id: str
-    prefab_path: str
+    prefab_path: str = Field(
+        pattern=r"^Assets(?:/[A-Za-z0-9_. -]+)+\.prefab$"
+    )
     animator_path: str = ""
     facial_renderer_path: str = ""
 
