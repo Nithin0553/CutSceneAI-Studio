@@ -1192,7 +1192,11 @@ class StudioService:
         if record.engine is not StudioEngine.UNREAL:
             return project
         asset_by_id = {item.object_id: item for item in self.binding_assets(record)}
-        result = self.scene_conditioned_project(project_id, project, bindings)
+        result = (
+            self.scene_conditioned_project(project_id, project, bindings)
+            if record.manifest.scene_snapshot is not None
+            else project.model_copy(deep=True)
+        )
         characters = {item.id: item for item in result.characters}
         environment = {item.id: item for item in result.environment}
         for binding in bindings:
