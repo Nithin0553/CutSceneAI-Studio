@@ -23,6 +23,26 @@ def _validate_unity_asset_path(value: str, *, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a normalized Unity Assets path")
 
 
+class UnityNativeSceneBinding(UnityModel):
+    source_entity_id: str
+    source_object_id: str
+    hierarchy_path: str
+
+    @model_validator(mode="after")
+    def validate_scene_binding(self) -> Self:
+        if not self.source_entity_id:
+            raise ValueError("source_entity_id must not be empty")
+        if not self.source_object_id:
+            raise ValueError("source_object_id must not be empty")
+        _validate_relative_object_path(
+            self.hierarchy_path,
+            field_name="hierarchy_path",
+        )
+        if not self.hierarchy_path:
+            raise ValueError("hierarchy_path must not be empty")
+        return self
+
+
 class UnityNativeActorTarget(UnityModel):
     actor_binding_id: str
     prefab_path: str
@@ -67,6 +87,11 @@ class UnityNativeRealizationTarget(UnityModel):
     source_mapping_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     timeline_asset_path: str = Field(pattern=r"^Assets(?:/[A-Za-z0-9_.-]+)+\.playable$")
     scene_asset_path: str = Field(pattern=r"^Assets(?:/[A-Za-z0-9_.-]+)+\.unity$")
+    source_scene_asset_path: str | None = Field(
+        default=None,
+        pattern=r"^Assets(?:/[A-Za-z0-9_. -]+)+\.unity$",
+    )
+    scene_bindings: list[UnityNativeSceneBinding] = Field(default_factory=list)
     actors: list[UnityNativeActorTarget] = Field(min_length=1)
     omitted_facial_actor_binding_ids: list[str] = Field(default_factory=list)
     render: UnityNativeRenderSettings = Field(default_factory=UnityNativeRenderSettings)
@@ -77,6 +102,25 @@ class UnityNativeRealizationTarget(UnityModel):
             self.timeline_asset_path, field_name="timeline_asset_path"
         )
         _validate_unity_asset_path(self.scene_asset_path, field_name="scene_asset_path")
+        if self.source_scene_asset_path is not None:
+            _validate_unity_asset_path(
+                self.source_scene_asset_path,
+                field_name="source_scene_asset_path",
+            )
+            if not self.source_scene_asset_path.endswith(".unity"):
+                raise ValueError("source_scene_asset_path must reference a Unity .unity scene")
+            if self.source_scene_asset_path == self.scene_asset_path:
+                raise ValueError(
+                    "source_scene_asset_path must differ from generated scene_asset_path"
+                )
+
+        scene_entity_ids = [item.source_entity_id for item in self.scene_bindings]
+        if len(scene_entity_ids) != len(set(scene_entity_ids)):
+            raise ValueError("scene_bindings must contain unique source_entity_id values")
+        scene_object_ids = [item.source_object_id for item in self.scene_bindings]
+        if len(scene_object_ids) != len(set(scene_object_ids)):
+            raise ValueError("scene_bindings must contain unique source_object_id values")
+
         binding_ids = [item.actor_binding_id for item in self.actors]
         if len(binding_ids) != len(set(binding_ids)):
             raise ValueError("actors must contain unique actor_binding_id values")
