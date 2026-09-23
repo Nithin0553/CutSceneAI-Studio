@@ -13,6 +13,7 @@ from cutsceneai_unity import (
     UnityNativeActorTarget,
     UnityNativeRealizationTarget,
     UnityNativeRenderSettings,
+    UnityNativeSceneBinding,
     compile_performance_bundle as compile_unity_performance_bundle,
     compile_project as compile_unity_project,
     compile_unity_native_performance_package,
@@ -273,12 +274,40 @@ class NativePerformanceRealizer:
                 f"Unity native realization is validated only for 6000.0.x/6000.3.x; got '{version}'."
             )
 
+        snapshot = record.manifest.scene_snapshot
+        snapshot_object_by_id = (
+            {item.object_id: item for item in snapshot.objects}
+            if snapshot is not None
+            else {}
+        )
+        scene_bindings: list[UnityNativeSceneBinding] = []
+        for binding in bindings:
+            scene_object = snapshot_object_by_id.get(binding.project_object_id)
+            if scene_object is None:
+                continue
+            scene_bindings.append(
+                UnityNativeSceneBinding(
+                    source_entity_id=binding.cir_id,
+                    source_object_id=scene_object.object_id,
+                    hierarchy_path=scene_object.hierarchy_path,
+                )
+            )
+        source_scene_asset_path = (
+            snapshot.scene_ref
+            if snapshot is not None
+            and snapshot.scene_ref.startswith("Assets/")
+            and snapshot.scene_ref.endswith(".unity")
+            else None
+        )
+
         target = UnityNativeRealizationTarget(
             target_engine_version=line_match.group(1),
             project_id=project.id,
             source_mapping_sha256=_mapping_sha(render_unity_performance_mapping(mapping)),
             timeline_asset_path=plan.sequences[0].timeline_asset_path,
             scene_asset_path=plan.sequences[0].scene_asset_path,
+            source_scene_asset_path=source_scene_asset_path,
+            scene_bindings=scene_bindings,
             actors=actors,
             omitted_facial_actor_binding_ids=sorted(omitted_facial_actor_ids),
             render=UnityNativeRenderSettings(
