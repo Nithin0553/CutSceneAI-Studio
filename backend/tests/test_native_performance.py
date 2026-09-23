@@ -273,7 +273,8 @@ def test_unity_native_realization_uses_authored_scene_objects(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    executor, run = _generate_run(tmp_path, monkeypatch)
+    _configure_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
     studio = _service(tmp_path, monkeypatch)
     record = studio.connect_project(
         StudioProjectConnectRequest(
@@ -364,13 +365,29 @@ def test_unity_native_realization_uses_authored_scene_objects(
         ),
     )
 
+    source_project = _project_without_dialogue()
+    conditioned_project = studio.scene_conditioned_project(
+        record.project_id,
+        source_project,
+        selections,
+    )
+    run = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(
+                project=conditioned_project,
+                experiment_seed=20260812,
+            )
+        )
+    )
+    assert run.status.value == "succeeded"
+
     command = NativePerformanceRealizer(
         studio=studio,
         performance=executor,
     ).realize(
         run_id=run.run_id,
         project_id=record.project_id,
-        project=_project_without_dialogue(),
+        project=source_project,
         bindings=selections,
     )
 
