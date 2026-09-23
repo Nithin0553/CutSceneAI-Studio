@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Any
 
+from cutsceneai_cir import Project
 from cutsceneai_parity import compile_semantics
 from cutsceneai_unity import (
     UnityAssetMap,
