@@ -983,6 +983,12 @@ public static class CutSceneAIGeneratedPerformance
             ActorPlan actorPlan = plan.sequences.Single().actors.Single(
                 item => item.binding_id == actorTarget.actor_binding_id);
             SceneBinding sceneBinding = SceneBindingFor(target, actorPlan.source_entity_id);
+            if (sceneBinding == null
+                && string.IsNullOrEmpty(actorPlan.prefab_path)
+                && !string.IsNullOrEmpty(target.source_scene_asset_path)
+                && !string.Equals(actorPlan.kind, "character", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             GameObject instance;
             if (sceneBinding != null)
             {
