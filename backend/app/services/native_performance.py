@@ -76,8 +76,12 @@ def _verified_asset_for_engine_ref(record, engine_ref: str):
     return verified[0]
 
 
-def _selected_assets(record, bindings: list[StudioBindingSelection]) -> dict[str, Any]:
-    by_id = {item.object_id: item for item in record.manifest.assets}
+def _selected_assets(
+    studio: StudioService,
+    record,
+    bindings: list[StudioBindingSelection],
+) -> dict[str, Any]:
+    by_id = {item.object_id: item for item in studio.binding_assets(record)}
     result: dict[str, Any] = {}
     for binding in bindings:
         try:
@@ -124,6 +128,11 @@ class NativePerformanceRealizer:
             raise ValueError("Verified performance bundle project does not match the CIR.")
 
         manifest = self.studio.validate_bindings(project_id, project, bindings)
+        conditioned_project = self.studio.scene_conditioned_project(
+            project_id,
+            project,
+            bindings,
+        )
         if not manifest.valid:
             raise ValueError(
                 "Required character roles are not fully bound: "
@@ -134,7 +143,7 @@ class NativePerformanceRealizer:
         if record.engine is StudioEngine.UNITY:
             importer_path, entry_point, omissions = self._stage_unity(
                 record=record,
-                project=project,
+                project=conditioned_project,
                 bindings=bindings,
                 bundle=bundle,
                 token=token,
@@ -142,7 +151,7 @@ class NativePerformanceRealizer:
         else:
             importer_path, entry_point, omissions = self._stage_unreal(
                 record=record,
-                project=project,
+                project=conditioned_project,
                 bindings=bindings,
                 bundle=bundle,
                 token=token,
@@ -172,7 +181,7 @@ class NativePerformanceRealizer:
         bundle,
         token: str,
     ) -> tuple[str, str, list[str]]:
-        selected = _selected_assets(record, bindings)
+        selected = _selected_assets(self.studio, record, bindings)
         entities: list[UnityEntityAsset] = []
         for character in project.characters:
             asset = selected.get(character.id)
