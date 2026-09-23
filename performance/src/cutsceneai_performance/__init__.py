@@ -86,7 +86,6 @@ from .providers import (
     normalize_facial_output,
 )
 from .retargeting import (
-    CANONICAL_PARENT_LOCAL_RETARGETING_METHOD,
     PARENT_COMPONENT_BIND_RETARGETING_METHOD,
     invert_quaternion,
     multiply_quaternions,
@@ -142,7 +141,6 @@ __all__ = [
     "CAMERA_RESAMPLING_METHOD",
     "CANONICAL_HUMANOID_JOINTS",
     "CANONICAL_HUMANOID_PARENTS",
-    "CANONICAL_PARENT_LOCAL_RETARGETING_METHOD",
     "FACIAL_CURVE_SCHEMA_ID",
     "FACIAL_RESAMPLING_METHOD",
     "GENERATION_PLAN_SCHEMA_ID",
