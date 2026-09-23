@@ -178,6 +178,7 @@ public static class CutSceneAIGeneratedPerformance
     private const string MappingBase64 = "__MAPPING_BASE64__";
     private const string TargetBase64 = "__TARGET_BASE64__";
     private const string BodyPrefix = "CSA|BODY|";
+    private const string BodyActorPrefix = "CSA|BODY-ACTOR|";
     private const string FacePrefix = "CSA|FACIAL|";
     private const string CameraMotionPrefix = "CSA|CAMERA-MOTION|";
     private const string CameraPrefix = "CSA|CAMERA|";
@@ -348,10 +349,20 @@ public static class CutSceneAIGeneratedPerformance
     private static Quaternion ParentComponentRotation(Quaternion referenceLocal, Quaternion referenceComponent)
         => referenceComponent * Quaternion.Inverse(referenceLocal);
 
-    private static Quaternion RetargetRotation(Quaternion referenceLocal, Quaternion referenceComponent, Quaternion canonicalDelta)
+    private static Quaternion RetargetRotation(
+        Quaternion referenceLocal,
+        Quaternion referenceComponent,
+        Quaternion canonicalDelta,
+        bool isRootJoint)
     {
-        Quaternion parentComponent = ParentComponentRotation(referenceLocal, referenceComponent);
-        Quaternion parentDelta = Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent;
+        if (!isRootJoint)
+            return canonicalDelta * referenceLocal;
+
+        Quaternion parentComponent = ParentComponentRotation(
+            referenceLocal,
+            referenceComponent);
+        Quaternion parentDelta =
+            Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent;
         return parentDelta * referenceLocal;
     }
 
@@ -796,7 +807,8 @@ public static class CutSceneAIGeneratedPerformance
                         transform.localRotation = RetargetRotation(
                             referenceRotations[jointIndex],
                             referenceComponents[jointIndex],
-                            QuaternionValueOf(frame.joint_rotations[jointIndex]));
+                            QuaternionValueOf(frame.joint_rotations[jointIndex]),
+                            jointIndex == 0);
 
                         if (jointIndex == 0)
                             transform.localPosition =
@@ -903,7 +915,7 @@ public static class CutSceneAIGeneratedPerformance
         }).ToArray();
         RetargetProfile profile = new RetargetProfile {
             profile_version = "0.1.0",
-            retargeting_method = "parent-component-bind-conjugation-v1",
+            retargeting_method = "canonical-parent-local-with-root-basis-v2",
             canonical_reference_frame = "axis-aligned-parent-frame-v1",
             engine = "Unity",
             engine_version = Application.unityVersion,
@@ -1002,7 +1014,10 @@ public static class CutSceneAIGeneratedPerformance
             }
             ApplyActorTransform(instance, actorPlan);
             actors.Add(actorTarget.actor_binding_id, instance);
-            AnimationTrack rootTrack = timeline.CreateTrack<AnimationTrack>(null, ActorPrefix + "ANIMATION|" + actorTarget.actor_binding_id);
+            AnimationTrack rootTrack = timeline.CreateTrack<AnimationTrack>(
+                null,
+                BodyActorPrefix + actorTarget.actor_binding_id);
+            rootTrack.trackOffset = TrackOffset.ApplySceneOffsets;
             director.SetGenericBinding(rootTrack, AnimatorFor(instance, actorTarget));
             animationRoots.Add(actorTarget.actor_binding_id, rootTrack);
         }
@@ -1042,10 +1057,20 @@ public static class CutSceneAIGeneratedPerformance
         foreach (BodyTrack body in mapping.body_tracks)
         {
             ActorTarget actorTarget = ActorTargetFor(target, body.actor_binding_id);
-            AnimationClip animation = CreateBodyClip(body, LoadPrefab(actorTarget), actorTarget, mapping.fps);
-            AnimationTrack track = timeline.CreateTrack<AnimationTrack>(animationRoots[body.actor_binding_id], BodyPrefix + body.actor_binding_id + "|" + body.semantic_id);
-            director.SetGenericBinding(track, AnimatorFor(actors[body.actor_binding_id], actorTarget));
-            AddAnimationClip(track, track.name, animation, body.start_frame, body.end_frame, mapping.fps);
+            AnimationClip animation = CreateBodyClip(
+                body,
+                LoadPrefab(actorTarget),
+                actorTarget,
+                mapping.fps);
+            AnimationTrack track = animationRoots[body.actor_binding_id];
+            TimelineClip bodyClip = AddAnimationClip(
+                track,
+                BodyPrefix + body.actor_binding_id + "|" + body.semantic_id,
+                animation,
+                body.start_frame,
+                body.end_frame,
+                mapping.fps);
+            ((AnimationPlayableAsset)bodyClip.asset).removeStartOffset = false;
         }
         foreach (FaceTrack face in mapping.facial_tracks)
         {
@@ -1093,7 +1118,7 @@ public static class CutSceneAIGeneratedPerformance
         Directory.CreateDirectory(evidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1",
+            render_completed = false, retargeting_method = "canonical-parent-local-with-root-basis-v2",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
@@ -1141,7 +1166,27 @@ public static class CutSceneAIGeneratedPerformance
         {
             string[] parts = Parts(track.name, BodyPrefix);
             if (parts != null && track is AnimationTrack)
-                foreach (TimelineClip clip in track.GetClips()) body.Add(Section(parts[1], parts[0], AssetDatabase.GetAssetPath(((AnimationPlayableAsset)clip.asset).clip), clip, mapping.fps));
+                foreach (TimelineClip clip in track.GetClips())
+                    body.Add(Section(
+                        parts[1],
+                        parts[0],
+                        AssetDatabase.GetAssetPath(((AnimationPlayableAsset)clip.asset).clip),
+                        clip,
+                        mapping.fps));
+            else if (track.name.StartsWith(BodyActorPrefix, StringComparison.Ordinal)
+                && track is AnimationTrack)
+                foreach (TimelineClip clip in track.GetClips())
+                {
+                    string[] clipParts = Parts(clip.displayName, BodyPrefix);
+                    if (clipParts != null)
+                        body.Add(Section(
+                            clipParts[1],
+                            clipParts[0],
+                            AssetDatabase.GetAssetPath(
+                                ((AnimationPlayableAsset)clip.asset).clip),
+                            clip,
+                            mapping.fps));
+                }
             parts = Parts(track.name, FacePrefix);
             if (parts != null && track is AnimationTrack)
                 foreach (TimelineClip clip in track.GetClips()) face.Add(Section(parts[1], parts[0], AssetDatabase.GetAssetPath(((AnimationPlayableAsset)clip.asset).clip), clip, mapping.fps));
