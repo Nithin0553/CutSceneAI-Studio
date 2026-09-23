@@ -821,6 +821,117 @@ def test_bridge_heartbeat_persists_canonical_scene_snapshot(
     assert door.parent_object_id == "GlobalObjectId:environment"
 
 
+def test_generated_run_heartbeat_preserves_authored_scene_snapshot(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path, monkeypatch)
+    record = service.connect_project(
+        StudioProjectConnectRequest(
+            engine=StudioEngine.UNITY,
+            project_path=str(_unity_project(tmp_path)),
+        )
+    )
+
+    authored = service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="scene-context-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.2.0",
+            current_scene="Assets/CutSceneAI/Research/Scenes/SC_HallwaySource.unity",
+            fps=24,
+            capabilities=["bridge:v0.1", "scene-context:v0.1"],
+            assets=[],
+            scene_snapshot={
+                "snapshot_version": "0.1.0",
+                "scene_ref": "Assets/CutSceneAI/Research/Scenes/SC_HallwaySource.unity",
+                "coordinate_space": "cutsceneai-rh-yup-negative-z-forward",
+                "distance_unit": "meter",
+                "objects": [
+                    {
+                        "object_id": "source:guard",
+                        "display_name": "Guard",
+                        "hierarchy_path": "HallwayEnvironment/Characters/Guard",
+                        "parent_object_id": "source:characters",
+                        "kind": "character",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": "Assets/Characters/Guard.prefab",
+                        "transform": {
+                            "position_m": {"x": 0.0, "y": 0.0, "z": -5.0},
+                            "rotation": {"x": 0.0, "y": -1.0, "z": 0.0, "w": 0.0},
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
+                    }
+                ],
+            },
+            warnings=[],
+        ),
+    )
+    assert authored.manifest.scene_snapshot is not None
+
+    generated = service.bridge_heartbeat(
+        record.project_id,
+        studio_module.StudioBridgeHeartbeatRequest(
+            agent_id="scene-context-agent",
+            engine_version="6000.3.8f1",
+            adapter_version="0.2.0",
+            current_scene=(
+                "Assets/CutSceneAI/Studio/Run_deadbeef/Scenes/"
+                "SC_SceneAbandonedHallway.unity"
+            ),
+            fps=24,
+            capabilities=["bridge:v0.1", "scene-context:v0.1"],
+            assets=[],
+            scene_snapshot={
+                "snapshot_version": "0.1.0",
+                "scene_ref": (
+                    "Assets/CutSceneAI/Studio/Run_deadbeef/Scenes/"
+                    "SC_SceneAbandonedHallway.unity"
+                ),
+                "coordinate_space": "cutsceneai-rh-yup-negative-z-forward",
+                "distance_unit": "meter",
+                "objects": [
+                    {
+                        "object_id": "generated:guard",
+                        "display_name": "Guard",
+                        "hierarchy_path": "HallwayEnvironment/Characters/Guard",
+                        "parent_object_id": "generated:characters",
+                        "kind": "character",
+                        "active": True,
+                        "is_static": False,
+                        "tag": "Untagged",
+                        "layer": "Default",
+                        "prefab_asset_path": "Assets/Characters/Guard.prefab",
+                        "transform": {
+                            "position_m": {"x": 9.0, "y": 0.0, "z": 9.0},
+                            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+                        },
+                        "bounds": None,
+                        "components": ["UnityEngine.Transform", "UnityEngine.Animator"],
+                    }
+                ],
+            },
+            warnings=[],
+        ),
+    )
+
+    assert generated.manifest.current_scene.endswith(
+        "Run_deadbeef/Scenes/SC_SceneAbandonedHallway.unity"
+    )
+    snapshot = generated.manifest.scene_snapshot
+    assert snapshot is not None
+    assert snapshot.scene_ref.endswith("SC_HallwaySource.unity")
+    assert snapshot.objects[0].object_id == "source:guard"
+    assert snapshot.objects[0].transform.position_m.z == -5.0
+
+
 def test_scene_snapshot_objects_drive_binding_and_conditioned_cir(
     tmp_path: Path,
     monkeypatch,
