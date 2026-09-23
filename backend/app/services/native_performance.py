@@ -128,10 +128,10 @@ class NativePerformanceRealizer:
             raise ValueError("Verified performance bundle project does not match the CIR.")
 
         manifest = self.studio.validate_bindings(project_id, project, bindings)
-        conditioned_project = self.studio.scene_conditioned_project(
-            project_id,
-            project,
-            bindings,
+        conditioned_project = (
+            self.studio.scene_conditioned_project(project_id, project, bindings)
+            if record.manifest.scene_snapshot is not None
+            else project
         )
         if not manifest.valid:
             raise ValueError(
