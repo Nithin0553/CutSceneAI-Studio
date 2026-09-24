@@ -482,10 +482,20 @@ public static class CutSceneAIGeneratedPerformance
         if (prefab == null) throw new InvalidOperationException("Missing target prefab: " + target.prefab_path);
         return prefab;
     }
-    private static Animator AnimatorFor(GameObject root, ActorTarget target)
+    private static Animator AnimatorComponentFor(GameObject root, ActorTarget target)
     {
         Animator animator = Find(root.transform, target.animator_path).GetComponent<Animator>();
-        if (animator == null || animator.avatar == null || !animator.avatar.isValid || !animator.avatar.isHuman)
+        if (animator == null)
+            throw new InvalidOperationException(
+                "Target is missing the required Animator component: "
+                + target.actor_binding_id);
+        return animator;
+    }
+
+    private static Animator AnimatorFor(GameObject root, ActorTarget target)
+    {
+        Animator animator = AnimatorComponentFor(root, target);
+        if (animator.avatar == null || !animator.avatar.isValid || !animator.avatar.isHuman)
             throw new InvalidOperationException("Target requires one valid Humanoid Animator: " + target.actor_binding_id);
         return animator;
     }
@@ -738,6 +748,14 @@ public static class CutSceneAIGeneratedPerformance
                         binding.target_human_bone)))
                 .Where(transform => transform != null)
                 .ToArray();
+
+            // The target Avatar is used only to resolve and retarget Humanoid bones.
+            // Direct quaternion playback must be evaluated as generic hierarchy
+            // animation; otherwise Mecanim's Humanoid layer ignores/reinterprets
+            // the raw Transform curves.
+            animator.avatar = null;
+            animator.runtimeAnimatorController = null;
+            animator.applyRootMotion = false;
 
             if (!AnimationMode.InAnimationMode())
             {
@@ -1051,6 +1069,48 @@ public static class CutSceneAIGeneratedPerformance
             QuaternionValueOf(keyframe.joint_rotations[jointIndex]));
     }
 
+    private static Dictionary<string, Transform> ResolveBodyTransforms(
+        GameObject actor,
+        ActorTarget actorTarget,
+        BodyTrack track)
+    {
+        GameObject prefab = LoadPrefab(actorTarget);
+        Animator prefabAnimator = AnimatorFor(prefab, actorTarget);
+        Animator actorAnimator = AnimatorComponentFor(actor, actorTarget);
+        Dictionary<string, Transform> resolved =
+            new Dictionary<string, Transform>(StringComparer.Ordinal);
+
+        for (int jointIndex = 0; jointIndex < track.joint_bindings.Length; jointIndex++)
+        {
+            JointBinding binding = track.joint_bindings[jointIndex];
+            HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
+                typeof(HumanBodyBones),
+                binding.target_human_bone);
+            Transform prefabBone = prefabAnimator.GetBoneTransform(bone);
+            if (prefabBone == null)
+            {
+                if (IsRequiredHumanoidBone(bone))
+                    throw new InvalidOperationException(
+                        "Required Humanoid bone is not mapped: "
+                        + binding.target_human_bone);
+                continue;
+            }
+
+            string path = AnimationUtility.CalculateTransformPath(
+                prefabBone,
+                prefabAnimator.transform);
+            Transform actorBone = string.IsNullOrEmpty(path)
+                ? actorAnimator.transform
+                : actorAnimator.transform.Find(path);
+            if (actorBone == null)
+                throw new InvalidOperationException(
+                    "Realized target bone path is missing: "
+                    + binding.source_joint_name + " -> " + path);
+            resolved[binding.source_joint_name] = actorBone;
+        }
+        return resolved;
+    }
+
     private static BodyRealizationDiagnostic CaptureBodyRealizationDiagnostic(
         Plan plan,
         Mapping mapping,
@@ -1060,6 +1120,23 @@ public static class CutSceneAIGeneratedPerformance
         Dictionary<string, GameObject> motionRoots)
     {
         List<BodyRealizationSample> samples = new List<BodyRealizationSample>();
+        Dictionary<string, Dictionary<string, Transform>> actorBones =
+            new Dictionary<string, Dictionary<string, Transform>>();
+        foreach (BodyTrack actorTrack in mapping.body_tracks
+            .GroupBy(item => item.actor_binding_id)
+            .Select(group => group.First()))
+        {
+            if (!actors.TryGetValue(actorTrack.actor_binding_id, out GameObject actor))
+                continue;
+            ActorTarget actorTarget = ActorTargetFor(
+                target,
+                actorTrack.actor_binding_id);
+            actorBones[actorTrack.actor_binding_id] = ResolveBodyTransforms(
+                actor,
+                actorTarget,
+                actorTrack);
+        }
+
         director.RebuildGraph();
         for (int frame = 0; frame < mapping.duration_frames; frame++)
         {
@@ -1079,14 +1156,15 @@ public static class CutSceneAIGeneratedPerformance
             Physics.SyncTransforms();
 
             ActorTarget actorTarget = ActorTargetFor(target, active.actor_binding_id);
-            Animator animator = AnimatorFor(actor, actorTarget);
-            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
-            Transform leftUpperLeg = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
-            Transform rightUpperLeg = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
-            Transform leftLowerLeg = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
-            Transform rightLowerLeg = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
-            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
-            Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Animator animator = AnimatorComponentFor(actor, actorTarget);
+            Dictionary<string, Transform> bones = actorBones[active.actor_binding_id];
+            Transform hips = bones["pelvis"];
+            Transform leftUpperLeg = bones["left_hip"];
+            Transform rightUpperLeg = bones["right_hip"];
+            Transform leftLowerLeg = bones["left_knee"];
+            Transform rightLowerLeg = bones["right_knee"];
+            Transform leftFoot = bones["left_ankle"];
+            Transform rightFoot = bones["right_ankle"];
 
             bool leftGroundFound = GroundClearance(
                 leftFoot.position,
@@ -1109,17 +1187,23 @@ public static class CutSceneAIGeneratedPerformance
                     targetActor.transform.position - motionRoot.transform.position);
             }
 
-            HumanPose pose;
-            using (HumanPoseHandler handler = new HumanPoseHandler(
-                animator.avatar,
-                animator.avatarRoot))
+            float maxLegMuscle = -1.0f;
+            string maxLegMuscleName = "not-applicable-direct-bone";
+            if (animator.avatar != null
+                && animator.avatar.isValid
+                && animator.avatar.isHuman)
             {
-                pose = SnapshotHumanPose(handler);
+                HumanPose pose;
+                using (HumanPoseHandler handler = new HumanPoseHandler(
+                    animator.avatar,
+                    animator.avatarRoot))
+                {
+                    pose = SnapshotHumanPose(handler);
+                }
+                maxLegMuscle = MaxLegMuscleAbs(
+                    pose,
+                    out maxLegMuscleName);
             }
-
-            float maxLegMuscle = MaxLegMuscleAbs(
-                pose,
-                out string maxLegMuscleName);
             float sourceLeftKneeRotation = SourceJointRotationDegrees(
                 active,
                 frame,
@@ -1366,7 +1450,11 @@ public static class CutSceneAIGeneratedPerformance
                 null,
                 BodyActorPrefix + actorTarget.actor_binding_id);
             rootTrack.trackOffset = TrackOffset.ApplySceneOffsets;
-            director.SetGenericBinding(rootTrack, AnimatorFor(instance, actorTarget));
+            Animator actorAnimator = AnimatorFor(instance, actorTarget);
+            actorAnimator.avatar = null;
+            actorAnimator.runtimeAnimatorController = null;
+            actorAnimator.applyRootMotion = false;
+            director.SetGenericBinding(rootTrack, actorAnimator);
 
             actors.Add(actorTarget.actor_binding_id, instance);
             motionRoots.Add(actorTarget.actor_binding_id, motionRoot);
@@ -1451,7 +1539,7 @@ public static class CutSceneAIGeneratedPerformance
             ActorTarget actorTarget = ActorTargetFor(target, face.actor_binding_id);
             AnimationClip animation = CreateFaceClip(face, LoadPrefab(actorTarget), actorTarget, mapping.fps);
             AnimationTrack track = timeline.CreateTrack<AnimationTrack>(animationRoots[face.actor_binding_id], FacePrefix + face.actor_binding_id + "|" + face.semantic_id);
-            director.SetGenericBinding(track, AnimatorFor(actors[face.actor_binding_id], actorTarget));
+            director.SetGenericBinding(track, AnimatorComponentFor(actors[face.actor_binding_id], actorTarget));
             AddAnimationClip(track, track.name, animation, face.start_frame, face.end_frame, mapping.fps);
         }
         foreach (AudioTrack audio in mapping.audio_tracks)
@@ -1503,7 +1591,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "direct-target-bone-quaternion-v1+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "direct-target-bone-quaternion-v2-generic-evaluator+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
