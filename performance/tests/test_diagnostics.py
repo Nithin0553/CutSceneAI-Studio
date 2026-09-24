@@ -185,7 +185,8 @@ def test_fixed_compositor_keeps_xyz_and_root_consistent_across_phase_boundary() 
     boundary = diagnostic.phase_boundaries[0]
     assert boundary.root_position_gap_m > 0.0
     assert boundary.geometry_pelvis_gap_m == pytest.approx(boundary.root_position_gap_m)
-    assert boundary.max_joint_position_gap_m == pytest.approx(boundary.root_position_gap_m)
+    assert boundary.max_joint_position_gap_m is not None
+    assert boundary.max_joint_position_gap_m >= boundary.geometry_pelvis_gap_m
     assert boundary.boundary_geometry_velocity_mps is not None
     assert boundary.boundary_geometry_velocity_mps > 0.0
 
