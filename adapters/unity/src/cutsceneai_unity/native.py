@@ -723,9 +723,6 @@ public static class CutSceneAIGeneratedPerformance
         int fps)
     {
         if (!BodyTrackHasSourceMotion(track)) return;
-        if (!clip.humanMotion)
-            throw new InvalidOperationException(
-                "Generated body clip does not contain Humanoid muscle motion.");
 
         GameObject instance = UnityEngine.Object.Instantiate(prefab);
         instance.hideFlags = HideFlags.HideAndDontSave;
@@ -734,52 +731,49 @@ public static class CutSceneAIGeneratedPerformance
         {
             Animator animator = AnimatorFor(instance, target);
             animator.enabled = false;
-            using (HumanPoseHandler handler = new HumanPoseHandler(
-                animator.avatar, animator.avatarRoot))
+            Transform[] bones = track.joint_bindings
+                .Select(binding => animator.GetBoneTransform(
+                    (HumanBodyBones)Enum.Parse(
+                        typeof(HumanBodyBones),
+                        binding.target_human_bone)))
+                .Where(transform => transform != null)
+                .ToArray();
+
+            if (!AnimationMode.InAnimationMode())
             {
-                if (!AnimationMode.InAnimationMode())
-                {
-                    AnimationMode.StartAnimationMode();
-                    startedAnimationMode = true;
-                }
-
-                float[] times = new[] {
-                    0.0f,
-                    Mathf.Max(0.0f, clip.length / 3.0f),
-                    Mathf.Max(0.0f, clip.length * 2.0f / 3.0f),
-                    Mathf.Max(0.0f, clip.length),
-                };
-
-                SampleHumanoidClip(animator.gameObject, clip, times[0]);
-                HumanPose reference = SnapshotHumanPose(handler);
-                float maxPositionDelta = 0.0f;
-                float maxRotationDelta = 0.0f;
-                float maxMuscleDelta = 0.0f;
-
-                foreach (float time in times.Skip(1))
-                {
-                    SampleHumanoidClip(animator.gameObject, clip, time);
-                    HumanPose sampled = SnapshotHumanPose(handler);
-                    maxPositionDelta = Mathf.Max(
-                        maxPositionDelta,
-                        Vector3.Distance(reference.bodyPosition, sampled.bodyPosition));
-                    maxRotationDelta = Mathf.Max(
-                        maxRotationDelta,
-                        Quaternion.Angle(reference.bodyRotation, sampled.bodyRotation));
-                    for (int muscleIndex = 0; muscleIndex < sampled.muscles.Length; muscleIndex++)
-                        maxMuscleDelta = Mathf.Max(
-                            maxMuscleDelta,
-                            Mathf.Abs(reference.muscles[muscleIndex] - sampled.muscles[muscleIndex]));
-                }
-
-                if (maxPositionDelta <= 1e-6f
-                    && maxRotationDelta <= 0.001f
-                    && maxMuscleDelta <= 1e-5f)
-                    throw new InvalidOperationException(
-                        "Generated body clip contains source motion but Humanoid sampling "
-                        + "produced no target pose change. Refusing to save a structurally valid "
-                        + "but non-playing AnimationClip.");
+                AnimationMode.StartAnimationMode();
+                startedAnimationMode = true;
             }
+
+            float[] times = new[] {
+                0.0f,
+                Mathf.Max(0.0f, clip.length / 3.0f),
+                Mathf.Max(0.0f, clip.length * 2.0f / 3.0f),
+                Mathf.Max(0.0f, clip.length),
+            };
+
+            SampleHumanoidClip(animator.gameObject, clip, times[0]);
+            Quaternion[] referenceRotations = bones
+                .Select(transform => transform.localRotation)
+                .ToArray();
+            float maxBoneRotationDelta = 0.0f;
+
+            foreach (float time in times.Skip(1))
+            {
+                SampleHumanoidClip(animator.gameObject, clip, time);
+                for (int boneIndex = 0; boneIndex < bones.Length; boneIndex++)
+                    maxBoneRotationDelta = Mathf.Max(
+                        maxBoneRotationDelta,
+                        Quaternion.Angle(
+                            referenceRotations[boneIndex],
+                            bones[boneIndex].localRotation));
+            }
+
+            if (maxBoneRotationDelta <= 0.001f)
+                throw new InvalidOperationException(
+                    "Generated body clip contains source motion but direct target-bone "
+                    + "sampling produced no pose change. Refusing to save a structurally "
+                    + "valid but non-playing AnimationClip.");
         }
         finally
         {
@@ -804,10 +798,16 @@ public static class CutSceneAIGeneratedPerformance
 
             int jointCount = track.joint_bindings.Length;
             Transform[] transforms = new Transform[jointCount];
-            Vector3[] referencePositions = new Vector3[jointCount];
             Quaternion[] referenceRotations = new Quaternion[jointCount];
             Quaternion[] referenceComponents = new Quaternion[jointCount];
-            Quaternion[] parentComponents = new Quaternion[jointCount];
+            List<Tuple<int, float>>[] qx = Enumerable.Range(0, jointCount)
+                .Select(_ => new List<Tuple<int, float>>()).ToArray();
+            List<Tuple<int, float>>[] qy = Enumerable.Range(0, jointCount)
+                .Select(_ => new List<Tuple<int, float>>()).ToArray();
+            List<Tuple<int, float>>[] qz = Enumerable.Range(0, jointCount)
+                .Select(_ => new List<Tuple<int, float>>()).ToArray();
+            List<Tuple<int, float>>[] qw = Enumerable.Range(0, jointCount)
+                .Select(_ => new List<Tuple<int, float>>()).ToArray();
 
             for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
             {
@@ -825,67 +825,38 @@ public static class CutSceneAIGeneratedPerformance
                 }
 
                 transforms[jointIndex] = transform;
-                referencePositions[jointIndex] = transform.localPosition;
                 referenceRotations[jointIndex] = transform.localRotation;
                 referenceComponents[jointIndex] =
                     ReferenceComponentRotation(animator, transform);
-                parentComponents[jointIndex] = ParentComponentRotation(
-                    referenceRotations[jointIndex],
-                    referenceComponents[jointIndex]);
             }
 
-            List<Tuple<int, float>> rootTx = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootTy = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootTz = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootQx = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootQy = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootQz = new List<Tuple<int, float>>();
-            List<Tuple<int, float>> rootQw = new List<Tuple<int, float>>();
-            List<Tuple<int, float>>[] muscles = Enumerable.Range(0, HumanTrait.MuscleCount)
-                .Select(_ => new List<Tuple<int, float>>()).ToArray();
-
-            using (HumanPoseHandler handler = new HumanPoseHandler(
-                animator.avatar, animator.avatarRoot))
+            foreach (BodyKeyframe frame in track.keyframes)
             {
-                HumanPose referencePose = SnapshotHumanPose(handler);
-                Vector3? firstBodyPosition = null;
-
-                foreach (BodyKeyframe frame in track.keyframes)
+                for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
                 {
-                    for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
-                    {
-                        Transform transform = transforms[jointIndex];
-                        if (transform == null) continue;
+                    if (transforms[jointIndex] == null) continue;
 
-                        transform.localPosition = referencePositions[jointIndex];
-                        Quaternion canonicalRotation =
-                            QuaternionValueOf(frame.joint_rotations[jointIndex]);
-                        if (jointIndex == 0)
-                            canonicalRotation = RemoveGroundHeading(canonicalRotation);
-                        transform.localRotation = RetargetRotation(
-                            referenceRotations[jointIndex],
-                            referenceComponents[jointIndex],
-                            canonicalRotation);
+                    Quaternion canonicalRotation =
+                        QuaternionValueOf(frame.joint_rotations[jointIndex]);
+                    if (jointIndex == 0)
+                        canonicalRotation = RemoveGroundHeading(canonicalRotation);
+                    Quaternion targetRotation = RetargetRotation(
+                        referenceRotations[jointIndex],
+                        referenceComponents[jointIndex],
+                        canonicalRotation);
 
-                    }
-
-                    HumanPose pose = SnapshotHumanPose(handler);
-                    if (!firstBodyPosition.HasValue)
-                        firstBodyPosition = pose.bodyPosition;
-                    Vector3 bodyDelta = pose.bodyPosition - firstBodyPosition.Value;
-                    int timelineFrame = frame.timeline_frame;
-                    rootTx.Add(Tuple.Create(timelineFrame, referencePose.bodyPosition.x));
-                    rootTy.Add(Tuple.Create(
-                        timelineFrame,
-                        referencePose.bodyPosition.y + bodyDelta.y));
-                    rootTz.Add(Tuple.Create(timelineFrame, referencePose.bodyPosition.z));
-                    rootQx.Add(Tuple.Create(timelineFrame, pose.bodyRotation.x));
-                    rootQy.Add(Tuple.Create(timelineFrame, pose.bodyRotation.y));
-                    rootQz.Add(Tuple.Create(timelineFrame, pose.bodyRotation.z));
-                    rootQw.Add(Tuple.Create(timelineFrame, pose.bodyRotation.w));
-                    for (int muscleIndex = 0; muscleIndex < HumanTrait.MuscleCount; muscleIndex++)
-                        muscles[muscleIndex].Add(
-                            Tuple.Create(timelineFrame, pose.muscles[muscleIndex]));
+                    qx[jointIndex].Add(Tuple.Create(
+                        frame.timeline_frame,
+                        targetRotation.x));
+                    qy[jointIndex].Add(Tuple.Create(
+                        frame.timeline_frame,
+                        targetRotation.y));
+                    qz[jointIndex].Add(Tuple.Create(
+                        frame.timeline_frame,
+                        targetRotation.z));
+                    qw[jointIndex].Add(Tuple.Create(
+                        frame.timeline_frame,
+                        targetRotation.w));
                 }
             }
 
@@ -893,20 +864,26 @@ public static class CutSceneAIGeneratedPerformance
                 name = Path.GetFileNameWithoutExtension(track.target_animation_path),
                 frameRate = fps,
             };
-            SetCurve(clip, "", typeof(Animator), "RootT.x", Keys(track.start_frame, fps, rootTx));
-            SetCurve(clip, "", typeof(Animator), "RootT.y", Keys(track.start_frame, fps, rootTy));
-            SetCurve(clip, "", typeof(Animator), "RootT.z", Keys(track.start_frame, fps, rootTz));
-            SetCurve(clip, "", typeof(Animator), "RootQ.x", Keys(track.start_frame, fps, rootQx));
-            SetCurve(clip, "", typeof(Animator), "RootQ.y", Keys(track.start_frame, fps, rootQy));
-            SetCurve(clip, "", typeof(Animator), "RootQ.z", Keys(track.start_frame, fps, rootQz));
-            SetCurve(clip, "", typeof(Animator), "RootQ.w", Keys(track.start_frame, fps, rootQw));
-            for (int muscleIndex = 0; muscleIndex < HumanTrait.MuscleCount; muscleIndex++)
+            for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
+            {
+                Transform transform = transforms[jointIndex];
+                if (transform == null) continue;
+                string path = AnimationUtility.CalculateTransformPath(
+                    transform,
+                    animator.transform);
                 SetCurve(
-                    clip,
-                    "",
-                    typeof(Animator),
-                    HumanTrait.MuscleName[muscleIndex],
-                    Keys(track.start_frame, fps, muscles[muscleIndex]));
+                    clip, path, typeof(Transform), "m_LocalRotation.x",
+                    Keys(track.start_frame, fps, qx[jointIndex]));
+                SetCurve(
+                    clip, path, typeof(Transform), "m_LocalRotation.y",
+                    Keys(track.start_frame, fps, qy[jointIndex]));
+                SetCurve(
+                    clip, path, typeof(Transform), "m_LocalRotation.z",
+                    Keys(track.start_frame, fps, qz[jointIndex]));
+                SetCurve(
+                    clip, path, typeof(Transform), "m_LocalRotation.w",
+                    Keys(track.start_frame, fps, qw[jointIndex]));
+            }
 
             clip.EnsureQuaternionContinuity();
             ValidateClipBindingPaths(clip, prefab, target);
@@ -1526,7 +1503,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "direct-target-bone-quaternion-v1+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
