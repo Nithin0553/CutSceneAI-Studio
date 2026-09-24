@@ -217,3 +217,44 @@ def test_diagnostic_reports_geometry_orientation_consistency_for_unmodified_moti
     assert metric.composed_max_forward_error_deg == pytest.approx(0.0)
     assert metric.raw_max_up_error_deg == pytest.approx(0.0)
     assert metric.composed_max_up_error_deg == pytest.approx(0.0)
+
+
+def test_diagnostic_detects_hidden_zero_step_freeze_at_phase_boundary() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    first = _request("body:scene:beat:guard:01:walk-freeze", 0, 3)
+    second = _request("body:scene:beat:guard:01:stop-freeze", 3, 6)
+
+    first_motion = _motion([0.0, 0.5, 1.0], [identity, identity, identity])
+    second_motion = _motion([1.0, 1.0, 1.0], [identity, identity, identity])
+    raw = {
+        first.semantic_id: _normalized(first, first_motion),
+        second.semantic_id: _normalized(second, second_motion),
+    }
+    plan = PerformanceGenerationPlan.model_construct(
+        project_id="diagnostic-fixture",
+        cir_fingerprint_sha256=_HASH,
+        fps=24,
+        duration_frames=6,
+        experiment_seed=1,
+        body_requests=[first, second],
+        facial_requests=[],
+        camera_requests=[],
+    )
+
+    diagnostic = diagnose_body_composition(
+        plan,
+        raw,
+        {
+            first.semantic_id: first_motion,
+            second.semantic_id: second_motion,
+        },
+    )
+    boundary = diagnostic.phase_boundaries[0]
+
+    assert boundary.geometry_pelvis_gap_m == pytest.approx(0.0)
+    assert boundary.previous_geometry_velocity_mps == pytest.approx(12.0)
+    assert boundary.boundary_geometry_velocity_mps == pytest.approx(0.0)
+    assert boundary.current_geometry_velocity_mps == pytest.approx(0.0)
+    assert boundary.previous_to_boundary_velocity_jump_mps == pytest.approx(12.0)
+    assert boundary.boundary_to_current_velocity_jump_mps == pytest.approx(0.0)
+    assert diagnostic.max_previous_to_boundary_velocity_jump_mps == pytest.approx(12.0)
