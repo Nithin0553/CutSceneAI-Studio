@@ -248,6 +248,41 @@ def main() -> int:
         plan.body_requests,
         key=lambda item: (item.start_frame, item.end_frame, item.semantic_id),
     )
+    locomotion_request = next(
+        (
+            item
+            for item in requests
+            if any(
+                token in item.semantic_id.lower()
+                for token in ("walk", "run", "jog", "advance", "approach")
+            )
+        ),
+        None,
+    )
+    locomotion_error: float | None = None
+    locomotion_displacement: Vector3 | None = None
+    if locomotion_request is not None:
+        locomotion = composed[locomotion_request.semantic_id].artifact
+        first_root = locomotion.samples[0].root_translation
+        final_root = locomotion.samples[-1].root_translation
+        local_displacement = Vector3(
+            x=final_root.x - first_root.x,
+            y=0.0,
+            z=final_root.z - first_root.z,
+        )
+        locomotion_actor = transforms[locomotion_request.actor_binding_id]
+        locomotion_displacement = _rotate(
+            locomotion_actor.rotation,
+            local_displacement,
+        )
+        expected_forward = _rotate(
+            locomotion_actor.rotation,
+            Vector3(x=0.0, y=0.0, z=-1.0),
+        )
+        locomotion_error = _angle_deg(
+            locomotion_displacement,
+            expected_forward,
+        )
     print("VERIFY_SOURCE=performance.bundle.zip" if args.verify_bundle else "VERIFY_SOURCE=recomposed-provider-outputs")
     print("TARGET_FACING_VERIFY=PASS" if facing_error <= 0.1 else "TARGET_FACING_VERIFY=FAIL")
     print(f"TURN_PHASE={turn_request.semantic_id}")
@@ -262,6 +297,19 @@ def main() -> int:
         f"{target_transform.position.z:.6f})"
     )
     print(f"FINAL_FACING_ERROR_DEG={facing_error:.9f}")
+    if (
+        locomotion_request is not None
+        and locomotion_error is not None
+        and locomotion_displacement is not None
+    ):
+        print(f"LOCOMOTION_PHASE={locomotion_request.semantic_id}")
+        print(
+            "LOCOMOTION_WORLD_DISPLACEMENT="
+            f"({locomotion_displacement.x:.6f},"
+            f"{locomotion_displacement.y:.6f},"
+            f"{locomotion_displacement.z:.6f})"
+        )
+        print(f"LOCOMOTION_FORWARD_ERROR_DEG={locomotion_error:.9f}")
 
     for previous_request, current_request in zip(requests, requests[1:], strict=False):
         previous = composed[previous_request.semantic_id].artifact.samples[-1]
@@ -294,7 +342,8 @@ def main() -> int:
         )
     print(f"HOLD_MAX_ROOT_DRIFT_M={max_root_drift:.9f}")
     print(f"HOLD_MAX_PELVIS_DRIFT_DEG={max_pelvis_drift:.9f}")
-    return 0 if facing_error <= 0.1 else 1
+    locomotion_ok = locomotion_error is None or locomotion_error <= 5.0
+    return 0 if facing_error <= 0.1 and locomotion_ok else 1
 
 
 if __name__ == "__main__":
