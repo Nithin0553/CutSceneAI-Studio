@@ -52,7 +52,6 @@ _COMMANDS_DIR = _STATE_DIR / "bridge-commands"
 _REVISIONS_DIR = _STATE_DIR / "cir-revisions"
 _MAX_DISCOVERED_ASSETS = 5000
 _BRIDGE_LEASE_TIMEOUT_SECONDS = 120
-_BRIDGE_SAME_AGENT_REDELIVERY_SECONDS = 3
 
 
 def _utc_now() -> str:
@@ -576,10 +575,12 @@ class StudioService:
                     changed = True
                     continue
                 if command.leased_to_agent_id == agent_id:
+                    # A lease is at-most-once until it expires. Native editor commands
+                    # can legitimately take tens of seconds while Unity imports assets;
+                    # redelivering an active lease re-executes non-idempotent importers
+                    # and races the original completion.
                     if changed:
                         self._save_bridge_commands(project_id, commands)
-                    if lease_age >= _BRIDGE_SAME_AGENT_REDELIVERY_SECONDS:
-                        return StudioBridgePollResponse(command=command)
                     return StudioBridgePollResponse(command=None)
 
         for index, command in enumerate(commands):
