@@ -1245,6 +1245,53 @@ public static class CutSceneAIGeneratedPerformance
         };
     }
 
+    private static bool TryAnatomicalBodyBasis(
+        Vector3 pelvis,
+        Vector3 leftHip,
+        Vector3 rightHip,
+        Vector3 spine,
+        out Quaternion basis)
+    {
+        basis = Quaternion.identity;
+        Vector3 xAxis = leftHip - rightHip;
+        Vector3 upSeed = spine - pelvis;
+        if (xAxis.sqrMagnitude <= 1e-12f || upSeed.sqrMagnitude <= 1e-12f)
+            return false;
+        xAxis.Normalize();
+        Vector3 up = upSeed - xAxis * Vector3.Dot(upSeed, xAxis);
+        if (up.sqrMagnitude <= 1e-12f)
+            return false;
+        up.Normalize();
+        Vector3 forward = Vector3.Cross(xAxis, up);
+        if (forward.sqrMagnitude <= 1e-12f)
+            return false;
+        forward.Normalize();
+        up = Vector3.Cross(forward, xAxis).normalized;
+        basis = Quaternion.LookRotation(forward, up);
+        return true;
+    }
+
+    private static Vector3 ComponentPosition(Animator animator, Transform transform)
+        => animator.avatarRoot.InverseTransformPoint(transform.position);
+
+    private static Quaternion AlignReferenceBoneToDirection(
+        Quaternion baseComponentRotation,
+        Vector3 referenceChildOffsetLocal,
+        Vector3 desiredDirectionComponent)
+    {
+        Vector3 baseDirection =
+            baseComponentRotation * referenceChildOffsetLocal;
+        if (
+            baseDirection.sqrMagnitude <= 1e-12f
+            || desiredDirectionComponent.sqrMagnitude <= 1e-12f)
+            throw new InvalidOperationException(
+                "Cannot align a zero-length target bone direction.");
+        Quaternion swing = Quaternion.FromToRotation(
+            baseDirection.normalized,
+            desiredDirectionComponent.normalized);
+        return swing * baseComponentRotation;
+    }
+
     private static bool TrySourceBendDirection(
         Vector3 root,
         Vector3 mid,
