@@ -92,6 +92,28 @@ def test_resampler_fits_exact_frame_window_and_preserves_endpoints() -> None:
     )
 
 
+def test_resampler_preserves_canonical_joint_geometry() -> None:
+    source = motion_artifact()
+    source.samples[0].joint_positions = [
+        Vector3(x=float(index), y=0.0, z=0.0)
+        for index in range(len(CANONICAL_HUMANOID_JOINTS))
+    ]
+    source.samples[1].joint_positions = [
+        Vector3(x=float(index) + 2.0, y=4.0, z=-2.0)
+        for index in range(len(CANONICAL_HUMANOID_JOINTS))
+    ]
+
+    result = resample_body_motion(source, target_fps=24, target_frame_count=3)
+
+    assert result.samples[1].joint_positions is not None
+    assert result.samples[1].joint_positions[0] == Vector3(x=1.0, y=2.0, z=-1.0)
+    assert result.samples[1].joint_positions[21] == Vector3(
+        x=22.0,
+        y=2.0,
+        z=-1.0,
+    )
+
+
 def test_resampler_uses_shortest_quaternion_path_and_linear_near_path() -> None:
     equivalent_identity = Quaternion(x=0.0, y=0.0, z=0.0, w=-1.0)
     source = motion_artifact(second_rotation=equivalent_identity)
