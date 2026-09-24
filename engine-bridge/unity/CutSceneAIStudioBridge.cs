@@ -482,6 +482,17 @@ public static class CutSceneAIStudioBridge
         if (payload == null)
             throw new InvalidOperationException("Managed importer payload is missing.");
 
+        // Scene-authoring importers use EditorSceneManager APIs, which Unity forbids
+        // while Play Mode is active. Exit Play Mode and leave the leased command
+        // incomplete so the bridge can retry it after the editor returns to Edit Mode.
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            if (EditorApplication.isPlaying)
+                EditorApplication.isPlaying = false;
+            throw new RetryLaterException(
+                "Unity was in Play Mode; exiting Play Mode before running the managed importer.");
+        }
+
         string typeName;
         string methodName;
         string message;
