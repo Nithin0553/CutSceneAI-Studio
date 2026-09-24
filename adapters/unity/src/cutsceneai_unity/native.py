@@ -1385,10 +1385,6 @@ public static class CutSceneAIGeneratedPerformance
         foreach (IGrouping<string, BodyTrack> actorGroup in mapping.body_tracks
             .GroupBy(item => item.actor_binding_id))
         {
-            BodyTrack template = actorGroup
-                .OrderBy(item => item.start_frame)
-                .ThenBy(item => item.semantic_id)
-                .First();
             ActorTarget actorTarget = ActorTargetFor(target, actorGroup.Key);
             GameObject prefab = LoadPrefab(actorTarget);
             Animator animator = AnimatorFor(prefab, actorTarget);
