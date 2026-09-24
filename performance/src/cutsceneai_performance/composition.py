@@ -74,6 +74,14 @@ def compose_body_sequence(
                     blend_frames=blend_frames,
                 )
 
+            if _is_locomotion(request) and scene_transforms is not None:
+                motion = _align_locomotion_root(
+                    motion,
+                    actor_binding_id=actor_binding_id,
+                    target_binding_id=request.target_binding_id,
+                    scene_transforms=scene_transforms,
+                )
+
             if _is_target_facing_turn(request) and scene_transforms is not None:
                 motion = _constrain_turn_to_target(
                     motion,
@@ -165,6 +173,121 @@ def _atomic_action_text(request: BodyGenerationRequest) -> str:
         flags=re.IGNORECASE | re.DOTALL,
     )
     return (match.group(1) if match is not None else request.prompt).lower()
+
+
+def _is_locomotion(request: BodyGenerationRequest) -> bool:
+    text = _atomic_action_text(request)
+    if any(token in text for token in ("stop", "halt", "stand", "hold", "listen")):
+        return False
+    return any(
+        token in text
+        for token in ("walk", "run", "jog", "advance", "approach", "proceed")
+    )
+
+
+def _align_locomotion_root(
+    motion: BodyMotionArtifact,
+    *,
+    actor_binding_id: str,
+    target_binding_id: str | None,
+    scene_transforms: Mapping[str, CanonicalSceneTransform],
+) -> BodyMotionArtifact:
+    """Rotate provider root travel onto the scene-intended locomotion heading.
+
+    Body pose is intentionally left unchanged. HumanML clips can contain a plausible
+    forward-walking pose while their reconstructed root trajectory points backward.
+    Scene-conditioned composition owns spatial travel, so it rotates only the root
+    path around the phase entry point while preserving distance, vertical motion,
+    and all joint rotations.
+    """
+
+    first = motion.samples[0].root_translation
+    final = motion.samples[-1].root_translation
+    displacement = Vector3(
+        x=final.x - first.x,
+        y=0.0,
+        z=final.z - first.z,
+    )
+    distance = math.hypot(displacement.x, displacement.z)
+    if distance <= _EPSILON:
+        return motion
+
+    current = _normalize_ground_direction(
+        displacement,
+        label=f"locomotion displacement '{actor_binding_id}'",
+    )
+    desired = _CANONICAL_FORWARD
+
+    if target_binding_id is not None:
+        try:
+            actor_transform = scene_transforms[actor_binding_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"Missing canonical scene transform for actor '{actor_binding_id}'."
+            ) from exc
+        try:
+            target_transform = scene_transforms[target_binding_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"Missing canonical scene transform for target '{target_binding_id}'."
+            ) from exc
+
+        entry_world_offset = _rotate_vector(actor_transform.rotation, first)
+        entry_world = Vector3(
+            x=actor_transform.position.x + entry_world_offset.x,
+            y=actor_transform.position.y + entry_world_offset.y,
+            z=actor_transform.position.z + entry_world_offset.z,
+        )
+        world_target_direction = Vector3(
+            x=target_transform.position.x - entry_world.x,
+            y=0.0,
+            z=target_transform.position.z - entry_world.z,
+        )
+        desired = _rotate_vector(
+            invert_quaternion(actor_transform.rotation),
+            world_target_direction,
+        )
+        desired = _normalize_ground_direction(
+            Vector3(x=desired.x, y=0.0, z=desired.z),
+            label=f"locomotion target direction '{target_binding_id}'",
+        )
+
+    dot = max(-1.0, min(1.0, current.x * desired.x + current.z * desired.z))
+    cross_y = current.z * desired.x - current.x * desired.z
+    yaw = math.atan2(cross_y, dot)
+    if abs(yaw) <= _EPSILON:
+        return motion
+
+    half = yaw / 2.0
+    correction = Quaternion(
+        x=0.0,
+        y=math.sin(half),
+        z=0.0,
+        w=math.cos(half),
+    )
+
+    samples: list[BodyMotionSample] = []
+    for sample in motion.samples:
+        delta = Vector3(
+            x=sample.root_translation.x - first.x,
+            y=0.0,
+            z=sample.root_translation.z - first.z,
+        )
+        rotated = _rotate_vector(correction, delta)
+        samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": Vector3(
+                        x=first.x + rotated.x,
+                        y=sample.root_translation.y,
+                        z=first.z + rotated.z,
+                    )
+                },
+                deep=True,
+            )
+        )
+
+    return motion.model_copy(update={"samples": samples}, deep=True)
 
 
 def _is_target_facing_turn(request: BodyGenerationRequest) -> bool:
