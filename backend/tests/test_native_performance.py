@@ -254,6 +254,15 @@ def test_verified_performance_run_stages_native_unity_importer(
     assert 'version.StartsWith("6000.3"' in source
     assert "foreach (ActorPlan actorPlan in plan.sequences.Single().actors)" in source
     assert "GameObject.CreatePrimitive(primitive)" in source
+    runtime = (
+        Path(record.project_path)
+        / "Assets/CutSceneAI/Runtime/CutSceneAIBodyStreamDriver.cs"
+    )
+    assert runtime.exists()
+    runtime_source = runtime.read_text(encoding="utf-8")
+    assert "public sealed class CutSceneAIBodyStreamDriver" in runtime_source
+    assert "AnimationScriptPlayable.Create" in runtime_source
+    assert "SetLocalRotation" in runtime_source
 
     plan_match = re.search(r'private const string PlanBase64 = "([^"]+)";', source)
     assert plan_match is not None
