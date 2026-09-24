@@ -134,6 +134,8 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "AnimatorComponentFor",
         "animator.avatar = null",
         "animator.runtimeAnimatorController = null",
+        "animator.Rebind()",
+        "animator.Update(0.0f)",
         "ResolveBodyTransforms",
         "not-applicable-direct-bone",
         "canonical_reference_direction",
