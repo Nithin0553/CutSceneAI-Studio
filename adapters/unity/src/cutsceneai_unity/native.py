@@ -1417,6 +1417,170 @@ public static class CutSceneAIGeneratedPerformance
         }
     }
 
+    private static CutSceneAIBodyStreamDriver ConfigureBodyStreamDriver(
+        GameObject actor,
+        ActorTarget actorTarget,
+        BodyTrack[] tracks,
+        PlayableDirector director,
+        int fps)
+    {
+        if (tracks == null || tracks.Length == 0)
+            throw new InvalidOperationException(
+                "Body stream driver requires at least one body track.");
+
+        BodyTrack template = tracks
+            .OrderBy(item => item.start_frame)
+            .ThenBy(item => item.semantic_id)
+            .First();
+        for (int trackIndex = 0; trackIndex < tracks.Length; trackIndex++)
+        {
+            BodyTrack candidate = tracks[trackIndex];
+            if (candidate.joint_bindings.Length != template.joint_bindings.Length)
+                throw new InvalidOperationException(
+                    "Body tracks for one actor use different joint maps.");
+            for (int jointIndex = 0; jointIndex < template.joint_bindings.Length; jointIndex++)
+            {
+                JointBinding expected = template.joint_bindings[jointIndex];
+                JointBinding actual = candidate.joint_bindings[jointIndex];
+                if (
+                    actual.source_joint_name != expected.source_joint_name
+                    || actual.target_human_bone != expected.target_human_bone
+                    || actual.parent_index != expected.parent_index)
+                    throw new InvalidOperationException(
+                        "Body tracks for one actor use incompatible joint bindings.");
+            }
+        }
+
+        GameObject prefab = LoadPrefab(actorTarget);
+        Animator prefabAnimator = AnimatorFor(prefab, actorTarget);
+        Animator actorAnimator = AnimatorComponentFor(actor, actorTarget);
+        int jointCount = template.joint_bindings.Length;
+        Transform[] prefabTransforms = new Transform[jointCount];
+        Quaternion[] referenceRotations = new Quaternion[jointCount];
+        Quaternion[] referenceComponents = new Quaternion[jointCount];
+        Quaternion[] canonicalToTargetParentBases = Enumerable
+            .Range(0, jointCount)
+            .Select(_ => Quaternion.identity)
+            .ToArray();
+
+        List<int> mappedJointIndices = new List<int>();
+        List<Transform> actorJoints = new List<Transform>();
+        for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
+        {
+            JointBinding binding = template.joint_bindings[jointIndex];
+            HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
+                typeof(HumanBodyBones),
+                binding.target_human_bone);
+            Transform prefabBone = prefabAnimator.GetBoneTransform(bone);
+            if (prefabBone == null)
+            {
+                if (IsRequiredHumanoidBone(bone))
+                    throw new InvalidOperationException(
+                        "Required Humanoid bone is not mapped: "
+                        + binding.target_human_bone);
+                continue;
+            }
+
+            string path = AnimationUtility.CalculateTransformPath(
+                prefabBone,
+                prefabAnimator.transform);
+            Transform actorBone = string.IsNullOrEmpty(path)
+                ? actorAnimator.transform
+                : actorAnimator.transform.Find(path);
+            if (actorBone == null)
+                throw new InvalidOperationException(
+                    "Realized target bone path is missing: "
+                    + binding.source_joint_name + " -> " + path);
+
+            prefabTransforms[jointIndex] = prefabBone;
+            referenceRotations[jointIndex] = prefabBone.localRotation;
+            referenceComponents[jointIndex] =
+                ReferenceComponentRotation(prefabAnimator, prefabBone);
+            mappedJointIndices.Add(jointIndex);
+            actorJoints.Add(actorBone);
+        }
+
+        for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
+        {
+            if (prefabTransforms[jointIndex] == null)
+                continue;
+            int childIndex = CanonicalPrimaryChildIndex(jointIndex);
+            Transform child =
+                childIndex >= 0
+                && childIndex < jointCount
+                ? prefabTransforms[childIndex]
+                : null;
+            canonicalToTargetParentBases[jointIndex] =
+                CanonicalToTargetParentBasis(
+                    CanonicalReferenceDirectionUnity(jointIndex),
+                    TargetReferenceDirectionParentLocal(
+                        prefabAnimator,
+                        prefabTransforms[jointIndex],
+                        child,
+                        referenceRotations[jointIndex],
+                        referenceComponents[jointIndex]),
+                    referenceRotations[jointIndex],
+                    referenceComponents[jointIndex]);
+        }
+
+        Dictionary<int, CutSceneAIBodyStreamDriver.PoseFrame> frameByTimelineFrame =
+            new Dictionary<int, CutSceneAIBodyStreamDriver.PoseFrame>();
+        foreach (BodyTrack track in tracks
+            .OrderBy(item => item.start_frame)
+            .ThenBy(item => item.semantic_id))
+        {
+            foreach (BodyKeyframe frame in track.keyframes)
+            {
+                Quaternion[] rotations = new Quaternion[mappedJointIndices.Count];
+                for (int mappedIndex = 0; mappedIndex < mappedJointIndices.Count; mappedIndex++)
+                {
+                    int jointIndex = mappedJointIndices[mappedIndex];
+                    Quaternion canonicalRotation =
+                        QuaternionValueOf(frame.joint_rotations[jointIndex]);
+                    if (jointIndex == 0)
+                        canonicalRotation = RemoveGroundHeading(canonicalRotation);
+                    rotations[mappedIndex] = RetargetRotation(
+                        referenceRotations[jointIndex],
+                        canonicalToTargetParentBases[jointIndex],
+                        canonicalRotation);
+                }
+                frameByTimelineFrame[frame.timeline_frame] =
+                    new CutSceneAIBodyStreamDriver.PoseFrame {
+                        timeline_frame = frame.timeline_frame,
+                        local_rotations = rotations,
+                    };
+            }
+        }
+
+        CutSceneAIBodyStreamDriver driver =
+            actor.GetComponent<CutSceneAIBodyStreamDriver>();
+        if (driver == null)
+            driver = actor.AddComponent<CutSceneAIBodyStreamDriver>();
+        driver.animator = actorAnimator;
+        driver.director = director;
+        driver.fps = fps;
+        driver.joints = actorJoints.ToArray();
+        driver.frames = frameByTimelineFrame
+            .OrderBy(item => item.Key)
+            .Select(item => item.Value)
+            .ToArray();
+        driver.RebuildGraph();
+        return driver;
+    }
+
+    private static void EvaluateBodyStreamDrivers(
+        PlayableDirector director,
+        double time)
+    {
+        foreach (CutSceneAIBodyStreamDriver driver in
+            UnityEngine.Object.FindObjectsByType<CutSceneAIBodyStreamDriver>(
+                FindObjectsSortMode.None))
+        {
+            if (driver.director == director)
+                driver.EvaluateAtTime(time);
+        }
+    }
+
     private static Dictionary<string, Quaternion> ReferenceBodyLocalRotations(
         ActorTarget actorTarget,
         BodyTrack track)
@@ -1494,6 +1658,7 @@ public static class CutSceneAIGeneratedPerformance
 
             director.time = (double)frame / mapping.fps;
             director.Evaluate();
+            EvaluateBodyStreamDrivers(director, director.time);
             Physics.SyncTransforms();
 
             ActorTarget actorTarget = ActorTargetFor(target, active.actor_binding_id);
@@ -1604,6 +1769,7 @@ public static class CutSceneAIGeneratedPerformance
         }
         director.time = 0.0;
         director.Evaluate();
+        EvaluateBodyStreamDrivers(director, director.time);
         Physics.SyncTransforms();
         return new BodyRealizationDiagnostic {
             diagnostic_version = "0.1.0",
@@ -1840,8 +2006,9 @@ public static class CutSceneAIGeneratedPerformance
                 actorAnimator.Rebind();
                 actorAnimator.Update(0.0f);
             }
-            director.SetGenericBinding(rootTrack, actorAnimator);
-
+            // Body clips remain on Timeline as semantic/readback evidence only.
+            // Runtime skeletal realization is owned exclusively by
+            // CutSceneAIBodyStreamDriver through Unity's AnimationStream.
             actors.Add(actorTarget.actor_binding_id, instance);
             motionRoots.Add(actorTarget.actor_binding_id, motionRoot);
             motionRootTracks.Add(actorTarget.actor_binding_id, motionTrack);
@@ -1880,6 +2047,18 @@ public static class CutSceneAIGeneratedPerformance
             ApplyActorTransform(instance, actorPlan);
             actors.Add(actorPlan.binding_id, instance);
         }
+        foreach (IGrouping<string, BodyTrack> actorTracks in mapping.body_tracks
+            .GroupBy(item => item.actor_binding_id))
+        {
+            string actorBindingId = actorTracks.Key;
+            ConfigureBodyStreamDriver(
+                actors[actorBindingId],
+                ActorTargetFor(target, actorBindingId),
+                actorTracks.ToArray(),
+                director,
+                mapping.fps);
+        }
+
         foreach (BodyTrack body in mapping.body_tracks)
         {
             ActorTarget actorTarget = ActorTargetFor(target, body.actor_binding_id);
@@ -1977,7 +2156,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "rest-direction-parent-basis-v1+direct-target-bone-quaternion-v3-generic-avatar+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "rest-direction-parent-basis-v1+animation-stream-body-v1+generic-avatar+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
@@ -2082,7 +2261,9 @@ public static class CutSceneAIGeneratedPerformance
         {
             for (int frame = 0; frame < mapping.duration_frames; frame++)
             {
-                director.time = (double)frame / mapping.fps; director.Evaluate();
+                director.time = (double)frame / mapping.fps;
+                director.Evaluate();
+                EvaluateBodyStreamDrivers(director, director.time);
                 Camera[] active = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)
                     .Where(item => item.gameObject.activeInHierarchy
                         && item.enabled
