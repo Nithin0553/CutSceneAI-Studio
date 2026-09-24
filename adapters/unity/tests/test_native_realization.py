@@ -151,7 +151,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "rootTrack.trackOffset = TrackOffset.ApplySceneOffsets",
         "referencePose.bodyPosition.y + bodyDelta.y",
         "bodyPlayable.removeStartOffset = true",
-        "bodyPlayable.applyFootIK = true",
+        "bodyPlayable.applyFootIK = false",
         "CaptureBodyRealizationDiagnostic",
         "body-realization-diagnostic.json",
         "GroundClearance",
