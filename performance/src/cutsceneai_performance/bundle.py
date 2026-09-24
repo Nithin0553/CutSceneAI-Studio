@@ -73,7 +73,7 @@ class DialogueAudioArtifact:
     data: bytes
 
 
-def _canonical_scene_transforms(
+def canonical_scene_transforms(
     project: Project,
 ) -> dict[str, CanonicalSceneTransform]:
     semantics = compile_semantics(project)
@@ -310,7 +310,7 @@ def assemble_performance_bundle(
             f"CIR project '{project.id}' does not match performance plan '{plan.project_id}'."
         )
     scene_transforms = (
-        _canonical_scene_transforms(project)
+        canonical_scene_transforms(project)
         if project is not None
         else None
     )
