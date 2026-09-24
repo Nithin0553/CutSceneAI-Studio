@@ -44,6 +44,11 @@ class BodyPhaseBoundaryMetric(PerformanceModel):
     max_joint_position_gap_m: float | None = None
     root_velocity_jump_mps: float | None = None
     geometry_pelvis_velocity_jump_mps: float | None = None
+    previous_geometry_velocity_mps: float | None = None
+    boundary_geometry_velocity_mps: float | None = None
+    current_geometry_velocity_mps: float | None = None
+    previous_to_boundary_velocity_jump_mps: float | None = None
+    boundary_to_current_velocity_jump_mps: float | None = None
     pelvis_rotation_gap_deg: float
 
 
@@ -58,6 +63,8 @@ class BodyCompositionDiagnostic(PerformanceModel):
     max_boundary_geometry_pelvis_gap_m: float | None = None
     max_boundary_joint_position_gap_m: float | None = None
     max_boundary_geometry_velocity_jump_mps: float | None = None
+    max_previous_to_boundary_velocity_jump_mps: float | None = None
+    max_boundary_to_current_velocity_jump_mps: float | None = None
 
 
 def diagnose_body_composition(
@@ -111,6 +118,16 @@ def diagnose_body_composition(
         for item in phase_boundaries
         if item.geometry_pelvis_velocity_jump_mps is not None
     ]
+    previous_to_boundary_values = [
+        item.previous_to_boundary_velocity_jump_mps
+        for item in phase_boundaries
+        if item.previous_to_boundary_velocity_jump_mps is not None
+    ]
+    boundary_to_current_values = [
+        item.boundary_to_current_velocity_jump_mps
+        for item in phase_boundaries
+        if item.boundary_to_current_velocity_jump_mps is not None
+    ]
 
     return BodyCompositionDiagnostic(
         fps=plan.fps,
@@ -125,6 +142,14 @@ def diagnose_body_composition(
         max_boundary_joint_position_gap_m=max(joint_gap_values, default=None),
         max_boundary_geometry_velocity_jump_mps=max(
             geometry_velocity_values,
+            default=None,
+        ),
+        max_previous_to_boundary_velocity_jump_mps=max(
+            previous_to_boundary_values,
+            default=None,
+        ),
+        max_boundary_to_current_velocity_jump_mps=max(
+            boundary_to_current_values,
             default=None,
         ),
     )
@@ -282,6 +307,11 @@ def _boundary_metrics(
                 fps=plan.fps,
                 use_geometry=True,
             )
+            geometry_velocity_triplet = _boundary_geometry_velocities(
+                previous,
+                current,
+                fps=plan.fps,
+            )
             result.append(
                 BodyPhaseBoundaryMetric(
                     actor_binding_id=actor_binding_id,
@@ -296,6 +326,31 @@ def _boundary_metrics(
                     max_joint_position_gap_m=max_joint_gap,
                     root_velocity_jump_mps=root_velocity_jump,
                     geometry_pelvis_velocity_jump_mps=geometry_velocity_jump,
+                    previous_geometry_velocity_mps=(
+                        geometry_velocity_triplet[0]
+                        if geometry_velocity_triplet is not None
+                        else None
+                    ),
+                    boundary_geometry_velocity_mps=(
+                        geometry_velocity_triplet[1]
+                        if geometry_velocity_triplet is not None
+                        else None
+                    ),
+                    current_geometry_velocity_mps=(
+                        geometry_velocity_triplet[2]
+                        if geometry_velocity_triplet is not None
+                        else None
+                    ),
+                    previous_to_boundary_velocity_jump_mps=(
+                        geometry_velocity_triplet[3]
+                        if geometry_velocity_triplet is not None
+                        else None
+                    ),
+                    boundary_to_current_velocity_jump_mps=(
+                        geometry_velocity_triplet[4]
+                        if geometry_velocity_triplet is not None
+                        else None
+                    ),
                     pelvis_rotation_gap_deg=_quaternion_angle_deg(
                         previous_end.joint_rotations[0],
                         current_start.joint_rotations[0],
@@ -303,6 +358,55 @@ def _boundary_metrics(
                 )
             )
     return result
+
+
+def _boundary_geometry_velocities(
+    previous: BodyMotionArtifact,
+    current: BodyMotionArtifact,
+    *,
+    fps: int,
+) -> tuple[float, float, float, float, float] | None:
+    if previous.frame_count < 2 or current.frame_count < 2:
+        return None
+    if (
+        previous.samples[-2].joint_positions is None
+        or previous.samples[-1].joint_positions is None
+        or current.samples[0].joint_positions is None
+        or current.samples[1].joint_positions is None
+    ):
+        return None
+
+    previous_velocity = _scale(
+        _subtract(
+            previous.samples[-1].joint_positions[0],
+            previous.samples[-2].joint_positions[0],
+        ),
+        float(fps),
+    )
+    boundary_velocity = _scale(
+        _subtract(
+            current.samples[0].joint_positions[0],
+            previous.samples[-1].joint_positions[0],
+        ),
+        float(fps),
+    )
+    current_velocity = _scale(
+        _subtract(
+            current.samples[1].joint_positions[0],
+            current.samples[0].joint_positions[0],
+        ),
+        float(fps),
+    )
+    previous_speed = math.sqrt(_dot(previous_velocity, previous_velocity))
+    boundary_speed = math.sqrt(_dot(boundary_velocity, boundary_velocity))
+    current_speed = math.sqrt(_dot(current_velocity, current_velocity))
+    return (
+        previous_speed,
+        boundary_speed,
+        current_speed,
+        _distance(previous_velocity, boundary_velocity),
+        _distance(boundary_velocity, current_velocity),
+    )
 
 
 def _velocity_jump(
