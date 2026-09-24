@@ -530,6 +530,13 @@ public static class CutSceneAIGeneratedPerformance
             .Distinct()
             .ToArray();
 
+    private static bool IsManagedGeneratedAssetPath(string path)
+        => !string.IsNullOrEmpty(path)
+            && path.StartsWith(
+                "Assets/CutSceneAI/Studio/Run_",
+                StringComparison.Ordinal)
+            && !path.Contains("..");
+
     private static void CleanupGeneratedAssets(IEnumerable<string> paths)
     {
         foreach (string path in paths.Reverse())
@@ -564,8 +571,15 @@ public static class CutSceneAIGeneratedPerformance
         if (generatedAssets.Distinct().Count() != generatedAssets.Length)
             throw new InvalidOperationException("Native target contains duplicate generated asset paths.");
         foreach (string path in generatedAssets)
-            if (AssetDatabase.LoadMainAssetAtPath(path) != null || File.Exists(AbsoluteAssetPath(path)))
-                throw new InvalidOperationException("Refusing to replace existing generated asset: " + path);
+        {
+            bool exists =
+                AssetDatabase.LoadMainAssetAtPath(path) != null
+                || File.Exists(AbsoluteAssetPath(path));
+            if (exists && !IsManagedGeneratedAssetPath(path))
+                throw new InvalidOperationException(
+                    "Refusing to replace existing generated asset outside the managed CutSceneAI run namespace: "
+                    + path);
+        }
 
         if (!string.IsNullOrEmpty(target.source_scene_asset_path))
         {
@@ -1518,6 +1532,7 @@ public static class CutSceneAIGeneratedPerformance
         Plan plan = LoadPlan(); Mapping mapping = LoadMapping(); Target target = LoadTarget();
         Preflight(plan, mapping, target);
         string[] generatedAssets = GeneratedAssetPaths(mapping, target);
+        CleanupGeneratedAssets(generatedAssets);
         try
         {
             ImportCore(plan, mapping, target);
