@@ -341,6 +341,19 @@ public static class CutSceneAIGeneratedPerformance
     private static int Frame(double seconds, int fps) => (int)Math.Round(seconds * fps, MidpointRounding.AwayFromZero);
     private static Vector3 Vector(VectorValue value) => new Vector3(value.x, value.y, value.z);
     private static Quaternion QuaternionValueOf(QuaternionValue value) => new Quaternion(value.x, value.y, value.z, value.w);
+
+    private static Quaternion GroundHeading(Quaternion rotation)
+    {
+        // Canonical -Z forward becomes Unity +Z after handedness conversion.
+        Vector3 forward = rotation * Vector3.forward;
+        forward.y = 0.0f;
+        if (forward.sqrMagnitude <= 1e-10f)
+            return Quaternion.identity;
+        return Quaternion.LookRotation(forward.normalized, Vector3.up);
+    }
+
+    private static Quaternion RemoveGroundHeading(Quaternion rotation)
+        => Quaternion.Inverse(GroundHeading(rotation)) * rotation;
     private static VectorValue VectorData(Vector3 value) => new VectorValue { x = value.x, y = value.y, z = value.z };
     private static QuaternionValue QuaternionData(Quaternion value) => new QuaternionValue { x = value.x, y = value.y, z = value.z, w = value.w };
 
@@ -814,10 +827,14 @@ public static class CutSceneAIGeneratedPerformance
                         if (transform == null) continue;
 
                         transform.localPosition = referencePositions[jointIndex];
+                        Quaternion canonicalRotation =
+                            QuaternionValueOf(frame.joint_rotations[jointIndex]);
+                        if (jointIndex == 0)
+                            canonicalRotation = RemoveGroundHeading(canonicalRotation);
                         transform.localRotation = RetargetRotation(
                             referenceRotations[jointIndex],
                             referenceComponents[jointIndex],
-                            QuaternionValueOf(frame.joint_rotations[jointIndex]));
+                            canonicalRotation);
 
                     }
 
@@ -1011,6 +1028,34 @@ public static class CutSceneAIGeneratedPerformance
                     frame => Tuple.Create(
                         frame.timeline_frame,
                         frame.root_position_m.z))));
+
+        List<Tuple<int, float>> headingQx = new List<Tuple<int, float>>();
+        List<Tuple<int, float>> headingQy = new List<Tuple<int, float>>();
+        List<Tuple<int, float>> headingQz = new List<Tuple<int, float>>();
+        List<Tuple<int, float>> headingQw = new List<Tuple<int, float>>();
+        foreach (BodyKeyframe frame in track.keyframes)
+        {
+            Quaternion heading = GroundHeading(
+                QuaternionValueOf(frame.joint_rotations[0]));
+            headingQx.Add(Tuple.Create(frame.timeline_frame, heading.x));
+            headingQy.Add(Tuple.Create(frame.timeline_frame, heading.y));
+            headingQz.Add(Tuple.Create(frame.timeline_frame, heading.z));
+            headingQw.Add(Tuple.Create(frame.timeline_frame, heading.w));
+        }
+        SetCurve(
+            clip, "", typeof(Transform), "m_LocalRotation.x",
+            Keys(track.start_frame, fps, headingQx));
+        SetCurve(
+            clip, "", typeof(Transform), "m_LocalRotation.y",
+            Keys(track.start_frame, fps, headingQy));
+        SetCurve(
+            clip, "", typeof(Transform), "m_LocalRotation.z",
+            Keys(track.start_frame, fps, headingQz));
+        SetCurve(
+            clip, "", typeof(Transform), "m_LocalRotation.w",
+            Keys(track.start_frame, fps, headingQw));
+        clip.EnsureQuaternionContinuity();
+
         string path = MotionRootAnimationPath(track);
         EnsureFolder(path);
         AssetDatabase.CreateAsset(clip, path);
@@ -1169,7 +1214,10 @@ public static class CutSceneAIGeneratedPerformance
                 body.start_frame,
                 body.end_frame,
                 mapping.fps);
-            ((AnimationPlayableAsset)bodyClip.asset).removeStartOffset = false;
+            AnimationPlayableAsset bodyPlayable =
+                (AnimationPlayableAsset)bodyClip.asset;
+            bodyPlayable.removeStartOffset = true;
+            bodyPlayable.applyFootIK = true;
         }
         foreach (FaceTrack face in mapping.facial_tracks)
         {
@@ -1217,7 +1265,7 @@ public static class CutSceneAIGeneratedPerformance
         Directory.CreateDirectory(evidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v1",
+            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v2",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
