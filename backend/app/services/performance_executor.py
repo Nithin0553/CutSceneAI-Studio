@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 import uuid
 
+from cutsceneai_cir import Project
 from cutsceneai_dialogue import DialogueEngine
 from cutsceneai_performance import (
     BodyCompositionDiagnostic,
@@ -17,6 +18,8 @@ from cutsceneai_performance import (
     PerformanceGenerationPlan,
     ProviderArtifact,
     assemble_performance_bundle,
+    canonical_scene_transforms,
+    compose_body_sequence,
     decode_performance_bundle,
     diagnose_body_composition,
     compile_generation_plan,
@@ -417,24 +420,20 @@ class StudioPerformanceExecutor:
             raise ValueError("Performance bundle SHA-256 no longer matches its run record.")
         return data
 
-    def body_composition_diagnostic(self, run_id: str) -> BodyCompositionDiagnostic:
-        record = self.get_run(run_id)
-        if record.status is not PerformanceRunStatus.SUCCEEDED:
-            raise ValueError(
-                "Body composition diagnostic is unavailable because the run did not succeed."
-            )
+    def _raw_normalized_body_outputs(
+        self,
+        run_id: str,
+        plan: PerformanceGenerationPlan,
+    ) -> dict[str, Any]:
         run_dir = self.run_root / _safe_run_id(run_id)
-        bundle = load_performance_bundle(self.bundle_bytes(run_id))
-        decoded = decode_performance_bundle(bundle)
         request_by_id = {
-            request.semantic_id: request for request in bundle.plan.body_requests
+            request.semantic_id: request for request in plan.body_requests
         }
-
         output_dir = run_dir / "body-provider-outputs"
         if not output_dir.is_dir():
             raise ValueError("Performance run is missing persisted body provider outputs.")
 
-        raw_normalized = {}
+        raw_normalized: dict[str, Any] = {}
         for metadata_path in sorted(output_dir.glob("*.metadata.json")):
             try:
                 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -476,8 +475,27 @@ class StudioPerformanceExecutor:
             raw_normalized[semantic_id] = normalize_body_output(
                 request_by_id[semantic_id],
                 provider_output,
-                target_fps=bundle.plan.fps,
+                target_fps=plan.fps,
             )
+
+        missing = sorted(set(request_by_id) - set(raw_normalized))
+        if missing:
+            raise ValueError(
+                "Performance run is missing persisted body provider outputs: "
+                + ", ".join(missing)
+            )
+        return raw_normalized
+
+    def body_composition_diagnostic(self, run_id: str) -> BodyCompositionDiagnostic:
+        record = self.get_run(run_id)
+        if record.status is not PerformanceRunStatus.SUCCEEDED:
+            raise ValueError(
+                "Body composition diagnostic is unavailable because the run did not succeed."
+            )
+        run_dir = self.run_root / _safe_run_id(run_id)
+        bundle = load_performance_bundle(self.bundle_bytes(run_id))
+        decoded = decode_performance_bundle(bundle)
+        raw_normalized = self._raw_normalized_body_outputs(run_id, bundle.plan)
 
         diagnostic = diagnose_body_composition(
             bundle.plan,
@@ -486,6 +504,45 @@ class StudioPerformanceExecutor:
         )
         self._write_json(
             run_dir / "body-composition-diagnostic.json",
+            diagnostic.model_dump(mode="json"),
+        )
+        return diagnostic
+
+    def body_composition_preview(self, run_id: str) -> BodyCompositionDiagnostic:
+        record = self.get_run(run_id)
+        if record.status is not PerformanceRunStatus.SUCCEEDED:
+            raise ValueError(
+                "Body composition preview is unavailable because the run did not succeed."
+            )
+        run_dir = self.run_root / _safe_run_id(run_id)
+        bundle = load_performance_bundle(self.bundle_bytes(run_id))
+        raw_normalized = self._raw_normalized_body_outputs(run_id, bundle.plan)
+
+        input_path = run_dir / "input.cir.json"
+        if not input_path.is_file():
+            raise ValueError("Performance run is missing its scene-conditioned CIR input.")
+        try:
+            project = Project.model_validate_json(input_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError("Performance run scene-conditioned CIR is unreadable.") from exc
+        if project.id != bundle.plan.project_id:
+            raise ValueError("Performance run CIR no longer matches its generation plan.")
+
+        recomposed = compose_body_sequence(
+            bundle.plan.body_requests,
+            raw_normalized,
+            scene_transforms=canonical_scene_transforms(project),
+        )
+        diagnostic = diagnose_body_composition(
+            bundle.plan,
+            raw_normalized,
+            {
+                semantic_id: normalized.artifact
+                for semantic_id, normalized in recomposed.items()
+            },
+        )
+        self._write_json(
+            run_dir / "body-composition-preview.json",
             diagnostic.model_dump(mode="json"),
         )
         return diagnostic
