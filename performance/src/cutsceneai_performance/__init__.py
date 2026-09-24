@@ -13,6 +13,7 @@ from .bundle import (
     decode_performance_bundle,
     load_performance_bundle,
     render_performance_bundle,
+    replace_body_artifacts,
     verify_performance_bundle,
 )
 from .camera import (
@@ -243,6 +244,7 @@ __all__ = [
     "render_generation_plan_json_schema",
     "render_native_evidence_collector_script",
     "render_performance_bundle",
+    "replace_body_artifacts",
     "render_performance_package",
     "render_performance_package_json_schema",
     "resample_body_motion",
