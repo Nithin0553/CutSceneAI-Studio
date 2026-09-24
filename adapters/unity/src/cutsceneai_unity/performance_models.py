@@ -71,8 +71,8 @@ class UnityGeneratedBodyTrack(UnityGeneratedTrack):
     source_performance_cue_id: str
     source_skeleton_profile: Literal["cutsceneai-humanoid-v1"]
     target_rig_profile: Literal["unity-humanoid-v1"] = "unity-humanoid-v1"
-    root_translation_space: Literal["target-reference-pose-offset"] = (
-        "target-reference-pose-offset"
+    root_translation_space: Literal["actor-motion-root-local-offset"] = (
+        "actor-motion-root-local-offset"
     )
     rotation_space: Literal["target-reference-pose-relative-parent-local"] = (
         "target-reference-pose-relative-parent-local"
