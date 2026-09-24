@@ -2392,6 +2392,16 @@ public static class CutSceneAIGeneratedPerformance
     private static void ImportCore(Plan plan, Mapping mapping, Target target)
     {
         CaptureRetargetProfile(mapping, target);
+        LegGeometrySolverDiagnostic legGeometry =
+            CaptureLegGeometrySolverDiagnostic(mapping, target);
+        string preflightEvidenceRoot = EvidenceRoot(target);
+        Directory.CreateDirectory(preflightEvidenceRoot);
+        File.WriteAllText(
+            Path.Combine(
+                preflightEvidenceRoot,
+                "leg-geometry-solver-diagnostic.json"),
+            JsonUtility.ToJson(legGeometry, true),
+            new UTF8Encoding(false));
         Scene scene = CreateRealizationScene(target);
         GameObject root = new GameObject("CutSceneAI_" + mapping.source_scene_id);
         SceneManager.MoveGameObjectToScene(root, scene);
