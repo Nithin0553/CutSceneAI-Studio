@@ -61,6 +61,7 @@ def compose_body_sequence(
             key=lambda item: (item.start_frame, item.end_frame, item.semantic_id)
         )
         previous_end: BodyMotionSample | None = None
+        previous_root_velocity: Vector3 | None = None
 
         for request in actor_requests:
             normalized = artifacts[request.semantic_id]
@@ -68,6 +69,12 @@ def compose_body_sequence(
 
             if previous_end is not None:
                 motion = _rebase_root(motion, previous_end.root_translation)
+                motion = _stitch_entry_trajectory(
+                    motion,
+                    previous_end,
+                    previous_root_velocity,
+                    blend_frames=blend_frames,
+                )
                 motion = _blend_entry_pose(
                     motion,
                     previous_end,
@@ -99,6 +106,7 @@ def compose_body_sequence(
                 provenance=normalized.provenance,
             )
             previous_end = motion.samples[-1]
+            previous_root_velocity = _ending_root_velocity(motion)
 
     return composed
 
@@ -131,6 +139,80 @@ def _rebase_root(motion: BodyMotionArtifact, anchor: Vector3) -> BodyMotionArtif
                 deep=True,
             )
         )
+    return motion.model_copy(update={"samples": samples}, deep=True)
+
+
+def _ending_root_velocity(motion: BodyMotionArtifact) -> Vector3 | None:
+    if motion.frame_count < 2:
+        return None
+    return _scale_vector(
+        _subtract_vector(
+            motion.samples[-1].root_translation,
+            motion.samples[-2].root_translation,
+        ),
+        float(motion.fps),
+    )
+
+
+def _stitch_entry_trajectory(
+    motion: BodyMotionArtifact,
+    previous_end: BodyMotionSample,
+    previous_velocity: Vector3 | None,
+    *,
+    blend_frames: int,
+) -> BodyMotionArtifact:
+    """C1-stitch the incoming root path without duplicating the boundary frame."""
+
+    count = min(blend_frames, motion.frame_count)
+    if count <= 1 or previous_velocity is None:
+        return motion
+
+    target_index = count - 1
+    target_position = motion.samples[target_index].root_translation
+    target_velocity = _scale_vector(
+        _subtract_vector(
+            motion.samples[target_index].root_translation,
+            motion.samples[target_index - 1].root_translation,
+        ),
+        float(motion.fps),
+    )
+    duration = count / float(motion.fps)
+
+    samples: list[BodyMotionSample] = []
+    for index, sample in enumerate(motion.samples):
+        if index >= count:
+            samples.append(sample.model_copy(deep=True))
+            continue
+
+        t = (index + 1) / float(motion.fps)
+        u = t / duration
+        root_translation = _hermite_vector(
+            previous_end.root_translation,
+            previous_velocity,
+            target_position,
+            target_velocity,
+            duration,
+            u,
+        )
+        root_edit = _subtract_vector(root_translation, sample.root_translation)
+        joint_positions = (
+            [
+                _add_vector(position, root_edit)
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
+        samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": root_translation,
+                    "joint_positions": joint_positions,
+                },
+                deep=True,
+            )
+        )
+
     return motion.model_copy(update={"samples": samples}, deep=True)
 
 
@@ -532,6 +614,36 @@ def _lock_stationary_root_and_heading(motion: BodyMotionArtifact) -> BodyMotionA
         )
 
     return motion.model_copy(update={"samples": samples}, deep=True)
+
+
+def _scale_vector(value: Vector3, amount: float) -> Vector3:
+    return Vector3(
+        x=value.x * amount,
+        y=value.y * amount,
+        z=value.z * amount,
+    )
+
+
+def _hermite_vector(
+    start: Vector3,
+    start_velocity: Vector3,
+    end: Vector3,
+    end_velocity: Vector3,
+    duration: float,
+    u: float,
+) -> Vector3:
+    u = max(0.0, min(1.0, u))
+    u2 = u * u
+    u3 = u2 * u
+    h00 = 2.0 * u3 - 3.0 * u2 + 1.0
+    h10 = u3 - 2.0 * u2 + u
+    h01 = -2.0 * u3 + 3.0 * u2
+    h11 = u3 - u2
+    return Vector3(
+        x=h00 * start.x + h10 * duration * start_velocity.x + h01 * end.x + h11 * duration * end_velocity.x,
+        y=h00 * start.y + h10 * duration * start_velocity.y + h01 * end.y + h11 * duration * end_velocity.y,
+        z=h00 * start.z + h10 * duration * start_velocity.z + h01 * end.z + h11 * duration * end_velocity.z,
+    )
 
 
 def _add_vector(first: Vector3, second: Vector3) -> Vector3:
