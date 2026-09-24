@@ -175,7 +175,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "realized_right_knee_local_delta_deg",
         "animation_stream_probe_left_knee_delta_deg",
         "animation_stream_probe_right_knee_delta_deg",
-        "AnimatorJobExtensions.BindStreamTransform",
+        "animator.BindStreamTransform",
         "AnimationScriptPlayable.Create",
         "SetLocalRotation(stream",
         "realized_left_ankle_direction_from_knee",
