@@ -3,6 +3,7 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
+from cutsceneai_performance import BodyCompositionDiagnostic
 from cutsceneai_performance.errors import PerformanceError
 
 from app.models.performance_runtime import (
@@ -87,6 +88,20 @@ def get_performance_run(
     try:
         return executor.get_run(run_id)
     except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get(
+    "/runs/{run_id}/body-composition-diagnostic",
+    response_model=BodyCompositionDiagnostic,
+)
+def body_composition_diagnostic(
+    run_id: str,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> BodyCompositionDiagnostic:
+    try:
+        return executor.body_composition_diagnostic(run_id)
+    except (ValueError, PerformanceError) as exc:
         raise _bad_request(exc) from exc
 
 
