@@ -311,6 +311,47 @@ public static class CutSceneAIGeneratedPerformance
         public string diagnostic_version; public string engine; public string engine_version;
         public string source_bundle_sha256; public BodyRealizationSample[] samples;
     }
+    [Serializable] private sealed class LegGeometrySolverSample {
+        public int frame;
+        public string phase_semantic_id;
+        public string actor_binding_id;
+        public string limb_name;
+        public VectorValue source_root;
+        public VectorValue source_mid;
+        public VectorValue source_end;
+        public VectorValue solved_root;
+        public VectorValue solved_mid;
+        public VectorValue solved_end;
+        public VectorValue bend_direction;
+        public float target_upper_length_m;
+        public float target_lower_length_m;
+        public float solved_upper_length_error_m;
+        public float solved_lower_length_error_m;
+        public float source_extension_ratio;
+        public bool source_bend_direction_defined;
+        public bool reach_was_clamped;
+        public bool solved;
+    }
+    [Serializable] private sealed class LegGeometrySolverDiagnostic {
+        public string diagnostic_version;
+        public string engine;
+        public string engine_version;
+        public string source_bundle_sha256;
+        public float max_upper_length_error_m;
+        public float max_lower_length_error_m;
+        public int unresolved_sample_count;
+        public LegGeometrySolverSample[] samples;
+    }
+    private sealed class TwoBoneGeometrySolution {
+        public Vector3 root;
+        public Vector3 mid;
+        public Vector3 end;
+        public Vector3 bend_direction;
+        public float source_extension_ratio;
+        public bool source_bend_direction_defined;
+        public bool reach_was_clamped;
+        public bool solved;
+    }
     private struct KneeStreamProbeJob : IAnimationJob {
         public TransformStreamHandle left_knee;
         public TransformStreamHandle right_knee;
