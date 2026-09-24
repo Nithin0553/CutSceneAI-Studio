@@ -168,6 +168,7 @@ using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Animations;
 using UnityEngine.Playables;
 using UnityEngine.SceneManagement;
 using UnityEngine.Timeline;
@@ -299,6 +300,8 @@ public static class CutSceneAIGeneratedPerformance
         public float source_right_knee_rotation_deg;
         public float realized_left_knee_local_delta_deg;
         public float realized_right_knee_local_delta_deg;
+        public float animation_stream_probe_left_knee_delta_deg;
+        public float animation_stream_probe_right_knee_delta_deg;
         public VectorValue realized_left_ankle_direction_from_knee;
         public VectorValue realized_right_ankle_direction_from_knee;
         public float target_facing_error_deg;
@@ -307,6 +310,22 @@ public static class CutSceneAIGeneratedPerformance
     [Serializable] private sealed class BodyRealizationDiagnostic {
         public string diagnostic_version; public string engine; public string engine_version;
         public string source_bundle_sha256; public BodyRealizationSample[] samples;
+    }
+    private struct KneeStreamProbeJob : IAnimationJob {
+        public TransformStreamHandle left_knee;
+        public TransformStreamHandle right_knee;
+        public Quaternion left_rotation;
+        public Quaternion right_rotation;
+
+        public void ProcessRootMotion(AnimationStream stream) { }
+
+        public void ProcessAnimation(AnimationStream stream)
+        {
+            if (left_knee.IsValid(stream))
+                left_knee.SetLocalRotation(stream, left_rotation);
+            if (right_knee.IsValid(stream))
+                right_knee.SetLocalRotation(stream, right_rotation);
+        }
     }
     [Serializable] private sealed class RenderedFrame { public int frame; public string relative_path; public string sha256; }
     [Serializable] private sealed class RenderManifest {
@@ -1311,6 +1330,83 @@ public static class CutSceneAIGeneratedPerformance
         return resolved;
     }
 
+    private static void ProbeAnimationStreamKnees(
+        GameObject prefab,
+        ActorTarget target,
+        out float leftDelta,
+        out float rightDelta)
+    {
+        leftDelta = -1.0f;
+        rightDelta = -1.0f;
+        GameObject instance = UnityEngine.Object.Instantiate(prefab);
+        instance.hideFlags = HideFlags.HideAndDontSave;
+        Avatar genericAvatar = null;
+        PlayableGraph graph = default(PlayableGraph);
+        try
+        {
+            Animator animator = AnimatorFor(instance, target);
+            Transform leftKnee = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+            Transform rightKnee = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+            if (leftKnee == null || rightKnee == null)
+                throw new InvalidOperationException(
+                    "AnimationStream knee probe requires mapped lower-leg bones.");
+
+            genericAvatar = AvatarBuilder.BuildGenericAvatar(
+                animator.gameObject,
+                string.Empty);
+            if (
+                genericAvatar == null
+                || !genericAvatar.isValid
+                || genericAvatar.isHuman)
+                throw new InvalidOperationException(
+                    "AnimationStream knee probe failed to build a valid Generic Avatar.");
+
+            animator.avatar = genericAvatar;
+            animator.runtimeAnimatorController = null;
+            animator.applyRootMotion = false;
+            animator.Rebind();
+            animator.Update(0.0f);
+
+            Quaternion leftReference = leftKnee.localRotation;
+            Quaternion rightReference = rightKnee.localRotation;
+            Quaternion leftTarget =
+                leftReference * Quaternion.AngleAxis(25.0f, Vector3.right);
+            Quaternion rightTarget =
+                rightReference * Quaternion.AngleAxis(25.0f, Vector3.right);
+
+            KneeStreamProbeJob job = new KneeStreamProbeJob {
+                left_knee = animator.BindStreamTransform(leftKnee),
+                right_knee = animator.BindStreamTransform(rightKnee),
+                left_rotation = leftTarget,
+                right_rotation = rightTarget,
+            };
+
+            graph = PlayableGraph.Create("CutSceneAI-KneeStreamProbe");
+            graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
+            AnimationScriptPlayable playable =
+                AnimationScriptPlayable.Create(graph, job, 0);
+            AnimationPlayableOutput output =
+                AnimationPlayableOutput.Create(
+                    graph,
+                    "CutSceneAI-KneeStreamProbeOutput",
+                    animator);
+            output.SetSourcePlayable(playable);
+            graph.Play();
+            graph.Evaluate(0.0f);
+
+            leftDelta = Quaternion.Angle(leftReference, leftKnee.localRotation);
+            rightDelta = Quaternion.Angle(rightReference, rightKnee.localRotation);
+        }
+        finally
+        {
+            if (graph.IsValid())
+                graph.Destroy();
+            UnityEngine.Object.DestroyImmediate(instance);
+            if (genericAvatar != null)
+                UnityEngine.Object.DestroyImmediate(genericAvatar);
+        }
+    }
+
     private static Dictionary<string, Quaternion> ReferenceBodyLocalRotations(
         ActorTarget actorTarget,
         BodyTrack track)
@@ -1344,6 +1440,10 @@ public static class CutSceneAIGeneratedPerformance
             new Dictionary<string, Dictionary<string, Transform>>();
         Dictionary<string, Dictionary<string, Quaternion>> actorReferenceRotations =
             new Dictionary<string, Dictionary<string, Quaternion>>();
+        Dictionary<string, float> actorStreamProbeLeft =
+            new Dictionary<string, float>();
+        Dictionary<string, float> actorStreamProbeRight =
+            new Dictionary<string, float>();
         foreach (BodyTrack actorTrack in mapping.body_tracks
             .GroupBy(item => item.actor_binding_id)
             .Select(group => group.First()))
@@ -1359,6 +1459,13 @@ public static class CutSceneAIGeneratedPerformance
                 actorTrack);
             actorReferenceRotations[actorTrack.actor_binding_id] =
                 ReferenceBodyLocalRotations(actorTarget, actorTrack);
+            ProbeAnimationStreamKnees(
+                LoadPrefab(actorTarget),
+                actorTarget,
+                out float streamProbeLeft,
+                out float streamProbeRight);
+            actorStreamProbeLeft[actorTrack.actor_binding_id] = streamProbeLeft;
+            actorStreamProbeRight[actorTrack.actor_binding_id] = streamProbeRight;
         }
 
         director.RebuildGraph();
@@ -1472,6 +1579,10 @@ public static class CutSceneAIGeneratedPerformance
                 source_right_knee_rotation_deg = sourceRightKneeRotation,
                 realized_left_knee_local_delta_deg = realizedLeftKneeLocalDelta,
                 realized_right_knee_local_delta_deg = realizedRightKneeLocalDelta,
+                animation_stream_probe_left_knee_delta_deg =
+                    actorStreamProbeLeft[active.actor_binding_id],
+                animation_stream_probe_right_knee_delta_deg =
+                    actorStreamProbeRight[active.actor_binding_id],
                 realized_left_ankle_direction_from_knee =
                     VectorData(leftAnkleDirection),
                 realized_right_ankle_direction_from_knee =
