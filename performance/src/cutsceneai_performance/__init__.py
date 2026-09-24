@@ -27,6 +27,12 @@ from .composition import (
     CanonicalSceneTransform,
     compose_body_sequence,
 )
+from .diagnostics import (
+    BodyCompositionDiagnostic,
+    BodyPhaseBoundaryMetric,
+    BodyTrackCompositionMetric,
+    diagnose_body_composition,
+)
 from .errors import PerformanceError, PerformanceInputError, PerformanceOutputError
 from .facial import (
     ARKIT_52_BLENDSHAPE_NAMES,
@@ -161,6 +167,9 @@ __all__ = [
     "ArtifactFormat",
     "ArtifactKind",
     "ArtifactReference",
+    "BodyCompositionDiagnostic",
+    "BodyPhaseBoundaryMetric",
+    "BodyTrackCompositionMetric",
     "BodyGenerationBackend",
     "BodyGenerationRequest",
     "BodyMotionArtifact",
@@ -208,6 +217,7 @@ __all__ = [
     "compile_generation_plan",
     "compose_body_sequence",
     "decode_performance_bundle",
+    "diagnose_body_composition",
     "facial_curve_artifact_sha256",
     "facial_curve_json_schema",
     "generation_plan_json_schema",
