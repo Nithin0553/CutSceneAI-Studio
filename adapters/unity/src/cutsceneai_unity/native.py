@@ -2437,6 +2437,118 @@ public static class CutSceneAIGeneratedPerformance
                     referenceComponents[jointIndex]);
         }
 
+        Dictionary<int, int> mappedSlotByJointIndex = mappedJointIndices
+            .Select((jointIndex, mappedIndex) => new { jointIndex, mappedIndex })
+            .ToDictionary(item => item.jointIndex, item => item.mappedIndex);
+
+        int pelvisIndex = JointIndex(template, "pelvis");
+        int spineIndex = JointIndex(template, "spine1");
+        int leftHipIndex = JointIndex(template, "left_hip");
+        int rightHipIndex = JointIndex(template, "right_hip");
+        int leftKneeIndex = JointIndex(template, "left_knee");
+        int rightKneeIndex = JointIndex(template, "right_knee");
+        int leftEndIndex = JointIndex(template, "left_ankle");
+        int rightEndIndex = JointIndex(template, "right_ankle");
+        int[] requiredGeometryIndices = new[] {
+            pelvisIndex,
+            spineIndex,
+            leftHipIndex,
+            rightHipIndex,
+            leftKneeIndex,
+            rightKneeIndex,
+            leftEndIndex,
+            rightEndIndex,
+        };
+        bool geometryLegsAvailable =
+            requiredGeometryIndices.All(index =>
+                index >= 0
+                && index < jointCount
+                && prefabTransforms[index] != null
+                && mappedSlotByJointIndex.ContainsKey(index));
+
+        Vector3 pelvisReferencePosition = Vector3.zero;
+        Vector3 leftHipReferencePosition = Vector3.zero;
+        Vector3 rightHipReferencePosition = Vector3.zero;
+        Vector3 leftKneeReferencePosition = Vector3.zero;
+        Vector3 rightKneeReferencePosition = Vector3.zero;
+        Vector3 leftEndReferencePosition = Vector3.zero;
+        Vector3 rightEndReferencePosition = Vector3.zero;
+        Quaternion targetBodyBasis = Quaternion.identity;
+        Quaternion pelvisParentReferenceComponent = Quaternion.identity;
+        Vector3 leftUpperChildOffsetLocal = Vector3.zero;
+        Vector3 rightUpperChildOffsetLocal = Vector3.zero;
+        Vector3 leftLowerChildOffsetLocal = Vector3.zero;
+        Vector3 rightLowerChildOffsetLocal = Vector3.zero;
+        float leftUpperLength = 0.0f;
+        float leftLowerLength = 0.0f;
+        float rightUpperLength = 0.0f;
+        float rightLowerLength = 0.0f;
+
+        if (geometryLegsAvailable)
+        {
+            pelvisReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[pelvisIndex]);
+            Vector3 spineReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[spineIndex]);
+            leftHipReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[leftHipIndex]);
+            rightHipReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[rightHipIndex]);
+            leftKneeReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[leftKneeIndex]);
+            rightKneeReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[rightKneeIndex]);
+            leftEndReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[leftEndIndex]);
+            rightEndReferencePosition =
+                ComponentPosition(prefabAnimator, prefabTransforms[rightEndIndex]);
+
+            if (!TryAnatomicalBodyBasis(
+                pelvisReferencePosition,
+                leftHipReferencePosition,
+                rightHipReferencePosition,
+                spineReferencePosition,
+                out targetBodyBasis))
+                throw new InvalidOperationException(
+                    "Target Humanoid reference pose does not define a valid anatomical body basis.");
+
+            pelvisParentReferenceComponent = ParentComponentRotation(
+                referenceRotations[pelvisIndex],
+                referenceComponents[pelvisIndex]);
+            leftUpperChildOffsetLocal =
+                Quaternion.Inverse(referenceComponents[leftHipIndex])
+                * (leftKneeReferencePosition - leftHipReferencePosition);
+            rightUpperChildOffsetLocal =
+                Quaternion.Inverse(referenceComponents[rightHipIndex])
+                * (rightKneeReferencePosition - rightHipReferencePosition);
+            leftLowerChildOffsetLocal =
+                Quaternion.Inverse(referenceComponents[leftKneeIndex])
+                * (leftEndReferencePosition - leftKneeReferencePosition);
+            rightLowerChildOffsetLocal =
+                Quaternion.Inverse(referenceComponents[rightKneeIndex])
+                * (rightEndReferencePosition - rightKneeReferencePosition);
+            leftUpperLength = Vector3.Distance(
+                leftHipReferencePosition,
+                leftKneeReferencePosition);
+            leftLowerLength = Vector3.Distance(
+                leftKneeReferencePosition,
+                leftEndReferencePosition);
+            rightUpperLength = Vector3.Distance(
+                rightHipReferencePosition,
+                rightKneeReferencePosition);
+            rightLowerLength = Vector3.Distance(
+                rightKneeReferencePosition,
+                rightEndReferencePosition);
+        }
+
+        Dictionary<string, Vector3> carriedLegBend =
+            new Dictionary<string, Vector3>(StringComparer.Ordinal);
+        Dictionary<string, bool> carriedLegBendDefined =
+            new Dictionary<string, bool>(StringComparer.Ordinal) {
+                ["left_leg"] = false,
+                ["right_leg"] = false,
+            };
+
         Dictionary<int, CutSceneAIBodyStreamDriver.PoseFrame> frameByTimelineFrame =
             new Dictionary<int, CutSceneAIBodyStreamDriver.PoseFrame>();
         foreach (BodyTrack track in tracks
@@ -2458,6 +2570,157 @@ public static class CutSceneAIGeneratedPerformance
                         canonicalToTargetParentBases[jointIndex],
                         canonicalRotation);
                 }
+
+                bool frameHasGeometry =
+                    geometryLegsAvailable
+                    && frame.joint_positions_m != null
+                    && requiredGeometryIndices.All(
+                        index => index < frame.joint_positions_m.Length);
+                if (frameHasGeometry)
+                {
+                    Vector3 sourcePelvis =
+                        Vector(frame.joint_positions_m[pelvisIndex]);
+                    Vector3 sourceSpine =
+                        Vector(frame.joint_positions_m[spineIndex]);
+                    Vector3 sourceLeftHip =
+                        Vector(frame.joint_positions_m[leftHipIndex]);
+                    Vector3 sourceRightHip =
+                        Vector(frame.joint_positions_m[rightHipIndex]);
+
+                    if (TryAnatomicalBodyBasis(
+                        sourcePelvis,
+                        sourceLeftHip,
+                        sourceRightHip,
+                        sourceSpine,
+                        out Quaternion sourceBodyBasis))
+                    {
+                        Quaternion sourceToTargetBody =
+                            targetBodyBasis * Quaternion.Inverse(sourceBodyBasis);
+                        Quaternion pelvisDesiredLocal =
+                            rotations[mappedSlotByJointIndex[pelvisIndex]];
+                        Quaternion pelvisDesiredComponent =
+                            pelvisParentReferenceComponent * pelvisDesiredLocal;
+                        Quaternion bodyDelta =
+                            pelvisDesiredComponent
+                            * Quaternion.Inverse(referenceComponents[pelvisIndex]);
+
+                        foreach (var limb in new[] {
+                            new {
+                                name = "left_leg",
+                                rootIndex = leftHipIndex,
+                                midIndex = leftKneeIndex,
+                                endIndex = leftEndIndex,
+                                rootReference = leftHipReferencePosition,
+                                midReference = leftKneeReferencePosition,
+                                endReference = leftEndReferencePosition,
+                                upperReferenceComponent = referenceComponents[leftHipIndex],
+                                lowerReferenceComponent = referenceComponents[leftKneeIndex],
+                                upperChildOffsetLocal = leftUpperChildOffsetLocal,
+                                lowerChildOffsetLocal = leftLowerChildOffsetLocal,
+                                upperLength = leftUpperLength,
+                                lowerLength = leftLowerLength,
+                            },
+                            new {
+                                name = "right_leg",
+                                rootIndex = rightHipIndex,
+                                midIndex = rightKneeIndex,
+                                endIndex = rightEndIndex,
+                                rootReference = rightHipReferencePosition,
+                                midReference = rightKneeReferencePosition,
+                                endReference = rightEndReferencePosition,
+                                upperReferenceComponent = referenceComponents[rightHipIndex],
+                                lowerReferenceComponent = referenceComponents[rightKneeIndex],
+                                upperChildOffsetLocal = rightUpperChildOffsetLocal,
+                                lowerChildOffsetLocal = rightLowerChildOffsetLocal,
+                                upperLength = rightUpperLength,
+                                lowerLength = rightLowerLength,
+                            },
+                        })
+                        {
+                            Vector3 sourceRoot =
+                                Vector(frame.joint_positions_m[limb.rootIndex]);
+                            Vector3 sourceMid =
+                                Vector(frame.joint_positions_m[limb.midIndex]);
+                            Vector3 sourceEnd =
+                                Vector(frame.joint_positions_m[limb.endIndex]);
+                            Vector3 mappedRoot = limb.rootReference;
+                            Vector3 mappedMid =
+                                mappedRoot
+                                + sourceToTargetBody * (sourceMid - sourceRoot);
+                            Vector3 mappedEnd =
+                                mappedRoot
+                                + sourceToTargetBody * (sourceEnd - sourceRoot);
+
+                            if (TrySourceBendDirection(
+                                mappedRoot,
+                                mappedMid,
+                                mappedEnd,
+                                out Vector3 currentBend))
+                            {
+                                carriedLegBend[limb.name] = currentBend;
+                                carriedLegBendDefined[limb.name] = true;
+                            }
+
+                            TwoBoneGeometrySolution solution = SolveTwoBoneGeometry(
+                                mappedRoot,
+                                mappedMid,
+                                mappedEnd,
+                                mappedRoot,
+                                limb.upperLength,
+                                limb.lowerLength,
+                                carriedLegBendDefined[limb.name]
+                                    ? carriedLegBend[limb.name]
+                                    : Vector3.zero,
+                                carriedLegBendDefined[limb.name]);
+                            if (!solution.solved)
+                                continue;
+
+                            Vector3 solvedRoot =
+                                pelvisReferencePosition
+                                + bodyDelta
+                                    * (solution.root - pelvisReferencePosition);
+                            Vector3 solvedMid =
+                                pelvisReferencePosition
+                                + bodyDelta
+                                    * (solution.mid - pelvisReferencePosition);
+                            Vector3 solvedEnd =
+                                pelvisReferencePosition
+                                + bodyDelta
+                                    * (solution.end - pelvisReferencePosition);
+
+                            Quaternion upperBaseComponent =
+                                bodyDelta * limb.upperReferenceComponent;
+                            Quaternion upperDesiredComponent =
+                                AlignReferenceBoneToDirection(
+                                    upperBaseComponent,
+                                    limb.upperChildOffsetLocal,
+                                    solvedMid - solvedRoot);
+                            Quaternion upperDesiredLocal =
+                                Quaternion.Inverse(pelvisDesiredComponent)
+                                * upperDesiredComponent;
+
+                            Quaternion lowerReferenceLocal =
+                                Quaternion.Inverse(limb.upperReferenceComponent)
+                                * limb.lowerReferenceComponent;
+                            Quaternion lowerBaseComponent =
+                                upperDesiredComponent * lowerReferenceLocal;
+                            Quaternion lowerDesiredComponent =
+                                AlignReferenceBoneToDirection(
+                                    lowerBaseComponent,
+                                    limb.lowerChildOffsetLocal,
+                                    solvedEnd - solvedMid);
+                            Quaternion lowerDesiredLocal =
+                                Quaternion.Inverse(upperDesiredComponent)
+                                * lowerDesiredComponent;
+
+                            rotations[mappedSlotByJointIndex[limb.rootIndex]] =
+                                upperDesiredLocal;
+                            rotations[mappedSlotByJointIndex[limb.midIndex]] =
+                                lowerDesiredLocal;
+                        }
+                    }
+                }
+
                 frameByTimelineFrame[frame.timeline_frame] =
                     new CutSceneAIBodyStreamDriver.PoseFrame {
                         timeline_frame = frame.timeline_frame,
