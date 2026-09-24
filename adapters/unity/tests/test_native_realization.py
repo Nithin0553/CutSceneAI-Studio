@@ -241,6 +241,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert "+ Quaternion.Inverse(parentComponents[jointIndex])" not in script
     assert "GetComponent<AudioSource>() ??" not in script
     assert runner.count("& $UnityEditor") == 2
+    assert '"Assets\\CutSceneAI\\Runtime\\CutSceneAIBodyStreamDriver.cs"' in runner
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
     assert "Get-Content -Raw -Path $importLog, $readbackLog" in runner
     assert "collect-native-evidence.py" in runner
@@ -279,6 +280,7 @@ def test_native_harness_archive_is_deterministic_and_preserves_inputs() -> None:
         assert len(names) == len(set(names))
         assert {
             f"Scripts/{UNITY_NATIVE_EDITOR_SCRIPT_FILENAME}",
+            "Scripts/CutSceneAIBodyStreamDriver.cs",
             f"Scripts/{UNITY_NATIVE_RUNNER_FILENAME}",
             "Scripts/collect-native-evidence.py",
             "mapping.json",
