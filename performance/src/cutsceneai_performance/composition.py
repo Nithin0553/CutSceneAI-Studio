@@ -232,63 +232,43 @@ def _blend_entry_pose(
             samples.append(sample.model_copy(deep=True))
             continue
 
-        if index == 0:
-            # Phase entry is an exact continuity boundary, not an interpolation sample.
-            # Preserve the previous quaternion values byte-for-value instead of passing
-            # them through SLERP(alpha=0), which can introduce tiny normalization drift.
-            rotations = [
-                rotation.model_copy(deep=True)
-                for rotation in previous_end.joint_rotations
-            ]
-            joint_positions = (
-                [
-                    position.model_copy(deep=True)
-                    for position in previous_end.joint_positions
-                ]
-                if (
-                    previous_end.joint_positions is not None
-                    and sample.joint_positions is not None
-                )
-                else sample.joint_positions
+        alpha = (index + 1) / count
+        rotations = [
+            slerp_quaternion(previous, current, alpha)
+            for previous, current in zip(
+                previous_end.joint_rotations,
+                sample.joint_rotations,
+                strict=True,
             )
-        else:
-            alpha = 1.0 if count == 1 else index / (count - 1)
-            rotations = [
-                slerp_quaternion(previous, current, alpha)
-                for previous, current in zip(
-                    previous_end.joint_rotations,
-                    sample.joint_rotations,
-                    strict=True,
-                )
-            ]
+        ]
 
-            joint_positions = sample.joint_positions
-            if (
-                previous_end.joint_positions is not None
-                and sample.joint_positions is not None
+        joint_positions = sample.joint_positions
+        if (
+            previous_end.joint_positions is not None
+            and sample.joint_positions is not None
+        ):
+            joint_positions = []
+            for previous_position, current_position in zip(
+                previous_end.joint_positions,
+                sample.joint_positions,
+                strict=True,
             ):
-                joint_positions = []
-                for previous_position, current_position in zip(
-                    previous_end.joint_positions,
-                    sample.joint_positions,
-                    strict=True,
-                ):
-                    previous_relative = _subtract_vector(
-                        previous_position,
-                        previous_end.root_translation,
-                    )
-                    current_relative = _subtract_vector(
-                        current_position,
-                        sample.root_translation,
-                    )
-                    blended_relative = _lerp_vector(
-                        previous_relative,
-                        current_relative,
-                        alpha,
-                    )
-                    joint_positions.append(
-                        _add_vector(sample.root_translation, blended_relative)
-                    )
+                previous_relative = _subtract_vector(
+                    previous_position,
+                    previous_end.root_translation,
+                )
+                current_relative = _subtract_vector(
+                    current_position,
+                    sample.root_translation,
+                )
+                blended_relative = _lerp_vector(
+                    previous_relative,
+                    current_relative,
+                    alpha,
+                )
+                joint_positions.append(
+                    _add_vector(sample.root_translation, blended_relative)
+                )
 
         samples.append(
             sample.model_copy(
