@@ -105,23 +105,32 @@ def compose_body_sequence(
 
 def _rebase_root(motion: BodyMotionArtifact, anchor: Vector3) -> BodyMotionArtifact:
     first = motion.samples[0].root_translation
-    dx = anchor.x - first.x
-    dy = anchor.y - first.y
-    dz = anchor.z - first.z
+    offset = Vector3(
+        x=anchor.x - first.x,
+        y=anchor.y - first.y,
+        z=anchor.z - first.z,
+    )
 
-    samples = [
-        sample.model_copy(
-            update={
-                "root_translation": Vector3(
-                    x=sample.root_translation.x + dx,
-                    y=sample.root_translation.y + dy,
-                    z=sample.root_translation.z + dz,
-                )
-            },
-            deep=True,
+    samples = []
+    for sample in motion.samples:
+        root_translation = _add_vector(sample.root_translation, offset)
+        joint_positions = (
+            [
+                _add_vector(position, offset)
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
         )
-        for sample in motion.samples
-    ]
+        samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": root_translation,
+                    "joint_positions": joint_positions,
+                },
+                deep=True,
+            )
+        )
     return motion.model_copy(update={"samples": samples}, deep=True)
 
 
@@ -141,24 +150,47 @@ def _blend_entry_pose(
             samples.append(sample.model_copy(deep=True))
             continue
 
-        if index == 0:
-            rotations = [
-                rotation.model_copy(deep=True)
-                for rotation in previous_end.joint_rotations
-            ]
-        else:
-            alpha = 1.0 if count == 1 else index / (count - 1)
-            rotations = [
-                slerp_quaternion(previous, current, alpha)
-                for previous, current in zip(
-                    previous_end.joint_rotations,
-                    sample.joint_rotations,
-                    strict=True,
+        alpha = 0.0 if index == 0 else (1.0 if count == 1 else index / (count - 1))
+        rotations = [
+            slerp_quaternion(previous, current, alpha)
+            for previous, current in zip(
+                previous_end.joint_rotations,
+                sample.joint_rotations,
+                strict=True,
+            )
+        ]
+
+        joint_positions = sample.joint_positions
+        if previous_end.joint_positions is not None and sample.joint_positions is not None:
+            joint_positions = []
+            for previous_position, current_position in zip(
+                previous_end.joint_positions,
+                sample.joint_positions,
+                strict=True,
+            ):
+                previous_relative = _subtract_vector(
+                    previous_position,
+                    previous_end.root_translation,
                 )
-            ]
+                current_relative = _subtract_vector(
+                    current_position,
+                    sample.root_translation,
+                )
+                blended_relative = _lerp_vector(
+                    previous_relative,
+                    current_relative,
+                    alpha,
+                )
+                joint_positions.append(
+                    _add_vector(sample.root_translation, blended_relative)
+                )
+
         samples.append(
             sample.model_copy(
-                update={"joint_rotations": rotations},
+                update={
+                    "joint_rotations": rotations,
+                    "joint_positions": joint_positions,
+                },
                 deep=True,
             )
         )
@@ -194,11 +226,9 @@ def _align_locomotion_root(
 ) -> BodyMotionArtifact:
     """Rotate provider root travel onto the scene-intended locomotion heading.
 
-    Body pose is intentionally left unchanged. HumanML clips can contain a plausible
-    forward-walking pose while their reconstructed root trajectory points backward.
-    Scene-conditioned composition owns spatial travel, so it rotates only the root
-    path around the phase entry point while preserving distance, vertical motion,
-    and all joint rotations.
+    The body pose remains unchanged relative to its root. When source XYZ geometry is
+    present, each sample receives the same root-translation edit so root_translation
+    and joint_positions remain one coherent canonical pose.
     """
 
     first = motion.samples[0].root_translation
@@ -274,14 +304,25 @@ def _align_locomotion_root(
             z=sample.root_translation.z - first.z,
         )
         rotated = _rotate_vector(correction, delta)
+        root_translation = Vector3(
+            x=first.x + rotated.x,
+            y=sample.root_translation.y,
+            z=first.z + rotated.z,
+        )
+        root_edit = _subtract_vector(root_translation, sample.root_translation)
+        joint_positions = (
+            [
+                _add_vector(position, root_edit)
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
         samples.append(
             sample.model_copy(
                 update={
-                    "root_translation": Vector3(
-                        x=first.x + rotated.x,
-                        y=sample.root_translation.y,
-                        z=first.z + rotated.z,
-                    )
+                    "root_translation": root_translation,
+                    "joint_positions": joint_positions,
                 },
                 deep=True,
             )
@@ -395,9 +436,26 @@ def _constrain_turn_to_target(
             for rotation in sample.joint_rotations
         ]
         rotations[0] = multiply_quaternions(correction, rotations[0])
+        joint_positions = (
+            [
+                _add_vector(
+                    sample.root_translation,
+                    _rotate_vector(
+                        correction,
+                        _subtract_vector(position, sample.root_translation),
+                    ),
+                )
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
         samples.append(
             sample.model_copy(
-                update={"joint_rotations": rotations},
+                update={
+                    "joint_rotations": rotations,
+                    "joint_positions": joint_positions,
+                },
                 deep=True,
             )
         )
@@ -415,23 +473,66 @@ def _lock_stationary_root_and_heading(motion: BodyMotionArtifact) -> BodyMotionA
             rotation.model_copy(deep=True)
             for rotation in sample.joint_rotations
         ]
+        correction = multiply_quaternions(
+            anchor_pelvis,
+            invert_quaternion(sample.joint_rotations[0]),
+        )
         rotations[0] = Quaternion(
             x=anchor_pelvis.x,
             y=anchor_pelvis.y,
             z=anchor_pelvis.z,
             w=anchor_pelvis.w,
         )
+        joint_positions = (
+            [
+                _add_vector(
+                    anchor_root,
+                    _rotate_vector(
+                        correction,
+                        _subtract_vector(position, sample.root_translation),
+                    ),
+                )
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
         samples.append(
             sample.model_copy(
                 update={
                     "root_translation": anchor_root.model_copy(deep=True),
                     "joint_rotations": rotations,
+                    "joint_positions": joint_positions,
                 },
                 deep=True,
             )
         )
 
     return motion.model_copy(update={"samples": samples}, deep=True)
+
+
+def _add_vector(first: Vector3, second: Vector3) -> Vector3:
+    return Vector3(
+        x=first.x + second.x,
+        y=first.y + second.y,
+        z=first.z + second.z,
+    )
+
+
+def _subtract_vector(first: Vector3, second: Vector3) -> Vector3:
+    return Vector3(
+        x=first.x - second.x,
+        y=first.y - second.y,
+        z=first.z - second.z,
+    )
+
+
+def _lerp_vector(first: Vector3, second: Vector3, alpha: float) -> Vector3:
+    return Vector3(
+        x=first.x + (second.x - first.x) * alpha,
+        y=first.y + (second.y - first.y) * alpha,
+        z=first.z + (second.z - first.z) * alpha,
+    )
 
 
 def _rotate_vector(rotation: Quaternion, vector: Vector3) -> Vector3:
