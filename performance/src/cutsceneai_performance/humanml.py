@@ -151,6 +151,14 @@ def repair_humanml_v02_canonical_basis(motion: BodyMotionArtifact) -> BodyMotion
             )
             for rotation in sample.joint_rotations
         ]
+        repaired_positions = (
+            [
+                Vector3(x=-position.x, y=position.y, z=position.z)
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
         samples.append(
             sample.model_copy(
                 update={
@@ -160,6 +168,7 @@ def repair_humanml_v02_canonical_basis(motion: BodyMotionArtifact) -> BodyMotion
                         z=root.z,
                     ),
                     "joint_rotations": rotations,
+                    "joint_positions": repaired_positions,
                 },
                 deep=True,
             )
@@ -170,10 +179,10 @@ def repair_humanml_v02_canonical_basis(motion: BodyMotionArtifact) -> BodyMotion
 def humanml_xyz_to_canonical(motion: HumanMLXYZMotion) -> BodyMotionArtifact:
     """Convert MDM HumanML XYZ joints to CutSceneAI parent-local canonical motion.
 
-    This is a deterministic geometric reconstruction from positions. It intentionally
-    produces swing-only joint rotations because XYZ positions do not encode bone twist.
-    Provider provenance must therefore distinguish this conversion from models that
-    directly generate local joint rotations.
+    The original XYZ joint geometry is preserved on every canonical sample and is the
+    authoritative pose signal for geometry-aware retargeting. Swing-only local rotations
+    are retained for backward compatibility; XYZ positions alone do not encode bone twist,
+    so downstream retargeters must not treat those rotations as a complete pose.
     """
 
     reference_directions = _reference_directions()
@@ -243,6 +252,14 @@ def humanml_xyz_to_canonical(motion: HumanMLXYZMotion) -> BodyMotionArtifact:
                 joint_rotations=[
                     Quaternion(x=value[0], y=value[1], z=value[2], w=value[3])
                     for value in local_rotations
+                ],
+                joint_positions=[
+                    Vector3(
+                        x=position[0] - first_root[0],
+                        y=position[1] - first_root[1],
+                        z=position[2] - first_root[2],
+                    )
+                    for position in positions
                 ],
             )
         )
