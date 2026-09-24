@@ -350,6 +350,39 @@ def test_executor_generates_verified_bundle_and_evidence(tmp_path: Path, monkeyp
     assert executor.list_runs()[0].run_id == record.run_id
 
 
+def test_executor_derives_recomposed_body_run_without_new_inference(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _configure_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    source = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(project=_project_without_dialogue())
+        )
+    )
+
+    derived = executor.recompose_body_run(source.run_id)
+
+    assert derived.status is PerformanceRunStatus.SUCCEEDED
+    assert derived.run_id != source.run_id
+    assert derived.derived_from_run_id == source.run_id
+    assert derived.derivation == "body-recomposition-v1"
+    assert derived.body_request_count == source.body_request_count
+    assert derived.bundle_sha256 is not None
+
+    run_dir = tmp_path / "runs" / derived.run_id
+    derivation = json.loads(
+        (run_dir / "derivation.json").read_text(encoding="utf-8")
+    )
+    assert derivation["derived_from_run_id"] == source.run_id
+    assert derivation["fresh_body_inference"] is False
+    assert derivation["reused_body_provider_outputs"] is True
+    assert (run_dir / "body-provider-outputs").is_dir()
+    assert (run_dir / "body-composition-diagnostic.json").is_file()
+    load_performance_bundle(executor.bundle_bytes(derived.run_id))
+
+
 def test_executor_persists_body_outputs_before_postprocessing_failure(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -451,6 +484,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
         preview = client.get(
             f"/api/v1/studio/performance/runs/{run_id}/body-composition-preview"
         )
+        recomposed = client.post(
+            f"/api/v1/studio/performance/runs/{run_id}/recompose-body"
+        )
         bundle = client.get(f"/api/v1/studio/performance/runs/{run_id}/bundle")
     finally:
         app.dependency_overrides.clear()
@@ -465,6 +501,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert len(diagnostic.json()["track_metrics"]) == generated.json()["body_request_count"]
     assert preview.status_code == 200
     assert len(preview.json()["track_metrics"]) == generated.json()["body_request_count"]
+    assert recomposed.status_code == 200
+    assert recomposed.json()["derived_from_run_id"] == run_id
+    assert recomposed.json()["derivation"] == "body-recomposition-v1"
     assert bundle.status_code == 200
     assert bundle.headers["content-type"].startswith("application/zip")
     load_performance_bundle(bundle.content)
