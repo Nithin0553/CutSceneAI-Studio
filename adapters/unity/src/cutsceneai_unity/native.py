@@ -358,8 +358,21 @@ public static class CutSceneAIGeneratedPerformance
         public VectorValue target_reference_direction_parent_local;
         public QuaternionValue canonical_to_target_parent_basis;
     }
+    [Serializable] private sealed class RetargetLimb {
+        public string limb_name;
+        public string root_human_bone;
+        public string mid_human_bone;
+        public string end_human_bone;
+        public float upper_length_m;
+        public float lower_length_m;
+        public VectorValue rest_bend_direction_component;
+        public bool rest_bend_direction_defined;
+    }
     [Serializable] private sealed class RetargetActor {
-        public string actor_binding_id; public string prefab_path; public RetargetJoint[] joints;
+        public string actor_binding_id;
+        public string prefab_path;
+        public RetargetJoint[] joints;
+        public RetargetLimb[] limbs;
     }
     [Serializable] private sealed class RetargetProfile {
         public string profile_version; public string retargeting_method; public string canonical_reference_frame;
@@ -1110,6 +1123,60 @@ public static class CutSceneAIGeneratedPerformance
         }
     }
 
+    private static RetargetLimb CaptureRetargetLimb(
+        Animator animator,
+        string limbName,
+        HumanBodyBones rootBone,
+        HumanBodyBones midBone,
+        HumanBodyBones endBone)
+    {
+        Transform root = animator.GetBoneTransform(rootBone);
+        Transform mid = animator.GetBoneTransform(midBone);
+        Transform end = animator.GetBoneTransform(endBone);
+        if (root == null || mid == null || end == null)
+            throw new InvalidOperationException(
+                "Required target limb is not fully mapped: " + limbName);
+
+        Vector3 rootComponent = animator.avatarRoot.InverseTransformPoint(root.position);
+        Vector3 midComponent = animator.avatarRoot.InverseTransformPoint(mid.position);
+        Vector3 endComponent = animator.avatarRoot.InverseTransformPoint(end.position);
+        float upperLength = Vector3.Distance(rootComponent, midComponent);
+        float lowerLength = Vector3.Distance(midComponent, endComponent);
+        if (upperLength <= 1e-6f || lowerLength <= 1e-6f)
+            throw new InvalidOperationException(
+                "Target limb contains a zero-length segment: " + limbName);
+
+        Vector3 rootToEnd = endComponent - rootComponent;
+        Vector3 rootToMid = midComponent - rootComponent;
+        Vector3 bend = Vector3.zero;
+        bool bendDefined = false;
+        if (rootToEnd.sqrMagnitude > 1e-12f)
+        {
+            Vector3 axis = rootToEnd.normalized;
+            bend = rootToMid - axis * Vector3.Dot(rootToMid, axis);
+            if (bend.sqrMagnitude > 1e-10f)
+            {
+                bend.Normalize();
+                bendDefined = true;
+            }
+            else
+            {
+                bend = Vector3.zero;
+            }
+        }
+
+        return new RetargetLimb {
+            limb_name = limbName,
+            root_human_bone = rootBone.ToString(),
+            mid_human_bone = midBone.ToString(),
+            end_human_bone = endBone.ToString(),
+            upper_length_m = upperLength,
+            lower_length_m = lowerLength,
+            rest_bend_direction_component = VectorData(bend),
+            rest_bend_direction_defined = bendDefined,
+        };
+    }
+
     private static void CaptureRetargetProfile(Mapping mapping, Target target)
     {
         RetargetActor[] actors = mapping.body_tracks.Select(track => {
@@ -1190,11 +1257,42 @@ public static class CutSceneAIGeneratedPerformance
                     canonical_to_target_parent_basis = QuaternionData(basis),
                 };
             }).ToArray();
-            return new RetargetActor { actor_binding_id = track.actor_binding_id, prefab_path = actorTarget.prefab_path, joints = joints };
+            RetargetLimb[] limbs = new[] {
+                CaptureRetargetLimb(
+                    animator,
+                    "left_leg",
+                    HumanBodyBones.LeftUpperLeg,
+                    HumanBodyBones.LeftLowerLeg,
+                    HumanBodyBones.LeftFoot),
+                CaptureRetargetLimb(
+                    animator,
+                    "right_leg",
+                    HumanBodyBones.RightUpperLeg,
+                    HumanBodyBones.RightLowerLeg,
+                    HumanBodyBones.RightFoot),
+                CaptureRetargetLimb(
+                    animator,
+                    "left_arm",
+                    HumanBodyBones.LeftUpperArm,
+                    HumanBodyBones.LeftLowerArm,
+                    HumanBodyBones.LeftHand),
+                CaptureRetargetLimb(
+                    animator,
+                    "right_arm",
+                    HumanBodyBones.RightUpperArm,
+                    HumanBodyBones.RightLowerArm,
+                    HumanBodyBones.RightHand),
+            };
+            return new RetargetActor {
+                actor_binding_id = track.actor_binding_id,
+                prefab_path = actorTarget.prefab_path,
+                joints = joints,
+                limbs = limbs,
+            };
         }).ToArray();
         RetargetProfile profile = new RetargetProfile {
-            profile_version = "0.1.0",
-            retargeting_method = "rest-direction-parent-basis-v1",
+            profile_version = "0.2.0",
+            retargeting_method = "geometry-profile-v0.2+rest-direction-parent-basis-v1",
             canonical_reference_frame = "cutsceneai-humanoid-v1-unity-reflected-rest-directions",
             engine = "Unity",
             engine_version = Application.unityVersion,
