@@ -1161,46 +1161,47 @@ public static class CutSceneAIGeneratedPerformance
         return clip;
     }
 
-    private static AnimationClip CreateMotionRootClip(BodyTrack track, int fps)
+    private static AnimationClip CreateMotionRootClip(
+        BodyTrack track,
+        int fps,
+        Transform motionRoot)
     {
+        Vector3 baseWorldPosition = motionRoot.position;
+        Quaternion baseWorldRotation = motionRoot.rotation;
+        Transform parent = motionRoot.parent;
+
         AnimationClip clip = new AnimationClip {
             name = Path.GetFileNameWithoutExtension(MotionRootAnimationPath(track)),
             frameRate = fps,
         };
+        List<Tuple<int, float>> rootX = new List<Tuple<int, float>>();
+        List<Tuple<int, float>> rootY = new List<Tuple<int, float>>();
+        List<Tuple<int, float>> rootZ = new List<Tuple<int, float>>();
+        foreach (BodyKeyframe frame in track.keyframes)
+        {
+            Vector3 actorLocalOffset = new Vector3(
+                frame.root_position_m.x,
+                0.0f,
+                frame.root_position_m.z);
+            Vector3 worldPosition =
+                baseWorldPosition + baseWorldRotation * actorLocalOffset;
+            Vector3 localPosition =
+                parent == null
+                    ? worldPosition
+                    : parent.InverseTransformPoint(worldPosition);
+            rootX.Add(Tuple.Create(frame.timeline_frame, localPosition.x));
+            rootY.Add(Tuple.Create(frame.timeline_frame, localPosition.y));
+            rootZ.Add(Tuple.Create(frame.timeline_frame, localPosition.z));
+        }
         SetCurve(
-            clip,
-            "",
-            typeof(Transform),
-            "m_LocalPosition.x",
-            Keys(
-                track.start_frame,
-                fps,
-                track.keyframes.Select(
-                    frame => Tuple.Create(
-                        frame.timeline_frame,
-                        frame.root_position_m.x))));
+            clip, "", typeof(Transform), "m_LocalPosition.x",
+            Keys(track.start_frame, fps, rootX));
         SetCurve(
-            clip,
-            "",
-            typeof(Transform),
-            "m_LocalPosition.y",
-            Keys(
-                track.start_frame,
-                fps,
-                track.keyframes.Select(
-                    frame => Tuple.Create(frame.timeline_frame, 0.0f))));
+            clip, "", typeof(Transform), "m_LocalPosition.y",
+            Keys(track.start_frame, fps, rootY));
         SetCurve(
-            clip,
-            "",
-            typeof(Transform),
-            "m_LocalPosition.z",
-            Keys(
-                track.start_frame,
-                fps,
-                track.keyframes.Select(
-                    frame => Tuple.Create(
-                        frame.timeline_frame,
-                        frame.root_position_m.z))));
+            clip, "", typeof(Transform), "m_LocalPosition.z",
+            Keys(track.start_frame, fps, rootZ));
 
         List<Tuple<int, float>> headingQx = new List<Tuple<int, float>>();
         List<Tuple<int, float>> headingQy = new List<Tuple<int, float>>();
@@ -1208,12 +1209,18 @@ public static class CutSceneAIGeneratedPerformance
         List<Tuple<int, float>> headingQw = new List<Tuple<int, float>>();
         foreach (BodyKeyframe frame in track.keyframes)
         {
-            Quaternion heading = GroundHeading(
+            Quaternion actorLocalHeading = GroundHeading(
                 QuaternionValueOf(frame.joint_rotations[0]));
-            headingQx.Add(Tuple.Create(frame.timeline_frame, heading.x));
-            headingQy.Add(Tuple.Create(frame.timeline_frame, heading.y));
-            headingQz.Add(Tuple.Create(frame.timeline_frame, heading.z));
-            headingQw.Add(Tuple.Create(frame.timeline_frame, heading.w));
+            Quaternion worldRotation =
+                baseWorldRotation * actorLocalHeading;
+            Quaternion localRotation =
+                parent == null
+                    ? worldRotation
+                    : Quaternion.Inverse(parent.rotation) * worldRotation;
+            headingQx.Add(Tuple.Create(frame.timeline_frame, localRotation.x));
+            headingQy.Add(Tuple.Create(frame.timeline_frame, localRotation.y));
+            headingQz.Add(Tuple.Create(frame.timeline_frame, localRotation.z));
+            headingQw.Add(Tuple.Create(frame.timeline_frame, localRotation.w));
         }
         SetCurve(
             clip, "", typeof(Transform), "m_LocalRotation.x",
@@ -1363,7 +1370,8 @@ public static class CutSceneAIGeneratedPerformance
             ActorTarget actorTarget = ActorTargetFor(target, body.actor_binding_id);
             AnimationClip motionRootAnimation = CreateMotionRootClip(
                 body,
-                mapping.fps);
+                mapping.fps,
+                motionRoots[body.actor_binding_id].transform);
             AnimationTrack motionTrack = motionRootTracks[body.actor_binding_id];
             TimelineClip motionRootClip = AddAnimationClip(
                 motionTrack,
@@ -1449,7 +1457,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v2",
+            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
