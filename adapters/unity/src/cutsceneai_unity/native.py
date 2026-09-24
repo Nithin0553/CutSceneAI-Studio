@@ -1626,6 +1626,367 @@ public static class CutSceneAIGeneratedPerformance
         };
     }
 
+    private static LegRotationFkDiagnostic CaptureLegRotationFkDiagnostic(
+        Mapping mapping,
+        Target target)
+    {
+        List<LegRotationFkSample> samples =
+            new List<LegRotationFkSample>();
+        float maxMidError = 0.0f;
+        float maxEndError = 0.0f;
+        int unresolved = 0;
+
+        foreach (IGrouping<string, BodyTrack> actorGroup in mapping.body_tracks
+            .GroupBy(item => item.actor_binding_id))
+        {
+            ActorTarget actorTarget = ActorTargetFor(target, actorGroup.Key);
+            GameObject prefab = LoadPrefab(actorTarget);
+            Animator animator = AnimatorFor(prefab, actorTarget);
+
+            Transform pelvis = animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+            Transform leftUpper = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+            Transform leftLower = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+            Transform leftEnd = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform rightUpper = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+            Transform rightLower = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+            Transform rightEnd = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            if (
+                pelvis == null
+                || spine == null
+                || leftUpper == null
+                || leftLower == null
+                || leftEnd == null
+                || rightUpper == null
+                || rightLower == null
+                || rightEnd == null)
+                throw new InvalidOperationException(
+                    "Leg rotation FK diagnostic requires a complete Humanoid pelvis/leg mapping.");
+
+            Vector3 pelvisReferencePosition = ComponentPosition(animator, pelvis);
+            Vector3 spineReferencePosition = ComponentPosition(animator, spine);
+            Vector3 leftHipReferencePosition = ComponentPosition(animator, leftUpper);
+            Vector3 leftKneeReferencePosition = ComponentPosition(animator, leftLower);
+            Vector3 leftEndReferencePosition = ComponentPosition(animator, leftEnd);
+            Vector3 rightHipReferencePosition = ComponentPosition(animator, rightUpper);
+            Vector3 rightKneeReferencePosition = ComponentPosition(animator, rightLower);
+            Vector3 rightEndReferencePosition = ComponentPosition(animator, rightEnd);
+            if (!TryAnatomicalBodyBasis(
+                pelvisReferencePosition,
+                leftHipReferencePosition,
+                rightHipReferencePosition,
+                spineReferencePosition,
+                out Quaternion targetBodyBasis))
+                throw new InvalidOperationException(
+                    "Target Humanoid reference pose does not define a valid anatomical body basis.");
+
+            Quaternion pelvisReferenceLocal = pelvis.localRotation;
+            Quaternion pelvisReferenceComponent =
+                ReferenceComponentRotation(animator, pelvis);
+            Quaternion pelvisParentReferenceComponent =
+                ParentComponentRotation(
+                    pelvisReferenceLocal,
+                    pelvisReferenceComponent);
+            Quaternion pelvisCanonicalToTargetBasis =
+                CanonicalToTargetParentBasis(
+                    Vector3.zero,
+                    Vector3.zero,
+                    pelvisReferenceLocal,
+                    pelvisReferenceComponent);
+
+            Dictionary<string, Vector3> carriedBend =
+                new Dictionary<string, Vector3>(StringComparer.Ordinal);
+            Dictionary<string, bool> carriedBendDefined =
+                new Dictionary<string, bool>(StringComparer.Ordinal) {
+                    ["left_leg"] = false,
+                    ["right_leg"] = false,
+                };
+
+            foreach (BodyTrack track in actorGroup
+                .OrderBy(item => item.start_frame)
+                .ThenBy(item => item.semantic_id))
+            {
+                int pelvisIndex = JointIndex(track, "pelvis");
+                int spineIndex = JointIndex(track, "spine1");
+                int leftHipIndex = JointIndex(track, "left_hip");
+                int rightHipIndex = JointIndex(track, "right_hip");
+                int leftKneeIndex = JointIndex(track, "left_knee");
+                int rightKneeIndex = JointIndex(track, "right_knee");
+                int leftEndIndex = JointIndex(track, "left_ankle");
+                int rightEndIndex = JointIndex(track, "right_ankle");
+
+                foreach (BodyKeyframe frame in track.keyframes)
+                {
+                    bool positionsAvailable =
+                        frame.joint_positions_m != null
+                        && pelvisIndex >= 0
+                        && spineIndex >= 0
+                        && leftHipIndex >= 0
+                        && rightHipIndex >= 0
+                        && leftKneeIndex >= 0
+                        && rightKneeIndex >= 0
+                        && leftEndIndex >= 0
+                        && rightEndIndex >= 0
+                        && pelvisIndex < frame.joint_positions_m.Length
+                        && spineIndex < frame.joint_positions_m.Length
+                        && leftHipIndex < frame.joint_positions_m.Length
+                        && rightHipIndex < frame.joint_positions_m.Length
+                        && leftKneeIndex < frame.joint_positions_m.Length
+                        && rightKneeIndex < frame.joint_positions_m.Length
+                        && leftEndIndex < frame.joint_positions_m.Length
+                        && rightEndIndex < frame.joint_positions_m.Length;
+
+                    if (!positionsAvailable)
+                    {
+                        foreach (string limbName in new[] { "left_leg", "right_leg" })
+                        {
+                            unresolved++;
+                            samples.Add(new LegRotationFkSample {
+                                frame = frame.timeline_frame,
+                                phase_semantic_id = track.semantic_id,
+                                actor_binding_id = track.actor_binding_id,
+                                limb_name = limbName,
+                                solved = false,
+                            });
+                        }
+                        continue;
+                    }
+
+                    Vector3 sourcePelvis =
+                        Vector(frame.joint_positions_m[pelvisIndex]);
+                    Vector3 sourceSpine =
+                        Vector(frame.joint_positions_m[spineIndex]);
+                    Vector3 sourceLeftHip =
+                        Vector(frame.joint_positions_m[leftHipIndex]);
+                    Vector3 sourceRightHip =
+                        Vector(frame.joint_positions_m[rightHipIndex]);
+                    if (!TryAnatomicalBodyBasis(
+                        sourcePelvis,
+                        sourceLeftHip,
+                        sourceRightHip,
+                        sourceSpine,
+                        out Quaternion sourceBodyBasis))
+                    {
+                        foreach (string limbName in new[] { "left_leg", "right_leg" })
+                        {
+                            unresolved++;
+                            samples.Add(new LegRotationFkSample {
+                                frame = frame.timeline_frame,
+                                phase_semantic_id = track.semantic_id,
+                                actor_binding_id = track.actor_binding_id,
+                                limb_name = limbName,
+                                solved = false,
+                            });
+                        }
+                        continue;
+                    }
+
+                    Quaternion sourceToTargetBody =
+                        targetBodyBasis * Quaternion.Inverse(sourceBodyBasis);
+                    Quaternion pelvisCanonical =
+                        RemoveGroundHeading(
+                            QuaternionValueOf(
+                                frame.joint_rotations[pelvisIndex]));
+                    Quaternion pelvisDesiredLocal =
+                        RetargetRotation(
+                            pelvisReferenceLocal,
+                            pelvisCanonicalToTargetBasis,
+                            pelvisCanonical);
+                    Quaternion pelvisDesiredComponent =
+                        pelvisParentReferenceComponent * pelvisDesiredLocal;
+                    Quaternion bodyDelta =
+                        pelvisDesiredComponent
+                        * Quaternion.Inverse(pelvisReferenceComponent);
+
+                    foreach (var limbSpec in new[] {
+                        new {
+                            name = "left_leg",
+                            rootIndex = leftHipIndex,
+                            midIndex = leftKneeIndex,
+                            endIndex = leftEndIndex,
+                            rootReferencePosition = leftHipReferencePosition,
+                            midReferencePosition = leftKneeReferencePosition,
+                            endReferencePosition = leftEndReferencePosition,
+                            upper = leftUpper,
+                            lower = leftLower,
+                        },
+                        new {
+                            name = "right_leg",
+                            rootIndex = rightHipIndex,
+                            midIndex = rightKneeIndex,
+                            endIndex = rightEndIndex,
+                            rootReferencePosition = rightHipReferencePosition,
+                            midReferencePosition = rightKneeReferencePosition,
+                            endReferencePosition = rightEndReferencePosition,
+                            upper = rightUpper,
+                            lower = rightLower,
+                        },
+                    })
+                    {
+                        Vector3 sourceRoot =
+                            Vector(frame.joint_positions_m[limbSpec.rootIndex]);
+                        Vector3 sourceMid =
+                            Vector(frame.joint_positions_m[limbSpec.midIndex]);
+                        Vector3 sourceEnd =
+                            Vector(frame.joint_positions_m[limbSpec.endIndex]);
+
+                        Vector3 mappedRoot = limbSpec.rootReferencePosition;
+                        Vector3 mappedMid =
+                            mappedRoot
+                            + sourceToTargetBody * (sourceMid - sourceRoot);
+                        Vector3 mappedEnd =
+                            mappedRoot
+                            + sourceToTargetBody * (sourceEnd - sourceRoot);
+
+                        bool currentBendDefined = TrySourceBendDirection(
+                            mappedRoot,
+                            mappedMid,
+                            mappedEnd,
+                            out Vector3 currentBend);
+                        if (currentBendDefined)
+                        {
+                            carriedBend[limbSpec.name] = currentBend;
+                            carriedBendDefined[limbSpec.name] = true;
+                        }
+
+                        float targetUpperLength = Vector3.Distance(
+                            limbSpec.rootReferencePosition,
+                            limbSpec.midReferencePosition);
+                        float targetLowerLength = Vector3.Distance(
+                            limbSpec.midReferencePosition,
+                            limbSpec.endReferencePosition);
+                        TwoBoneGeometrySolution solution = SolveTwoBoneGeometry(
+                            mappedRoot,
+                            mappedMid,
+                            mappedEnd,
+                            mappedRoot,
+                            targetUpperLength,
+                            targetLowerLength,
+                            carriedBendDefined[limbSpec.name]
+                                ? carriedBend[limbSpec.name]
+                                : Vector3.zero,
+                            carriedBendDefined[limbSpec.name]);
+
+                        LegRotationFkSample sample =
+                            new LegRotationFkSample {
+                                frame = frame.timeline_frame,
+                                phase_semantic_id = track.semantic_id,
+                                actor_binding_id = track.actor_binding_id,
+                                limb_name = limbSpec.name,
+                                solved = false,
+                            };
+                        if (!solution.solved)
+                        {
+                            unresolved++;
+                            samples.Add(sample);
+                            continue;
+                        }
+
+                        Vector3 solvedRoot =
+                            pelvisReferencePosition
+                            + bodyDelta
+                                * (solution.root - pelvisReferencePosition);
+                        Vector3 solvedMid =
+                            pelvisReferencePosition
+                            + bodyDelta
+                                * (solution.mid - pelvisReferencePosition);
+                        Vector3 solvedEnd =
+                            pelvisReferencePosition
+                            + bodyDelta
+                                * (solution.end - pelvisReferencePosition);
+
+                        Quaternion upperReferenceComponent =
+                            ReferenceComponentRotation(
+                                animator,
+                                limbSpec.upper);
+                        Quaternion lowerReferenceComponent =
+                            ReferenceComponentRotation(
+                                animator,
+                                limbSpec.lower);
+                        Vector3 upperChildOffsetLocal =
+                            Quaternion.Inverse(upperReferenceComponent)
+                            * (
+                                limbSpec.midReferencePosition
+                                - limbSpec.rootReferencePosition
+                            );
+                        Vector3 lowerChildOffsetLocal =
+                            Quaternion.Inverse(lowerReferenceComponent)
+                            * (
+                                limbSpec.endReferencePosition
+                                - limbSpec.midReferencePosition
+                            );
+
+                        Quaternion upperBaseComponent =
+                            bodyDelta * upperReferenceComponent;
+                        Quaternion upperDesiredComponent =
+                            AlignReferenceBoneToDirection(
+                                upperBaseComponent,
+                                upperChildOffsetLocal,
+                                solvedMid - solvedRoot);
+                        Quaternion upperDesiredLocal =
+                            Quaternion.Inverse(pelvisDesiredComponent)
+                            * upperDesiredComponent;
+
+                        Quaternion lowerReferenceLocal =
+                            Quaternion.Inverse(upperReferenceComponent)
+                            * lowerReferenceComponent;
+                        Quaternion lowerBaseComponent =
+                            upperDesiredComponent * lowerReferenceLocal;
+                        Quaternion lowerDesiredComponent =
+                            AlignReferenceBoneToDirection(
+                                lowerBaseComponent,
+                                lowerChildOffsetLocal,
+                                solvedEnd - solvedMid);
+                        Quaternion lowerDesiredLocal =
+                            Quaternion.Inverse(upperDesiredComponent)
+                            * lowerDesiredComponent;
+
+                        Vector3 fkRoot = solvedRoot;
+                        Vector3 fkMid =
+                            fkRoot
+                            + upperDesiredComponent * upperChildOffsetLocal;
+                        Vector3 fkEnd =
+                            fkMid
+                            + lowerDesiredComponent * lowerChildOffsetLocal;
+                        float midError = Vector3.Distance(fkMid, solvedMid);
+                        float endError = Vector3.Distance(fkEnd, solvedEnd);
+                        maxMidError = Mathf.Max(maxMidError, midError);
+                        maxEndError = Mathf.Max(maxEndError, endError);
+
+                        sample.upper_local_rotation =
+                            QuaternionData(upperDesiredLocal);
+                        sample.lower_local_rotation =
+                            QuaternionData(lowerDesiredLocal);
+                        sample.solved_root = VectorData(solvedRoot);
+                        sample.solved_mid = VectorData(solvedMid);
+                        sample.solved_end = VectorData(solvedEnd);
+                        sample.fk_root = VectorData(fkRoot);
+                        sample.fk_mid = VectorData(fkMid);
+                        sample.fk_end = VectorData(fkEnd);
+                        sample.fk_mid_error_m = midError;
+                        sample.fk_end_error_m = endError;
+                        sample.solved = true;
+                        samples.Add(sample);
+                    }
+                }
+            }
+        }
+
+        return new LegRotationFkDiagnostic {
+            diagnostic_version = "0.1.0",
+            engine = "Unity",
+            engine_version = Application.unityVersion,
+            source_bundle_sha256 = mapping.source_bundle_sha256,
+            max_fk_mid_error_m = maxMidError,
+            max_fk_end_error_m = maxEndError,
+            unresolved_sample_count = unresolved,
+            samples = samples
+                .OrderBy(item => item.frame)
+                .ThenBy(item => item.limb_name)
+                .ToArray(),
+        };
+    }
+
     private static void CaptureRetargetProfile(Mapping mapping, Target target)
     {
         RetargetActor[] actors = mapping.body_tracks
