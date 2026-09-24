@@ -1462,7 +1462,12 @@ public static class CutSceneAIGeneratedPerformance
             AnimationPlayableAsset bodyPlayable =
                 (AnimationPlayableAsset)bodyClip.asset;
             bodyPlayable.removeStartOffset = true;
-            bodyPlayable.applyFootIK = true;
+            // Diagnostic baseline: Unity Timeline foot IK can override the authored
+            // Humanoid leg pose when root/pelvis constraints do not yet agree with
+            // the generated foot contacts. Preserve the retargeted clip pose first;
+            // explicit CutSceneAI foot locking/IK belongs in the canonical motion
+            // processing layer and will be added after retarget fidelity is proven.
+            bodyPlayable.applyFootIK = false;
         }
         foreach (FaceTrack face in mapping.facial_tracks)
         {
