@@ -119,6 +119,19 @@ def test_compile_maps_exact_bundle_into_unity_native_contract(
     )
     assert [item.timeline_frame for item in body.keyframes] == [0, 1, 2, 3]
     assert body.keyframes[-1].root_position_m == UnityVector(x=1.0, y=0.0, z=0.0)
+    assert body.keyframes[0].joint_positions_m is not None
+    assert body.keyframes[-1].joint_positions_m is not None
+    assert len(body.keyframes[0].joint_positions_m) == 22
+    assert body.keyframes[0].joint_positions_m[21] == UnityVector(
+        x=21.0,
+        y=0.0,
+        z=0.0,
+    )
+    assert body.keyframes[-1].joint_positions_m[21] == UnityVector(
+        x=22.0,
+        y=0.0,
+        z=0.0,
+    )
     face = mapping.facial_tracks[0]
     assert face.curve_bindings[0].target_blendshape_name == "browDownLeft"
     assert face.curve_bindings[-1].target_blendshape_name == "tongueOut"
@@ -209,6 +222,8 @@ def test_compile_rejects_non_normalized_unity_target_paths(
         ("body_bindings", "joint_bindings must exactly map"),
         ("body_frames", "body keyframes must cover"),
         ("body_rotations", "one rotation per joint"),
+        ("body_positions", "one position per joint"),
+        ("body_position_presence", "present on every frame or on none"),
         ("face_bindings", "curve_bindings must exactly map"),
         ("face_frames", "facial keyframes must cover"),
         ("face_weights", "one weight per curve"),
@@ -231,6 +246,10 @@ def test_mapping_models_reject_realization_drift(
         payload["body_tracks"][0]["keyframes"][0]["timeline_frame"] = 1
     elif mutation == "body_rotations":
         payload["body_tracks"][0]["keyframes"][0]["joint_rotations"].pop()
+    elif mutation == "body_positions":
+        payload["body_tracks"][0]["keyframes"][0]["joint_positions_m"].pop()
+    elif mutation == "body_position_presence":
+        payload["body_tracks"][0]["keyframes"][0]["joint_positions_m"] = None
     elif mutation == "face_bindings":
         payload["facial_tracks"][0]["curve_bindings"][0]["target_blendshape_name"] = (
             "browDownRight"
