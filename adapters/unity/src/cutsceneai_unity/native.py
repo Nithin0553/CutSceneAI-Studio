@@ -193,7 +193,7 @@ public static class CutSceneAIGeneratedPerformance
     [Serializable] private sealed class JointBinding {
         public string source_joint_name; public string target_human_bone; public int parent_index;
     }
-    [Serializable] private sealed class BodyKeyframe { public int timeline_frame; public VectorValue root_position_m; public QuaternionValue[] joint_rotations; }
+    [Serializable] private sealed class BodyKeyframe { public int timeline_frame; public VectorValue root_position_m; public QuaternionValue[] joint_rotations; public VectorValue[] joint_positions_m; }
     [Serializable] private sealed class BodyTrack {
         public string semantic_id; public string actor_binding_id; public string source_performance_cue_id; public int start_frame;
         public int end_frame; public string target_animation_path; public Artifact source_artifact;
