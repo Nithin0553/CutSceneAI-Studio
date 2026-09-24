@@ -105,6 +105,20 @@ def body_composition_diagnostic(
         raise _bad_request(exc) from exc
 
 
+@router.post(
+    "/runs/{run_id}/recompose-body",
+    response_model=PerformanceRunRecord,
+)
+def recompose_body_run(
+    run_id: str,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceRunRecord:
+    try:
+        return executor.recompose_body_run(run_id)
+    except (ValueError, PerformanceError) as exc:
+        raise _bad_request(exc) from exc
+
+
 @router.get(
     "/runs/{run_id}/body-composition-preview",
     response_model=BodyCompositionDiagnostic,
