@@ -209,11 +209,19 @@ def make_generated_performance_fixture() -> GeneratedPerformanceFixture:
                 frame_index=0,
                 root_translation=Vector3(x=0.0, y=0.0, z=0.0),
                 joint_rotations=_identity_rotations(),
+                joint_positions=[
+                    Vector3(x=float(index), y=0.0, z=0.0)
+                    for index in range(22)
+                ],
             ),
             BodyMotionSample(
                 frame_index=1,
                 root_translation=Vector3(x=1.0, y=0.0, z=0.0),
                 joint_rotations=_identity_rotations(),
+                joint_positions=[
+                    Vector3(x=float(index) + 1.0, y=0.0, z=0.0)
+                    for index in range(22)
+                ],
             ),
         ],
     )
