@@ -2825,6 +2825,8 @@ public static class CutSceneAIGeneratedPerformance
         CaptureRetargetProfile(mapping, target);
         LegGeometrySolverDiagnostic legGeometry =
             CaptureLegGeometrySolverDiagnostic(mapping, target);
+        LegRotationFkDiagnostic legRotationFk =
+            CaptureLegRotationFkDiagnostic(mapping, target);
         string preflightEvidenceRoot = EvidenceRoot(target);
         Directory.CreateDirectory(preflightEvidenceRoot);
         File.WriteAllText(
@@ -2832,6 +2834,12 @@ public static class CutSceneAIGeneratedPerformance
                 preflightEvidenceRoot,
                 "leg-geometry-solver-diagnostic.json"),
             JsonUtility.ToJson(legGeometry, true),
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            Path.Combine(
+                preflightEvidenceRoot,
+                "leg-rotation-fk-diagnostic.json"),
+            JsonUtility.ToJson(legRotationFk, true),
             new UTF8Encoding(false));
         Scene scene = CreateRealizationScene(target);
         GameObject root = new GameObject("CutSceneAI_" + mapping.source_scene_id);
