@@ -62,5 +62,7 @@ class PerformanceRunRecord(PerformanceRuntimeModel):
     camera_request_count: int = 0
     audio_track_count: int = 0
     provider_summary: dict[str, str] = Field(default_factory=dict)
+    derived_from_run_id: str | None = None
+    derivation: str | None = None
     warnings: list[str] = Field(default_factory=list)
     error: str | None = None
