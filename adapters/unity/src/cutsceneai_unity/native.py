@@ -296,7 +296,12 @@ public static class CutSceneAIGeneratedPerformance
         public bool right_ground_found; public float left_ground_clearance_m;
         public float right_ground_clearance_m; public float left_knee_angle_deg;
         public float right_knee_angle_deg; public float source_left_knee_rotation_deg;
-        public float source_right_knee_rotation_deg; public float target_facing_error_deg;
+        public float source_right_knee_rotation_deg;
+        public float realized_left_knee_local_delta_deg;
+        public float realized_right_knee_local_delta_deg;
+        public VectorValue realized_left_ankle_direction_from_knee;
+        public VectorValue realized_right_ankle_direction_from_knee;
+        public float target_facing_error_deg;
         public float max_leg_muscle_abs; public string max_leg_muscle_name;
     }
     [Serializable] private sealed class BodyRealizationDiagnostic {
@@ -1278,6 +1283,26 @@ public static class CutSceneAIGeneratedPerformance
         return resolved;
     }
 
+    private static Dictionary<string, Quaternion> ReferenceBodyLocalRotations(
+        ActorTarget actorTarget,
+        BodyTrack track)
+    {
+        GameObject prefab = LoadPrefab(actorTarget);
+        Animator animator = AnimatorFor(prefab, actorTarget);
+        Dictionary<string, Quaternion> values =
+            new Dictionary<string, Quaternion>(StringComparer.Ordinal);
+        foreach (JointBinding binding in track.joint_bindings)
+        {
+            HumanBodyBones bone = (HumanBodyBones)Enum.Parse(
+                typeof(HumanBodyBones),
+                binding.target_human_bone);
+            Transform transform = animator.GetBoneTransform(bone);
+            if (transform != null)
+                values[binding.source_joint_name] = transform.localRotation;
+        }
+        return values;
+    }
+
     private static BodyRealizationDiagnostic CaptureBodyRealizationDiagnostic(
         Plan plan,
         Mapping mapping,
@@ -1289,6 +1314,8 @@ public static class CutSceneAIGeneratedPerformance
         List<BodyRealizationSample> samples = new List<BodyRealizationSample>();
         Dictionary<string, Dictionary<string, Transform>> actorBones =
             new Dictionary<string, Dictionary<string, Transform>>();
+        Dictionary<string, Dictionary<string, Quaternion>> actorReferenceRotations =
+            new Dictionary<string, Dictionary<string, Quaternion>>();
         foreach (BodyTrack actorTrack in mapping.body_tracks
             .GroupBy(item => item.actor_binding_id)
             .Select(group => group.First()))
@@ -1302,6 +1329,8 @@ public static class CutSceneAIGeneratedPerformance
                 actor,
                 actorTarget,
                 actorTrack);
+            actorReferenceRotations[actorTrack.actor_binding_id] =
+                ReferenceBodyLocalRotations(actorTarget, actorTrack);
         }
 
         director.RebuildGraph();
@@ -1379,6 +1408,18 @@ public static class CutSceneAIGeneratedPerformance
                 active,
                 frame,
                 "right_knee");
+            Dictionary<string, Quaternion> referenceRotations =
+                actorReferenceRotations[active.actor_binding_id];
+            float realizedLeftKneeLocalDelta = Quaternion.Angle(
+                referenceRotations["left_knee"],
+                leftLowerLeg.localRotation);
+            float realizedRightKneeLocalDelta = Quaternion.Angle(
+                referenceRotations["right_knee"],
+                rightLowerLeg.localRotation);
+            Vector3 leftAnkleDirection =
+                (leftFoot.position - leftLowerLeg.position).normalized;
+            Vector3 rightAnkleDirection =
+                (rightFoot.position - rightLowerLeg.position).normalized;
 
             samples.Add(new BodyRealizationSample {
                 frame = frame,
@@ -1401,6 +1442,12 @@ public static class CutSceneAIGeneratedPerformance
                 right_knee_angle_deg = KneeAngle(rightUpperLeg, rightLowerLeg, rightFoot),
                 source_left_knee_rotation_deg = sourceLeftKneeRotation,
                 source_right_knee_rotation_deg = sourceRightKneeRotation,
+                realized_left_knee_local_delta_deg = realizedLeftKneeLocalDelta,
+                realized_right_knee_local_delta_deg = realizedRightKneeLocalDelta,
+                realized_left_ankle_direction_from_knee =
+                    VectorData(leftAnkleDirection),
+                realized_right_ankle_direction_from_knee =
+                    VectorData(rightAnkleDirection),
                 target_facing_error_deg = facingError,
                 max_leg_muscle_abs = maxLegMuscle,
                 max_leg_muscle_name = maxLegMuscleName,
