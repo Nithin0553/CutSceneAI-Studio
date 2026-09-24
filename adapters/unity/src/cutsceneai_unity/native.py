@@ -342,6 +342,33 @@ public static class CutSceneAIGeneratedPerformance
         public int unresolved_sample_count;
         public LegGeometrySolverSample[] samples;
     }
+    [Serializable] private sealed class LegRotationFkSample {
+        public int frame;
+        public string phase_semantic_id;
+        public string actor_binding_id;
+        public string limb_name;
+        public QuaternionValue upper_local_rotation;
+        public QuaternionValue lower_local_rotation;
+        public VectorValue solved_root;
+        public VectorValue solved_mid;
+        public VectorValue solved_end;
+        public VectorValue fk_root;
+        public VectorValue fk_mid;
+        public VectorValue fk_end;
+        public float fk_mid_error_m;
+        public float fk_end_error_m;
+        public bool solved;
+    }
+    [Serializable] private sealed class LegRotationFkDiagnostic {
+        public string diagnostic_version;
+        public string engine;
+        public string engine_version;
+        public string source_bundle_sha256;
+        public float max_fk_mid_error_m;
+        public float max_fk_end_error_m;
+        public int unresolved_sample_count;
+        public LegRotationFkSample[] samples;
+    }
     private sealed class TwoBoneGeometrySolution {
         public Vector3 root;
         public Vector3 mid;
