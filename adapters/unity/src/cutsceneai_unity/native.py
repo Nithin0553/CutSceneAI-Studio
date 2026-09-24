@@ -602,8 +602,9 @@ public static class CutSceneAIGeneratedPerformance
         BodyKeyframe first = track.keyframes[0];
         foreach (BodyKeyframe frame in track.keyframes.Skip(1))
         {
-            Vector3 rootDelta = Vector(frame.root_position_m) - Vector(first.root_position_m);
-            if (rootDelta.sqrMagnitude > 1e-10f) return true;
+            // Actor translation is realized by the explicit motion-root track.
+            // This validator only asks whether the in-place Humanoid body pose
+            // is expected to change.
             for (int jointIndex = 0; jointIndex < frame.joint_rotations.Length; jointIndex++)
             {
                 Quaternion a = QuaternionValueOf(first.joint_rotations[jointIndex]);
