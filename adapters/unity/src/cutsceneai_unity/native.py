@@ -317,14 +317,22 @@ public static class CutSceneAIGeneratedPerformance
         public Quaternion left_rotation;
         public Quaternion right_rotation;
 
-        public void ProcessRootMotion(AnimationStream stream) { }
-
-        public void ProcessAnimation(AnimationStream stream)
+        private void WriteKnees(AnimationStream stream)
         {
             if (left_knee.IsValid(stream))
                 left_knee.SetLocalRotation(stream, left_rotation);
             if (right_knee.IsValid(stream))
                 right_knee.SetLocalRotation(stream, right_rotation);
+        }
+
+        public void ProcessRootMotion(AnimationStream stream)
+        {
+            WriteKnees(stream);
+        }
+
+        public void ProcessAnimation(AnimationStream stream)
+        {
+            WriteKnees(stream);
         }
     }
     [Serializable] private sealed class RenderedFrame { public int frame; public string relative_path; public string sha256; }
@@ -1364,6 +1372,7 @@ public static class CutSceneAIGeneratedPerformance
             animator.avatar = genericAvatar;
             animator.runtimeAnimatorController = null;
             animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             animator.Rebind();
             animator.Update(0.0f);
 
@@ -1392,7 +1401,8 @@ public static class CutSceneAIGeneratedPerformance
                     animator);
             output.SetSourcePlayable(playable);
             graph.Play();
-            graph.Evaluate(0.0f);
+            graph.Evaluate(1.0f / 60.0f);
+            graph.Evaluate(1.0f / 60.0f);
 
             leftDelta = Quaternion.Angle(leftReference, leftKnee.localRotation);
             rightDelta = Quaternion.Angle(rightReference, rightKnee.localRotation);
