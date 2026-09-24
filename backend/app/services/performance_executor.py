@@ -20,6 +20,7 @@ from cutsceneai_performance import (
     decode_performance_bundle,
     diagnose_body_composition,
     compile_generation_plan,
+    load_performance_bundle,
     render_body_motion,
     render_generation_plan,
     render_performance_bundle,
