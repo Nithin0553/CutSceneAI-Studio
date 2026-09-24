@@ -40,6 +40,43 @@ def _motion(
     )
 
 
+def _joint_positions(root: Vector3) -> list[Vector3]:
+    offsets = [
+        Vector3(x=0.0, y=0.0, z=0.0),
+        Vector3(x=-0.2, y=0.0, z=0.0),
+        Vector3(x=0.2, y=0.0, z=0.0),
+        Vector3(x=0.0, y=0.3, z=0.0),
+    ]
+    values = [
+        Vector3(x=root.x + offset.x, y=root.y + offset.y, z=root.z + offset.z)
+        for offset in offsets
+    ]
+    while len(values) < len(CANONICAL_HUMANOID_JOINTS):
+        values.append(root.model_copy(deep=True))
+    return values
+
+
+def _motion_with_positions(
+    roots: list[tuple[float, float, float]],
+    rotations: list[Quaternion],
+) -> BodyMotionArtifact:
+    return BodyMotionArtifact(
+        fps=24,
+        frame_count=len(roots),
+        samples=[
+            BodyMotionSample(
+                frame_index=index,
+                root_translation=Vector3(x=root[0], y=root[1], z=root[2]),
+                joint_rotations=_rotations(rotations[index]),
+                joint_positions=_joint_positions(
+                    Vector3(x=root[0], y=root[1], z=root[2])
+                ),
+            )
+            for index, root in enumerate(roots)
+        ],
+    )
+
+
 def _request(
     semantic_id: str,
     *,
@@ -485,3 +522,170 @@ def test_target_facing_turn_rejects_coincident_target() -> None:
             {turn.semantic_id: _normalized(turn, source)},
             scene_transforms=transforms,
         )
+
+
+def test_compositor_keeps_xyz_atomic_through_rebase_and_entry_blend() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+    first = _request("body:scene:beat:guard:01:walk-xyz", start=0, end=2)
+    second = _request("body:scene:beat:guard:01:stop-xyz", start=2, end=4)
+
+    result = compose_body_sequence(
+        [first, second],
+        {
+            first.semantic_id: _normalized(
+                first,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+                    [identity, identity],
+                ),
+            ),
+            second.semantic_id: _normalized(
+                second,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+                    [opposite, opposite],
+                ),
+            ),
+        },
+        blend_frames=2,
+    )
+
+    composed_first = result[first.semantic_id].artifact
+    composed_second = result[second.semantic_id].artifact
+    first_end = composed_first.samples[-1]
+    second_start = composed_second.samples[0]
+
+    assert second_start.root_translation == first_end.root_translation
+    assert second_start.joint_positions == first_end.joint_positions
+    for sample in composed_second.samples:
+        assert sample.joint_positions is not None
+        assert sample.joint_positions[0] == sample.root_translation
+
+
+def test_locomotion_alignment_translates_xyz_with_root_edit() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    walk = _request(
+        "body:scene:beat:guard:01:walk-xyz-align",
+        start=0,
+        end=3,
+        prompt="Action: walk through the hallway Style: cautious.",
+    )
+    source = _motion_with_positions(
+        [(0.0, 0.0, 0.0), (0.1, 0.0, 1.0), (0.2, 0.0, 2.0)],
+        [identity, identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=0.0),
+            rotation=identity,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [walk],
+        {walk.semantic_id: _normalized(walk, source)},
+        scene_transforms=transforms,
+    )[walk.semantic_id].artifact
+
+    for original, composed in zip(source.samples, result.samples, strict=True):
+        assert composed.joint_positions is not None
+        root_edit = Vector3(
+            x=composed.root_translation.x - original.root_translation.x,
+            y=composed.root_translation.y - original.root_translation.y,
+            z=composed.root_translation.z - original.root_translation.z,
+        )
+        for original_position, composed_position in zip(
+            original.joint_positions,
+            composed.joint_positions,
+            strict=True,
+        ):
+            assert composed_position == Vector3(
+                x=original_position.x + root_edit.x,
+                y=original_position.y + root_edit.y,
+                z=original_position.z + root_edit.z,
+            )
+
+
+def test_target_turn_rotates_xyz_with_pelvis_heading() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    turn = _request(
+        "body:scene:beat:guard:01:turn-xyz",
+        start=0,
+        end=3,
+        target="actor:door",
+        prompt="Action: turn toward the door Style: cautious.",
+    )
+    source = _motion_with_positions(
+        [(0.0, 0.0, 0.0)] * 3,
+        [identity, identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=0.0),
+            rotation=identity,
+        ),
+        "actor:door": CanonicalSceneTransform(
+            position=Vector3(x=2.0, y=0.0, z=2.0),
+            rotation=identity,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [turn],
+        {turn.semantic_id: _normalized(turn, source)},
+        scene_transforms=transforms,
+    )[turn.semantic_id].artifact
+
+    final = result.samples[-1]
+    assert final.joint_positions is not None
+    source_left_hip = source.samples[-1].joint_positions[1]
+    final_left_hip = final.joint_positions[1]
+    source_offset = Vector3(
+        x=source_left_hip.x - source.samples[-1].root_translation.x,
+        y=source_left_hip.y - source.samples[-1].root_translation.y,
+        z=source_left_hip.z - source.samples[-1].root_translation.z,
+    )
+    final_offset = Vector3(
+        x=final_left_hip.x - final.root_translation.x,
+        y=final_left_hip.y - final.root_translation.y,
+        z=final_left_hip.z - final.root_translation.z,
+    )
+    expected_offset = _rotate(final.joint_rotations[0], source_offset)
+    assert final_offset.x == pytest.approx(expected_offset.x, abs=1e-6)
+    assert final_offset.y == pytest.approx(expected_offset.y, abs=1e-6)
+    assert final_offset.z == pytest.approx(expected_offset.z, abs=1e-6)
+
+
+def test_target_hold_locks_xyz_root_and_heading_atomically() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    quarter_turn = Quaternion(
+        x=0.0,
+        y=math.sqrt(0.5),
+        z=0.0,
+        w=math.sqrt(0.5),
+    )
+    hold = _request(
+        "body:scene:beat:guard:01:hold-xyz",
+        start=0,
+        end=3,
+        target="actor:door",
+        prompt="Action: remain still facing toward the door Style: cautious.",
+    )
+    source = _motion_with_positions(
+        [(0.0, 0.0, 0.0), (0.4, 0.0, 0.2), (0.8, 0.0, 0.5)],
+        [identity, quarter_turn, quarter_turn],
+    )
+
+    result = compose_body_sequence(
+        [hold],
+        {hold.semantic_id: _normalized(hold, source)},
+    )[hold.semantic_id].artifact
+
+    anchor_root = result.samples[0].root_translation
+    anchor_rotation = result.samples[0].joint_rotations[0]
+    for sample in result.samples:
+        assert sample.root_translation == anchor_root
+        assert sample.joint_rotations[0] == anchor_rotation
+        assert sample.joint_positions is not None
+        assert sample.joint_positions[0] == anchor_root
