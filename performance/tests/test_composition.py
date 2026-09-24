@@ -198,11 +198,11 @@ def test_compositor_rebases_root_and_blends_entry_pose() -> None:
     composed_first = result[first.semantic_id].artifact
     composed_second = result[second.semantic_id].artifact
 
-    assert composed_second.samples[0].root_translation == composed_first.samples[-1].root_translation
-    assert composed_second.samples[-1].root_translation == Vector3(x=3.0, y=0.0, z=0.0)
+    assert composed_second.samples[0].root_translation.x > composed_first.samples[-1].root_translation.x
+    assert composed_second.samples[-1].root_translation.x > composed_second.samples[0].root_translation.x
     assert (
         composed_second.samples[0].joint_rotations[0]
-        == composed_first.samples[-1].joint_rotations[0]
+        != composed_first.samples[-1].joint_rotations[0]
     )
     assert composed_second.samples[-1].joint_rotations[0] == opposite
 
@@ -258,9 +258,10 @@ def test_target_facing_hold_locks_root_and_pelvis_heading() -> None:
 
     composed_turn = result[turn.semantic_id].artifact
     composed_hold = result[hold.semantic_id].artifact
-    anchor_root = composed_turn.samples[-1].root_translation
-    anchor_pelvis = composed_turn.samples[-1].joint_rotations[0]
+    anchor_root = composed_hold.samples[0].root_translation
+    anchor_pelvis = composed_hold.samples[0].joint_rotations[0]
 
+    assert anchor_root != composed_turn.samples[-1].root_translation
     assert all(sample.root_translation == anchor_root for sample in composed_hold.samples)
     assert all(sample.joint_rotations[0] == anchor_pelvis for sample in composed_hold.samples)
 
@@ -556,8 +557,8 @@ def test_compositor_keeps_xyz_atomic_through_rebase_and_entry_blend() -> None:
     first_end = composed_first.samples[-1]
     second_start = composed_second.samples[0]
 
-    assert second_start.root_translation == first_end.root_translation
-    assert second_start.joint_positions == first_end.joint_positions
+    assert second_start.root_translation != first_end.root_translation
+    assert second_start.joint_positions != first_end.joint_positions
     for sample in composed_second.samples:
         assert sample.joint_positions is not None
         assert sample.joint_positions[0] == sample.root_translation
@@ -689,3 +690,43 @@ def test_target_hold_locks_xyz_root_and_heading_atomically() -> None:
         assert sample.joint_rotations[0] == anchor_rotation
         assert sample.joint_positions is not None
         assert sample.joint_positions[0] == anchor_root
+
+
+def test_phase_entry_velocity_blends_without_zero_step_boundary() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    first = _request("body:scene:beat:guard:01:fast", start=0, end=3)
+    second = _request("body:scene:beat:guard:01:slow", start=3, end=6)
+
+    result = compose_body_sequence(
+        [first, second],
+        {
+            first.semantic_id: _normalized(
+                first,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (0.5, 0.0, 0.0), (1.0, 0.0, 0.0)],
+                    [identity, identity, identity],
+                ),
+            ),
+            second.semantic_id: _normalized(
+                second,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.2, 0.0, 0.0)],
+                    [identity, identity, identity],
+                ),
+            ),
+        },
+        blend_frames=3,
+    )
+
+    previous = result[first.semantic_id].artifact
+    current = result[second.semantic_id].artifact
+    previous_step = previous.samples[-1].root_translation.x - previous.samples[-2].root_translation.x
+    boundary_step = current.samples[0].root_translation.x - previous.samples[-1].root_translation.x
+    next_step = current.samples[1].root_translation.x - current.samples[0].root_translation.x
+    final_step = current.samples[2].root_translation.x - current.samples[1].root_translation.x
+
+    assert previous_step == pytest.approx(0.5)
+    assert 0.1 < boundary_step < previous_step
+    assert final_step == pytest.approx(0.1)
+    assert previous_step > boundary_step > next_step > final_step - 1e-9
+    assert current.samples[0].joint_positions[0] == current.samples[0].root_translation
