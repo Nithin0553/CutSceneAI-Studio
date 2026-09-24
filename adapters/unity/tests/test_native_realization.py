@@ -131,7 +131,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "animator.avatarRoot.InverseTransformPoint(transform.position)",
         "Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent",
         "return parentDelta * referenceLocal",
-        'retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v2"',
+        'retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v3-authored-transform"',
         '"retarget-profile.json"',
         "frame.weights[curveIndex] * 100.0f",
         "BodyActorPrefix + actorTarget.actor_binding_id",
