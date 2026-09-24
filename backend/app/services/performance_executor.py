@@ -11,15 +11,20 @@ import uuid
 
 from cutsceneai_dialogue import DialogueEngine
 from cutsceneai_performance import (
+    BodyCompositionDiagnostic,
+    BodyMotionArtifact,
     DialogueAudioArtifact,
     PerformanceGenerationPlan,
     ProviderArtifact,
     assemble_performance_bundle,
+    decode_performance_bundle,
+    diagnose_body_composition,
     compile_generation_plan,
     render_body_motion,
     render_generation_plan,
     render_performance_bundle,
     render_performance_package,
+    normalize_body_output,
 )
 
 from app.models.performance_runtime import (
@@ -410,6 +415,79 @@ class StudioPerformanceExecutor:
         if record.bundle_sha256 is None or _sha256(data) != record.bundle_sha256:
             raise ValueError("Performance bundle SHA-256 no longer matches its run record.")
         return data
+
+    def body_composition_diagnostic(self, run_id: str) -> BodyCompositionDiagnostic:
+        record = self.get_run(run_id)
+        if record.status is not PerformanceRunStatus.SUCCEEDED:
+            raise ValueError(
+                "Body composition diagnostic is unavailable because the run did not succeed."
+            )
+        run_dir = self.run_root / _safe_run_id(run_id)
+        bundle = load_performance_bundle(self.bundle_bytes(run_id))
+        decoded = decode_performance_bundle(bundle)
+        request_by_id = {
+            request.semantic_id: request for request in bundle.plan.body_requests
+        }
+
+        output_dir = run_dir / "body-provider-outputs"
+        if not output_dir.is_dir():
+            raise ValueError("Performance run is missing persisted body provider outputs.")
+
+        raw_normalized = {}
+        for metadata_path in sorted(output_dir.glob("*.metadata.json")):
+            try:
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(
+                    f"Body provider metadata is unreadable: {metadata_path.name}"
+                ) from exc
+            semantic_id = str(metadata.get("request_semantic_id") or "")
+            if semantic_id not in request_by_id:
+                continue
+            artifact_name = str(metadata.get("artifact_file") or "")
+            artifact_path = output_dir / artifact_name
+            if not artifact_name or not artifact_path.is_file():
+                raise ValueError(
+                    f"Body provider metadata '{metadata_path.name}' references a missing artifact."
+                )
+            try:
+                artifact = BodyMotionArtifact.model_validate_json(
+                    artifact_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise ValueError(
+                    f"Body provider artifact is unreadable: {artifact_path.name}"
+                ) from exc
+
+            provider_output = ProviderArtifact(
+                request_semantic_id=semantic_id,
+                artifact=artifact,
+                provider=str(metadata["provider"]),
+                model=str(metadata["model"]),
+                model_revision=str(metadata["model_revision"]),
+                prompt_sha256=str(metadata["prompt_sha256"]),
+                configuration_sha256=str(metadata["configuration_sha256"]),
+                seed=int(metadata["seed"]),
+                generated_at_inference=bool(metadata["generated_at_inference"]),
+                retrieved_pre_authored_clip=bool(metadata["retrieved_pre_authored_clip"]),
+                deterministic_algorithms=bool(metadata["deterministic_algorithms"]),
+            )
+            raw_normalized[semantic_id] = normalize_body_output(
+                request_by_id[semantic_id],
+                provider_output,
+                target_fps=bundle.plan.fps,
+            )
+
+        diagnostic = diagnose_body_composition(
+            bundle.plan,
+            raw_normalized,
+            decoded.body_artifacts,
+        )
+        self._write_json(
+            run_dir / "body-composition-diagnostic.json",
+            diagnostic.model_dump(mode="json"),
+        )
+        return diagnostic
 
     @staticmethod
     def _persist_body_provider_output(
