@@ -343,6 +343,9 @@ def test_executor_generates_verified_bundle_and_evidence(tmp_path: Path, monkeyp
     assert (run_dir / "generation.plan.json").exists()
     assert (run_dir / "provider-readiness.json").exists()
     assert (run_dir / "provider-output-summary.json").exists()
+    diagnostic = executor.body_composition_diagnostic(record.run_id)
+    assert len(diagnostic.track_metrics) == record.body_request_count
+    assert (run_dir / "body-composition-diagnostic.json").exists()
     assert executor.get_run(record.run_id).bundle_sha256 == record.bundle_sha256
     assert executor.list_runs()[0].run_id == record.run_id
 
@@ -442,6 +445,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
         run_id = generated.json()["run_id"]
         fetched = client.get(f"/api/v1/studio/performance/runs/{run_id}")
         listed = client.get("/api/v1/studio/performance/runs?limit=5")
+        diagnostic = client.get(
+            f"/api/v1/studio/performance/runs/{run_id}/body-composition-diagnostic"
+        )
         bundle = client.get(f"/api/v1/studio/performance/runs/{run_id}/bundle")
     finally:
         app.dependency_overrides.clear()
@@ -452,6 +458,8 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert fetched.status_code == 200
     assert listed.status_code == 200
     assert listed.json()[0]["run_id"] == run_id
+    assert diagnostic.status_code == 200
+    assert len(diagnostic.json()["track_metrics"]) == generated.json()["body_request_count"]
     assert bundle.status_code == 200
     assert bundle.headers["content-type"].startswith("application/zip")
     load_performance_bundle(bundle.content)
