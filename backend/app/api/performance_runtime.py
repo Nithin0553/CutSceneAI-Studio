@@ -105,6 +105,20 @@ def body_composition_diagnostic(
         raise _bad_request(exc) from exc
 
 
+@router.get(
+    "/runs/{run_id}/body-composition-preview",
+    response_model=BodyCompositionDiagnostic,
+)
+def body_composition_preview(
+    run_id: str,
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> BodyCompositionDiagnostic:
+    try:
+        return executor.body_composition_preview(run_id)
+    except (ValueError, PerformanceError) as exc:
+        raise _bad_request(exc) from exc
+
+
 @router.get("/runs/{run_id}/bundle", response_model=None)
 def download_performance_bundle(
     run_id: str,
