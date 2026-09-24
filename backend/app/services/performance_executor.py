@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 import uuid
@@ -27,6 +28,7 @@ from cutsceneai_performance import (
     render_body_motion,
     render_generation_plan,
     render_performance_bundle,
+    replace_body_artifacts,
     render_performance_package,
     normalize_body_output,
 )
@@ -546,6 +548,129 @@ class StudioPerformanceExecutor:
             diagnostic.model_dump(mode="json"),
         )
         return diagnostic
+
+    def recompose_body_run(self, run_id: str) -> PerformanceRunRecord:
+        source_record = self.get_run(run_id)
+        if source_record.status is not PerformanceRunStatus.SUCCEEDED:
+            raise ValueError(
+                "Body recomposition is unavailable because the source run did not succeed."
+            )
+        source_run_dir = self.run_root / _safe_run_id(run_id)
+        source_bundle = load_performance_bundle(self.bundle_bytes(run_id))
+        raw_normalized = self._raw_normalized_body_outputs(run_id, source_bundle.plan)
+
+        input_path = source_run_dir / "input.cir.json"
+        if not input_path.is_file():
+            raise ValueError("Performance run is missing its scene-conditioned CIR input.")
+        try:
+            project = Project.model_validate_json(input_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError("Performance run scene-conditioned CIR is unreadable.") from exc
+        if project.id != source_bundle.plan.project_id:
+            raise ValueError("Performance run CIR no longer matches its generation plan.")
+
+        recomposed = compose_body_sequence(
+            source_bundle.plan.body_requests,
+            raw_normalized,
+            scene_transforms=canonical_scene_transforms(project),
+        )
+        replacement_artifacts = {
+            semantic_id: normalized.artifact
+            for semantic_id, normalized in recomposed.items()
+        }
+        derived_bundle = replace_body_artifacts(
+            source_bundle,
+            replacement_artifacts,
+        )
+        diagnostic = diagnose_body_composition(
+            source_bundle.plan,
+            raw_normalized,
+            replacement_artifacts,
+        )
+
+        derived_run_id = str(uuid.uuid4())
+        run_dir = self.run_root / derived_run_id
+        run_dir.mkdir(parents=True, exist_ok=False)
+        created_at = _utc_now()
+
+        for filename in (
+            "input.cir.json",
+            "generation.plan.json",
+            "provider-readiness.json",
+            "dialogue.manifest.json",
+        ):
+            source = source_run_dir / filename
+            if source.is_file():
+                shutil.copy2(source, run_dir / filename)
+        source_body_outputs = source_run_dir / "body-provider-outputs"
+        if source_body_outputs.is_dir():
+            shutil.copytree(
+                source_body_outputs,
+                run_dir / "body-provider-outputs",
+            )
+
+        bundle_data = render_performance_bundle(derived_bundle)
+        bundle_sha = _sha256(bundle_data)
+        (run_dir / "performance.bundle.zip").write_bytes(bundle_data)
+        (run_dir / "performance.package.json").write_text(
+            render_performance_package(derived_bundle.package),
+            encoding="utf-8",
+            newline="\n",
+        )
+        self._write_json(
+            run_dir / "body-composition-diagnostic.json",
+            diagnostic.model_dump(mode="json"),
+        )
+        self._write_json(
+            run_dir / "derivation.json",
+            {
+                "derived_from_run_id": run_id,
+                "derivation": "body-recomposition-v1",
+                "source_bundle_sha256": source_record.bundle_sha256,
+                "derived_bundle_sha256": bundle_sha,
+                "reused_body_provider_outputs": True,
+                "fresh_body_inference": False,
+            },
+        )
+
+        source_summary_path = source_run_dir / "provider-output-summary.json"
+        if source_summary_path.is_file():
+            try:
+                provider_summary_payload = json.loads(
+                    source_summary_path.read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError("Source provider output summary is unreadable.") from exc
+            provider_summary_payload["bundle_sha256"] = bundle_sha
+            provider_summary_payload["derived_from_run_id"] = run_id
+            provider_summary_payload["derivation"] = "body-recomposition-v1"
+            self._write_json(
+                run_dir / "provider-output-summary.json",
+                provider_summary_payload,
+            )
+
+        record = PerformanceRunRecord(
+            run_id=derived_run_id,
+            project_id=source_record.project_id,
+            status=PerformanceRunStatus.SUCCEEDED,
+            created_at_utc=created_at,
+            completed_at_utc=_utc_now(),
+            experiment_seed=source_record.experiment_seed,
+            run_directory=self._portable_run_path(run_dir),
+            generation_plan_sha256=source_record.generation_plan_sha256,
+            bundle_sha256=bundle_sha,
+            bundle_byte_length=len(bundle_data),
+            body_request_count=source_record.body_request_count,
+            facial_request_count=source_record.facial_request_count,
+            camera_request_count=source_record.camera_request_count,
+            audio_track_count=source_record.audio_track_count,
+            provider_summary=dict(source_record.provider_summary),
+            derived_from_run_id=run_id,
+            derivation="body-recomposition-v1",
+            warnings=list(source_record.warnings),
+        )
+        self._write_record(run_dir, record)
+        return record
 
     @staticmethod
     def _persist_body_provider_output(
