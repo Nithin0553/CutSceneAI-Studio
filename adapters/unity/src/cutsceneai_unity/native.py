@@ -1179,7 +1179,13 @@ public static class CutSceneAIGeneratedPerformance
 
     private static void CaptureRetargetProfile(Mapping mapping, Target target)
     {
-        RetargetActor[] actors = mapping.body_tracks.Select(track => {
+        RetargetActor[] actors = mapping.body_tracks
+            .GroupBy(item => item.actor_binding_id)
+            .Select(group => group
+                .OrderBy(item => item.start_frame)
+                .ThenBy(item => item.semantic_id)
+                .First())
+            .Select(track => {
             ActorTarget actorTarget = ActorTargetFor(target, track.actor_binding_id);
             GameObject prefab = LoadPrefab(actorTarget);
             Animator animator = AnimatorFor(prefab, actorTarget);
