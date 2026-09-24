@@ -322,6 +322,9 @@ public static class CutSceneAIGeneratedPerformance
         public bool mapped;
         public RetargetTransform reference_local; public RetargetTransform reference_component;
         public QuaternionValue target_parent_component_rotation;
+        public VectorValue canonical_reference_direction;
+        public VectorValue target_reference_direction_parent_local;
+        public QuaternionValue canonical_to_target_parent_basis;
     }
     [Serializable] private sealed class RetargetActor {
         public string actor_binding_id; public string prefab_path; public RetargetJoint[] joints;
@@ -380,17 +383,118 @@ public static class CutSceneAIGeneratedPerformance
     private static Quaternion ParentComponentRotation(Quaternion referenceLocal, Quaternion referenceComponent)
         => referenceComponent * Quaternion.Inverse(referenceLocal);
 
-    private static Quaternion RetargetRotation(
-        Quaternion referenceLocal,
-        Quaternion referenceComponent,
-        Quaternion canonicalDelta)
+    private static int CanonicalPrimaryChildIndex(int jointIndex)
     {
+        switch (jointIndex)
+        {
+            case 1: return 4;
+            case 2: return 5;
+            case 3: return 6;
+            case 4: return 7;
+            case 5: return 8;
+            case 6: return 9;
+            case 7: return 10;
+            case 8: return 11;
+            case 9: return 12;
+            case 12: return 15;
+            case 13: return 16;
+            case 14: return 17;
+            case 16: return 18;
+            case 17: return 19;
+            case 18: return 20;
+            case 19: return 21;
+            default: return -1;
+        }
+    }
+
+    private static Vector3 CanonicalReferenceDirectionUnity(int jointIndex)
+    {
+        // cutsceneai-humanoid-v1 reference directions after the canonical
+        // right-handed -> Unity left-handed Z reflection performed by the
+        // Unity mapping compiler.
+        switch (jointIndex)
+        {
+            case 1:
+            case 2:
+            case 4:
+            case 5:
+            case 13:
+            case 14:
+            case 16:
+            case 17:
+            case 18:
+            case 19:
+                return Vector3.down;
+            case 3:
+            case 6:
+            case 9:
+                return Vector3.up;
+            case 7:
+            case 8:
+            case 12:
+                return Vector3.forward;
+            default:
+                return Vector3.zero;
+        }
+    }
+
+    private static Vector3 TargetReferenceDirectionParentLocal(
+        Animator animator,
+        Transform joint,
+        Transform child,
+        Quaternion referenceLocal,
+        Quaternion referenceComponent)
+    {
+        if (joint == null || child == null)
+            return Vector3.zero;
+        Vector3 componentDirection =
+            Quaternion.Inverse(animator.avatarRoot.rotation)
+            * (child.position - joint.position);
+        if (componentDirection.sqrMagnitude <= 1e-10f)
+            return Vector3.zero;
         Quaternion parentComponent = ParentComponentRotation(
             referenceLocal,
             referenceComponent);
-        Quaternion parentDelta =
-            Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent;
-        return parentDelta * referenceLocal;
+        return (
+            Quaternion.Inverse(parentComponent)
+            * componentDirection.normalized
+        ).normalized;
+    }
+
+    private static Quaternion CanonicalToTargetParentBasis(
+        Vector3 canonicalReferenceDirection,
+        Vector3 targetReferenceDirectionParentLocal,
+        Quaternion referenceLocal,
+        Quaternion referenceComponent)
+    {
+        if (
+            canonicalReferenceDirection.sqrMagnitude > 1e-10f
+            && targetReferenceDirectionParentLocal.sqrMagnitude > 1e-10f)
+        {
+            return Quaternion.FromToRotation(
+                canonicalReferenceDirection.normalized,
+                targetReferenceDirectionParentLocal.normalized);
+        }
+
+        // Root and terminal joints do not have one canonical primary child.
+        // Preserve the previous component-frame mapping as a deterministic
+        // fallback for those joints.
+        Quaternion parentComponent = ParentComponentRotation(
+            referenceLocal,
+            referenceComponent);
+        return Quaternion.Inverse(parentComponent);
+    }
+
+    private static Quaternion RetargetRotation(
+        Quaternion referenceLocal,
+        Quaternion canonicalToTargetParentBasis,
+        Quaternion canonicalDelta)
+    {
+        Quaternion targetDelta =
+            canonicalToTargetParentBasis
+            * canonicalDelta
+            * Quaternion.Inverse(canonicalToTargetParentBasis);
+        return targetDelta * referenceLocal;
     }
 
     private static RetargetTransform RetargetTransformData(Transform bone)
@@ -818,6 +922,10 @@ public static class CutSceneAIGeneratedPerformance
             Transform[] transforms = new Transform[jointCount];
             Quaternion[] referenceRotations = new Quaternion[jointCount];
             Quaternion[] referenceComponents = new Quaternion[jointCount];
+            Quaternion[] canonicalToTargetParentBases = Enumerable
+                .Range(0, jointCount)
+                .Select(_ => Quaternion.identity)
+                .ToArray();
             List<Tuple<int, float>>[] qx = Enumerable.Range(0, jointCount)
                 .Select(_ => new List<Tuple<int, float>>()).ToArray();
             List<Tuple<int, float>>[] qy = Enumerable.Range(0, jointCount)
@@ -848,6 +956,32 @@ public static class CutSceneAIGeneratedPerformance
                     ReferenceComponentRotation(animator, transform);
             }
 
+            for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
+            {
+                if (transforms[jointIndex] == null) continue;
+                int childIndex = CanonicalPrimaryChildIndex(jointIndex);
+                Transform child =
+                    childIndex >= 0
+                    && childIndex < jointCount
+                    ? transforms[childIndex]
+                    : null;
+                Vector3 canonicalReference =
+                    CanonicalReferenceDirectionUnity(jointIndex);
+                Vector3 targetReference =
+                    TargetReferenceDirectionParentLocal(
+                        animator,
+                        transforms[jointIndex],
+                        child,
+                        referenceRotations[jointIndex],
+                        referenceComponents[jointIndex]);
+                canonicalToTargetParentBases[jointIndex] =
+                    CanonicalToTargetParentBasis(
+                        canonicalReference,
+                        targetReference,
+                        referenceRotations[jointIndex],
+                        referenceComponents[jointIndex]);
+            }
+
             foreach (BodyKeyframe frame in track.keyframes)
             {
                 for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
@@ -860,7 +994,7 @@ public static class CutSceneAIGeneratedPerformance
                         canonicalRotation = RemoveGroundHeading(canonicalRotation);
                     Quaternion targetRotation = RetargetRotation(
                         referenceRotations[jointIndex],
-                        referenceComponents[jointIndex],
+                        canonicalToTargetParentBases[jointIndex],
                         canonicalRotation);
 
                     qx[jointIndex].Add(Tuple.Create(
@@ -922,9 +1056,15 @@ public static class CutSceneAIGeneratedPerformance
             ActorTarget actorTarget = ActorTargetFor(target, track.actor_binding_id);
             GameObject prefab = LoadPrefab(actorTarget);
             Animator animator = AnimatorFor(prefab, actorTarget);
-            RetargetJoint[] joints = track.joint_bindings.Select(binding => {
+            Transform[] mappedTransforms = track.joint_bindings
+                .Select(binding => animator.GetBoneTransform(
+                    (HumanBodyBones)Enum.Parse(
+                        typeof(HumanBodyBones),
+                        binding.target_human_bone)))
+                .ToArray();
+            RetargetJoint[] joints = track.joint_bindings.Select((binding, jointIndex) => {
                 HumanBodyBones bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), binding.target_human_bone);
-                Transform transform = animator.GetBoneTransform(bone);
+                Transform transform = mappedTransforms[jointIndex];
                 if (transform == null)
                 {
                     if (IsRequiredHumanoidBone(bone))
@@ -945,10 +1085,34 @@ public static class CutSceneAIGeneratedPerformance
                             scale = VectorData(Vector3.one),
                         },
                         target_parent_component_rotation = QuaternionData(Quaternion.identity),
+                        canonical_reference_direction = VectorData(
+                            CanonicalReferenceDirectionUnity(jointIndex)),
+                        target_reference_direction_parent_local = VectorData(Vector3.zero),
+                        canonical_to_target_parent_basis = QuaternionData(Quaternion.identity),
                     };
                 }
                 Quaternion local = transform.localRotation;
                 Quaternion component = ReferenceComponentRotation(animator, transform);
+                int childIndex = CanonicalPrimaryChildIndex(jointIndex);
+                Transform child =
+                    childIndex >= 0
+                    && childIndex < mappedTransforms.Length
+                    ? mappedTransforms[childIndex]
+                    : null;
+                Vector3 canonicalReference =
+                    CanonicalReferenceDirectionUnity(jointIndex);
+                Vector3 targetReference =
+                    TargetReferenceDirectionParentLocal(
+                        animator,
+                        transform,
+                        child,
+                        local,
+                        component);
+                Quaternion basis = CanonicalToTargetParentBasis(
+                    canonicalReference,
+                    targetReference,
+                    local,
+                    component);
                 return new RetargetJoint {
                     source_joint_name = binding.source_joint_name,
                     target_human_bone = binding.target_human_bone,
@@ -961,14 +1125,17 @@ public static class CutSceneAIGeneratedPerformance
                         scale = VectorData(transform.lossyScale),
                     },
                     target_parent_component_rotation = QuaternionData(ParentComponentRotation(local, component)),
+                    canonical_reference_direction = VectorData(canonicalReference),
+                    target_reference_direction_parent_local = VectorData(targetReference),
+                    canonical_to_target_parent_basis = QuaternionData(basis),
                 };
             }).ToArray();
             return new RetargetActor { actor_binding_id = track.actor_binding_id, prefab_path = actorTarget.prefab_path, joints = joints };
         }).ToArray();
         RetargetProfile profile = new RetargetProfile {
             profile_version = "0.1.0",
-            retargeting_method = "parent-component-bind-conjugation-v1",
-            canonical_reference_frame = "axis-aligned-parent-frame-v1",
+            retargeting_method = "rest-direction-parent-basis-v1",
+            canonical_reference_frame = "cutsceneai-humanoid-v1-unity-reflected-rest-directions",
             engine = "Unity",
             engine_version = Application.unityVersion,
             source_mapping_sha256 = target.source_mapping_sha256,
@@ -1591,7 +1758,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "direct-target-bone-quaternion-v2-generic-evaluator+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "rest-direction-parent-basis-v1+direct-target-bone-quaternion-v2-generic-evaluator+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
