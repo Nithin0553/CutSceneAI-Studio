@@ -663,6 +663,7 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     assert "Quaternion.Euler(0f, 180f, 0f)" in benchmark_source
     bridge_source = bridge_path.read_text(encoding="utf-8")
     assert "RetryLaterException" in bridge_source
+    assert "EditorApplication.isPlayingOrWillChangePlaymode" in bridge_source
     assert "blendshape_names" in bridge_source
     assert "canonical_world_position_meters" in bridge_source
     assert "cutsceneai-rh-yup-negative-z-forward" in bridge_source
@@ -1534,10 +1535,9 @@ def test_bridge_command_lease_expiry_and_completion_state_guards(
     commands[0]["leased_at_utc"] = (datetime.now(UTC) - timedelta(seconds=4)).isoformat()
     commands_path.write_text(json.dumps(commands), encoding="utf-8")
 
-    resumed = service.poll_bridge_command(record.project_id, "agent-a").command
-    assert resumed is not None
-    assert resumed.command_id == leased.command_id
-    assert resumed.leased_to_agent_id == "agent-a"
+    # Active leases are never redelivered, even to the same agent. Unity native
+    # importers can take far longer than a poll interval and are not idempotent.
+    assert service.poll_bridge_command(record.project_id, "agent-a").command is None
 
     commands = json.loads(commands_path.read_text(encoding="utf-8"))
     commands[0]["leased_at_utc"] = "2000-01-01T00:00:00+00:00"
