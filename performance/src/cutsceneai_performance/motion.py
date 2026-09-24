@@ -72,6 +72,14 @@ class BodyMotionSample(PerformanceModel):
         min_length=len(CANONICAL_HUMANOID_JOINTS),
         max_length=len(CANONICAL_HUMANOID_JOINTS),
     )
+    # Optional source-of-truth joint geometry in canonical coordinates. HumanML/MDM
+    # provides XYZ joints directly; preserving them avoids forcing downstream
+    # retargeters to reconstruct a full pose from swing-only rotations.
+    joint_positions: list[Vector3] | None = Field(
+        default=None,
+        min_length=len(CANONICAL_HUMANOID_JOINTS),
+        max_length=len(CANONICAL_HUMANOID_JOINTS),
+    )
 
 
 class MotionResamplingRecord(PerformanceModel):
@@ -122,6 +130,11 @@ class BodyMotionArtifact(PerformanceModel):
             raise ValueError(
                 "Motion sample frame_index values must be contiguous from zero."
             )
+        position_presence = {sample.joint_positions is not None for sample in self.samples}
+        if len(position_presence) > 1:
+            raise ValueError(
+                "joint_positions must be present on every body sample or on none."
+            )
         return self
 
 
@@ -167,6 +180,22 @@ def _sample_at(
     )
     lower = motion.samples[lower_index]
     upper = motion.samples[upper_index]
+    if (lower.joint_positions is None) != (upper.joint_positions is None):
+        raise ValueError(
+            "Body motion resampling requires joint_positions on either every sample or none."
+        )
+    joint_positions = (
+        [
+            interpolate_vector3(first, second, alpha)
+            for first, second in zip(
+                lower.joint_positions,
+                upper.joint_positions,
+                strict=True,
+            )
+        ]
+        if lower.joint_positions is not None and upper.joint_positions is not None
+        else None
+    )
     return BodyMotionSample(
         frame_index=target_index,
         root_translation=interpolate_vector3(
@@ -180,4 +209,5 @@ def _sample_at(
                 strict=True,
             )
         ],
+        joint_positions=joint_positions,
     )
