@@ -640,9 +640,22 @@ public static class CutSceneAIGeneratedPerformance
             ) + ".root.anim"
             : track.target_animation_path + ".root.anim";
 
+    private static string GenericAvatarPath(BodyTrack track)
+    {
+        int slash = track.target_animation_path.LastIndexOf('/');
+        string directory =
+            slash >= 0
+                ? track.target_animation_path.Substring(0, slash)
+                : "Assets/CutSceneAI/Studio";
+        string actorHash = Sha256(
+            Encoding.UTF8.GetBytes(track.actor_binding_id)).Substring(0, 12);
+        return directory + "/AV_Generic_" + actorHash + ".asset";
+    }
+
     private static string[] GeneratedAssetPaths(Mapping mapping, Target target)
         => mapping.body_tracks.Select(item => item.target_animation_path)
             .Concat(mapping.body_tracks.Select(MotionRootAnimationPath))
+            .Concat(mapping.body_tracks.Select(GenericAvatarPath))
             .Concat(mapping.facial_tracks.Select(item => item.target_animation_path))
             .Concat(mapping.camera_tracks.Select(item => item.target_animation_path))
             .Concat(new[] { target.timeline_asset_path, target.scene_asset_path })
@@ -846,6 +859,7 @@ public static class CutSceneAIGeneratedPerformance
         GameObject instance = UnityEngine.Object.Instantiate(prefab);
         instance.hideFlags = HideFlags.HideAndDontSave;
         bool startedAnimationMode = false;
+        Avatar genericAvatar = null;
         try
         {
             Animator animator = AnimatorFor(instance, target);
@@ -858,11 +872,21 @@ public static class CutSceneAIGeneratedPerformance
                 .Where(transform => transform != null)
                 .ToArray();
 
-            // The target Avatar is used only to resolve and retarget Humanoid bones.
-            // Direct quaternion playback must be evaluated as generic hierarchy
-            // animation; otherwise Mecanim's Humanoid layer ignores/reinterprets
-            // the raw Transform curves.
-            animator.avatar = null;
+            // Use the Humanoid Avatar only to discover semantic target bones.
+            // Playback uses a real Generic Avatar so Unity evaluates the authored
+            // Transform curves as hierarchy animation. Root motion remains external
+            // on CutSceneAI's dedicated motion-root track.
+            genericAvatar = AvatarBuilder.BuildGenericAvatar(
+                animator.gameObject,
+                string.Empty);
+            if (
+                genericAvatar == null
+                || !genericAvatar.isValid
+                || genericAvatar.isHuman)
+                throw new InvalidOperationException(
+                    "Failed to build a valid Generic Avatar for direct-bone playback.");
+            genericAvatar.name = "CutSceneAI_Validation_GenericAvatar";
+            animator.avatar = genericAvatar;
             animator.runtimeAnimatorController = null;
             animator.applyRootMotion = false;
             animator.Rebind();
@@ -909,6 +933,8 @@ public static class CutSceneAIGeneratedPerformance
             if (startedAnimationMode && AnimationMode.InAnimationMode())
                 AnimationMode.StopAnimationMode();
             UnityEngine.Object.DestroyImmediate(instance);
+            if (genericAvatar != null)
+                UnityEngine.Object.DestroyImmediate(genericAvatar);
         }
     }
 
@@ -1667,11 +1693,32 @@ public static class CutSceneAIGeneratedPerformance
                 BodyActorPrefix + actorTarget.actor_binding_id);
             rootTrack.trackOffset = TrackOffset.ApplySceneOffsets;
             Animator actorAnimator = AnimatorFor(instance, actorTarget);
-            actorAnimator.avatar = null;
-            actorAnimator.runtimeAnimatorController = null;
-            actorAnimator.applyRootMotion = false;
-            actorAnimator.Rebind();
-            actorAnimator.Update(0.0f);
+            BodyTrack actorBodyTrack = mapping.body_tracks
+                .FirstOrDefault(item =>
+                    item.actor_binding_id == actorTarget.actor_binding_id);
+            if (actorBodyTrack != null)
+            {
+                Avatar genericAvatar = AvatarBuilder.BuildGenericAvatar(
+                    actorAnimator.gameObject,
+                    string.Empty);
+                if (
+                    genericAvatar == null
+                    || !genericAvatar.isValid
+                    || genericAvatar.isHuman)
+                    throw new InvalidOperationException(
+                        "Failed to build a valid Generic Avatar for actor: "
+                        + actorTarget.actor_binding_id);
+                genericAvatar.name =
+                    "CutSceneAI_Generic_" + actorTarget.actor_binding_id;
+                string genericAvatarPath = GenericAvatarPath(actorBodyTrack);
+                EnsureFolder(genericAvatarPath);
+                AssetDatabase.CreateAsset(genericAvatar, genericAvatarPath);
+                actorAnimator.avatar = genericAvatar;
+                actorAnimator.runtimeAnimatorController = null;
+                actorAnimator.applyRootMotion = false;
+                actorAnimator.Rebind();
+                actorAnimator.Update(0.0f);
+            }
             director.SetGenericBinding(rootTrack, actorAnimator);
 
             actors.Add(actorTarget.actor_binding_id, instance);
@@ -1809,7 +1856,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "rest-direction-parent-basis-v1+direct-target-bone-quaternion-v2-generic-evaluator+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "rest-direction-parent-basis-v1+direct-target-bone-quaternion-v3-generic-avatar+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
