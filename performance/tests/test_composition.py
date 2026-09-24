@@ -272,6 +272,81 @@ def test_compositor_rejects_missing_artifact() -> None:
         compose_body_sequence([request], {})
 
 
+def test_scene_conditioned_walk_root_is_aligned_to_canonical_forward() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    walk = _request(
+        "body:scene:beat:guard:01:walk",
+        start=0,
+        end=3,
+        prompt="Action: walk cautiously through the hallway Style: cautious.",
+    )
+    source = _motion(
+        [(0.0, 0.0, 0.0), (0.1, 0.0, 1.0), (0.2, 0.0, 2.0)],
+        [identity, identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=-5.0),
+            rotation=identity,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [walk],
+        {walk.semantic_id: _normalized(walk, source)},
+        scene_transforms=transforms,
+    )[walk.semantic_id].artifact
+
+    first = result.samples[0].root_translation
+    final = result.samples[-1].root_translation
+    displacement = Vector3(
+        x=final.x - first.x,
+        y=0.0,
+        z=final.z - first.z,
+    )
+    direction = _ground_direction(displacement)
+    assert direction[0] == pytest.approx(0.0, abs=1e-6)
+    assert direction[1] == pytest.approx(-1.0, abs=1e-6)
+    assert math.hypot(displacement.x, displacement.z) == pytest.approx(
+        math.hypot(0.2, 2.0),
+        abs=1e-6,
+    )
+    assert result.samples[-1].joint_rotations[0] == identity
+
+
+def test_scene_conditioned_walk_root_respects_actor_world_rotation() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    half_turn = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+    walk = _request(
+        "body:scene:beat:guard:01:walk",
+        start=0,
+        end=2,
+        prompt="Action: walk down the hallway Style: cautious.",
+    )
+    source = _motion(
+        [(0.0, 0.0, 0.0), (0.0, 0.0, 2.0)],
+        [identity, identity],
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=-5.0),
+            rotation=half_turn,
+        ),
+    }
+
+    result = compose_body_sequence(
+        [walk],
+        {walk.semantic_id: _normalized(walk, source)},
+        scene_transforms=transforms,
+    )[walk.semantic_id].artifact
+
+    local_displacement = result.samples[-1].root_translation
+    world_displacement = _rotate(half_turn, local_displacement)
+    direction = _ground_direction(world_displacement)
+    assert direction[0] == pytest.approx(0.0, abs=1e-6)
+    assert direction[1] == pytest.approx(1.0, abs=1e-6)
+
+
 def test_target_facing_turn_ends_facing_canonical_target() -> None:
     identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
     turn = _request(
