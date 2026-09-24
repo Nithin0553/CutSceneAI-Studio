@@ -179,6 +179,7 @@ public static class CutSceneAIGeneratedPerformance
     private const string TargetBase64 = "__TARGET_BASE64__";
     private const string BodyPrefix = "CSA|BODY|";
     private const string BodyActorPrefix = "CSA|BODY-ACTOR|";
+    private const string MotionRootPrefix = "CSA|MOTIONROOT|";
     private const string FacePrefix = "CSA|FACIAL|";
     private const string CameraMotionPrefix = "CSA|CAMERA-MOTION|";
     private const string CameraPrefix = "CSA|CAMERA|";
@@ -482,8 +483,17 @@ public static class CutSceneAIGeneratedPerformance
         => version.StartsWith("6000.0", StringComparison.Ordinal)
             || version.StartsWith("6000.3", StringComparison.Ordinal);
 
+    private static string MotionRootAnimationPath(BodyTrack track)
+        => track.target_animation_path.EndsWith(".anim", StringComparison.Ordinal)
+            ? track.target_animation_path.Substring(
+                0,
+                track.target_animation_path.Length - ".anim".Length
+            ) + ".root.anim"
+            : track.target_animation_path + ".root.anim";
+
     private static string[] GeneratedAssetPaths(Mapping mapping, Target target)
         => mapping.body_tracks.Select(item => item.target_animation_path)
+            .Concat(mapping.body_tracks.Select(MotionRootAnimationPath))
             .Concat(mapping.facial_tracks.Select(item => item.target_animation_path))
             .Concat(mapping.camera_tracks.Select(item => item.target_animation_path))
             .Concat(new[] { target.timeline_asset_path, target.scene_asset_path })
@@ -792,6 +802,9 @@ public static class CutSceneAIGeneratedPerformance
             using (HumanPoseHandler handler = new HumanPoseHandler(
                 animator.avatar, animator.avatarRoot))
             {
+                HumanPose referencePose = SnapshotHumanPose(handler);
+                Vector3? firstBodyPosition = null;
+
                 foreach (BodyKeyframe frame in track.keyframes)
                 {
                     for (int jointIndex = 0; jointIndex < jointCount; jointIndex++)
@@ -805,18 +818,18 @@ public static class CutSceneAIGeneratedPerformance
                             referenceComponents[jointIndex],
                             QuaternionValueOf(frame.joint_rotations[jointIndex]));
 
-                        if (jointIndex == 0)
-                            transform.localPosition =
-                                referencePositions[jointIndex]
-                                + Quaternion.Inverse(parentComponents[jointIndex])
-                                * Vector(frame.root_position_m);
                     }
 
                     HumanPose pose = SnapshotHumanPose(handler);
+                    if (!firstBodyPosition.HasValue)
+                        firstBodyPosition = pose.bodyPosition;
+                    Vector3 bodyDelta = pose.bodyPosition - firstBodyPosition.Value;
                     int timelineFrame = frame.timeline_frame;
-                    rootTx.Add(Tuple.Create(timelineFrame, pose.bodyPosition.x));
-                    rootTy.Add(Tuple.Create(timelineFrame, pose.bodyPosition.y));
-                    rootTz.Add(Tuple.Create(timelineFrame, pose.bodyPosition.z));
+                    rootTx.Add(Tuple.Create(timelineFrame, referencePose.bodyPosition.x));
+                    rootTy.Add(Tuple.Create(
+                        timelineFrame,
+                        referencePose.bodyPosition.y + bodyDelta.y));
+                    rootTz.Add(Tuple.Create(timelineFrame, referencePose.bodyPosition.z));
                     rootQx.Add(Tuple.Create(timelineFrame, pose.bodyRotation.x));
                     rootQy.Add(Tuple.Create(timelineFrame, pose.bodyRotation.y));
                     rootQz.Add(Tuple.Create(timelineFrame, pose.bodyRotation.z));
@@ -957,6 +970,52 @@ public static class CutSceneAIGeneratedPerformance
         return clip;
     }
 
+    private static AnimationClip CreateMotionRootClip(BodyTrack track, int fps)
+    {
+        AnimationClip clip = new AnimationClip {
+            name = Path.GetFileNameWithoutExtension(MotionRootAnimationPath(track)),
+            frameRate = fps,
+        };
+        SetCurve(
+            clip,
+            "",
+            typeof(Transform),
+            "m_LocalPosition.x",
+            Keys(
+                track.start_frame,
+                fps,
+                track.keyframes.Select(
+                    frame => Tuple.Create(
+                        frame.timeline_frame,
+                        frame.root_position_m.x))));
+        SetCurve(
+            clip,
+            "",
+            typeof(Transform),
+            "m_LocalPosition.y",
+            Keys(
+                track.start_frame,
+                fps,
+                track.keyframes.Select(
+                    frame => Tuple.Create(frame.timeline_frame, 0.0f))));
+        SetCurve(
+            clip,
+            "",
+            typeof(Transform),
+            "m_LocalPosition.z",
+            Keys(
+                track.start_frame,
+                fps,
+                track.keyframes.Select(
+                    frame => Tuple.Create(
+                        frame.timeline_frame,
+                        frame.root_position_m.z))));
+        string path = MotionRootAnimationPath(track);
+        EnsureFolder(path);
+        AssetDatabase.CreateAsset(clip, path);
+        return clip;
+    }
+
     private static TimelineClip AddAnimationClip(AnimationTrack track, string name, AnimationClip animation, int start, int end, int fps)
     {
         TimelineClip clip = track.CreateClip<AnimationPlayableAsset>();
@@ -984,7 +1043,9 @@ public static class CutSceneAIGeneratedPerformance
         director.playableAsset = timeline;
 
         Dictionary<string, GameObject> actors = new Dictionary<string, GameObject>();
+        Dictionary<string, GameObject> motionRoots = new Dictionary<string, GameObject>();
         Dictionary<string, AnimationTrack> animationRoots = new Dictionary<string, AnimationTrack>();
+        Dictionary<string, AnimationTrack> motionRootTracks = new Dictionary<string, AnimationTrack>();
         foreach (ActorTarget actorTarget in target.actors)
         {
             ActorPlan actorPlan = plan.sequences.Single().actors.Single(
@@ -1008,12 +1069,41 @@ public static class CutSceneAIGeneratedPerformance
                 instance.name = ActorPrefix + actorTarget.actor_binding_id;
             }
             ApplyActorTransform(instance, actorPlan);
-            actors.Add(actorTarget.actor_binding_id, instance);
+
+            Transform originalParent = instance.transform.parent;
+            Vector3 originalLocalPosition = instance.transform.localPosition;
+            Quaternion originalLocalRotation = instance.transform.localRotation;
+            Vector3 originalLocalScale = instance.transform.localScale;
+
+            GameObject motionRoot = new GameObject(
+                MotionRootPrefix + actorTarget.actor_binding_id);
+            SceneManager.MoveGameObjectToScene(motionRoot, scene);
+            motionRoot.transform.SetParent(originalParent, false);
+            motionRoot.transform.localPosition = originalLocalPosition;
+            motionRoot.transform.localRotation = originalLocalRotation;
+            motionRoot.transform.localScale = Vector3.one;
+
+            instance.transform.SetParent(motionRoot.transform, false);
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = originalLocalScale;
+
+            Animator motionRootAnimator = motionRoot.AddComponent<Animator>();
+            AnimationTrack motionTrack = timeline.CreateTrack<AnimationTrack>(
+                null,
+                MotionRootPrefix + actorTarget.actor_binding_id);
+            motionTrack.trackOffset = TrackOffset.ApplySceneOffsets;
+            director.SetGenericBinding(motionTrack, motionRootAnimator);
+
             AnimationTrack rootTrack = timeline.CreateTrack<AnimationTrack>(
                 null,
                 BodyActorPrefix + actorTarget.actor_binding_id);
             rootTrack.trackOffset = TrackOffset.ApplySceneOffsets;
             director.SetGenericBinding(rootTrack, AnimatorFor(instance, actorTarget));
+
+            actors.Add(actorTarget.actor_binding_id, instance);
+            motionRoots.Add(actorTarget.actor_binding_id, motionRoot);
+            motionRootTracks.Add(actorTarget.actor_binding_id, motionTrack);
             animationRoots.Add(actorTarget.actor_binding_id, rootTrack);
         }
         foreach (ActorPlan actorPlan in plan.sequences.Single().actors)
@@ -1052,6 +1142,19 @@ public static class CutSceneAIGeneratedPerformance
         foreach (BodyTrack body in mapping.body_tracks)
         {
             ActorTarget actorTarget = ActorTargetFor(target, body.actor_binding_id);
+            AnimationClip motionRootAnimation = CreateMotionRootClip(
+                body,
+                mapping.fps);
+            AnimationTrack motionTrack = motionRootTracks[body.actor_binding_id];
+            TimelineClip motionRootClip = AddAnimationClip(
+                motionTrack,
+                MotionRootPrefix + body.actor_binding_id + "|" + body.semantic_id,
+                motionRootAnimation,
+                body.start_frame,
+                body.end_frame,
+                mapping.fps);
+            ((AnimationPlayableAsset)motionRootClip.asset).removeStartOffset = false;
+
             AnimationClip animation = CreateBodyClip(
                 body,
                 LoadPrefab(actorTarget),
@@ -1113,7 +1216,7 @@ public static class CutSceneAIGeneratedPerformance
         Directory.CreateDirectory(evidenceRoot);
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1",
+            render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v1",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
