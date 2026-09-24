@@ -291,8 +291,8 @@
           "$ref": "#/$defs/ModelProvenance"
         },
         "root_translation_space": {
-          "const": "target-reference-pose-offset",
-          "default": "target-reference-pose-offset",
+          "const": "actor-motion-root-local-offset",
+          "default": "actor-motion-root-local-offset",
           "title": "Root Translation Space",
           "type": "string"
         },
