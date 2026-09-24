@@ -149,6 +149,14 @@ def compile_performance_bundle(
                             convert_quaternion(rotation)
                             for rotation in sample.joint_rotations
                         ],
+                        joint_positions_m=(
+                            [
+                                convert_position(position)
+                                for position in sample.joint_positions
+                            ]
+                            if sample.joint_positions is not None
+                            else None
+                        ),
                     )
                     for sample in body_artifact.samples
                 ],
