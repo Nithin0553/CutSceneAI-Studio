@@ -97,11 +97,68 @@ def test_diagnostic_exposes_rotation_only_composition_and_geometry_boundary_jump
     first = _request("body:scene:beat:guard:01:walk", 0, 2)
     second = _request("body:scene:beat:guard:01:stop", 2, 4)
 
+    first_motion = _motion([0.0, 1.0], [identity, identity])
+    second_motion = _motion([0.0, 0.0], [opposite, opposite])
+    raw = {
+        first.semantic_id: _normalized(first, first_motion),
+        second.semantic_id: _normalized(second, second_motion),
+    }
+
+    # Construct the historical failure explicitly: root/pelvis quaternion is rebased/blended
+    # while XYZ is left in the provider-local phase frame.
+    corrupted_second = second_motion.model_copy(deep=True)
+    corrupted_second.samples[0].root_translation = Vector3(x=1.0, y=0.0, z=0.0)
+    corrupted_second.samples[1].root_translation = Vector3(x=1.0, y=0.0, z=0.0)
+    corrupted_second.samples[0].joint_rotations = [
+        identity.model_copy(deep=True) for _ in CANONICAL_HUMANOID_JOINTS
+    ]
+
+    plan = PerformanceGenerationPlan.model_construct(
+        project_id="diagnostic-fixture",
+        cir_fingerprint_sha256=_HASH,
+        fps=24,
+        duration_frames=4,
+        experiment_seed=1,
+        body_requests=[first, second],
+        facial_requests=[],
+        camera_requests=[],
+    )
+
+    diagnostic = diagnose_body_composition(
+        plan,
+        raw,
+        {
+            first.semantic_id: first_motion,
+            second.semantic_id: corrupted_second,
+        },
+    )
+
+    assert diagnostic.rotation_only_composition_track_count == 1
+    second_metric = next(
+        item for item in diagnostic.track_metrics if item.semantic_id == second.semantic_id
+    )
+    assert second_metric.max_joint_position_edit_m == pytest.approx(0.0)
+    assert second_metric.max_pelvis_rotation_edit_deg > 1.0
+    assert second_metric.composed_max_root_geometry_error_m == pytest.approx(1.0)
+
+    assert len(diagnostic.phase_boundaries) == 1
+    boundary = diagnostic.phase_boundaries[0]
+    assert boundary.root_position_gap_m == pytest.approx(0.0)
+    assert boundary.geometry_pelvis_gap_m == pytest.approx(1.0)
+    assert boundary.max_joint_position_gap_m == pytest.approx(1.0)
+
+
+def test_fixed_compositor_keeps_xyz_and_root_consistent_across_phase_boundary() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+    first = _request("body:scene:beat:guard:01:walk-fixed", 0, 2)
+    second = _request("body:scene:beat:guard:01:stop-fixed", 2, 4)
+
     raw = {
         first.semantic_id: _normalized(first, _motion([0.0, 1.0], [identity, identity])),
         second.semantic_id: _normalized(second, _motion([0.0, 0.0], [opposite, opposite])),
     }
-    composed_normalized = compose_body_sequence(
+    composed = compose_body_sequence(
         [first, second],
         raw,
         blend_frames=2,
@@ -120,25 +177,15 @@ def test_diagnostic_exposes_rotation_only_composition_and_geometry_boundary_jump
     diagnostic = diagnose_body_composition(
         plan,
         raw,
-        {
-            semantic_id: value.artifact
-            for semantic_id, value in composed_normalized.items()
-        },
+        {key: value.artifact for key, value in composed.items()},
     )
 
-    assert diagnostic.rotation_only_composition_track_count == 1
-    second_metric = next(
-        item for item in diagnostic.track_metrics if item.semantic_id == second.semantic_id
-    )
-    assert second_metric.max_joint_position_edit_m == pytest.approx(0.0)
-    assert second_metric.max_pelvis_rotation_edit_deg > 1.0
-    assert second_metric.composed_max_root_geometry_error_m == pytest.approx(1.0)
-
-    assert len(diagnostic.phase_boundaries) == 1
+    assert diagnostic.rotation_only_composition_track_count == 0
+    assert diagnostic.max_composed_root_geometry_error_m == pytest.approx(0.0)
     boundary = diagnostic.phase_boundaries[0]
     assert boundary.root_position_gap_m == pytest.approx(0.0)
-    assert boundary.geometry_pelvis_gap_m == pytest.approx(1.0)
-    assert boundary.max_joint_position_gap_m == pytest.approx(1.0)
+    assert boundary.geometry_pelvis_gap_m == pytest.approx(0.0)
+    assert boundary.max_joint_position_gap_m == pytest.approx(0.0)
 
 
 def test_diagnostic_reports_geometry_orientation_consistency_for_unmodified_motion() -> None:
