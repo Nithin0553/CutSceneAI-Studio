@@ -295,8 +295,9 @@ public static class CutSceneAIGeneratedPerformance
         public VectorValue right_foot_position; public bool left_ground_found;
         public bool right_ground_found; public float left_ground_clearance_m;
         public float right_ground_clearance_m; public float left_knee_angle_deg;
-        public float right_knee_angle_deg; public float target_facing_error_deg;
-        public float max_leg_muscle_abs;
+        public float right_knee_angle_deg; public float source_left_knee_rotation_deg;
+        public float source_right_knee_rotation_deg; public float target_facing_error_deg;
+        public float max_leg_muscle_abs; public string max_leg_muscle_name;
     }
     [Serializable] private sealed class BodyRealizationDiagnostic {
         public string diagnostic_version; public string engine; public string engine_version;
@@ -1010,9 +1011,10 @@ public static class CutSceneAIGeneratedPerformance
         return Vector3.Angle(forward.normalized, towardTarget.normalized);
     }
 
-    private static float MaxLegMuscleAbs(HumanPose pose)
+    private static float MaxLegMuscleAbs(HumanPose pose, out string muscleName)
     {
         float maximum = 0.0f;
+        muscleName = "";
         for (int index = 0; index < pose.muscles.Length; index++)
         {
             string name = HumanTrait.MuscleName[index];
@@ -1020,9 +1022,42 @@ public static class CutSceneAIGeneratedPerformance
                 && name.IndexOf("Foot", StringComparison.OrdinalIgnoreCase) < 0
                 && name.IndexOf("Toes", StringComparison.OrdinalIgnoreCase) < 0)
                 continue;
-            maximum = Mathf.Max(maximum, Mathf.Abs(pose.muscles[index]));
+            float magnitude = Mathf.Abs(pose.muscles[index]);
+            if (magnitude > maximum)
+            {
+                maximum = magnitude;
+                muscleName = name;
+            }
         }
         return maximum;
+    }
+
+    private static int JointIndex(BodyTrack track, string sourceJointName)
+    {
+        for (int index = 0; index < track.joint_bindings.Length; index++)
+            if (string.Equals(
+                track.joint_bindings[index].source_joint_name,
+                sourceJointName,
+                StringComparison.Ordinal))
+                return index;
+        return -1;
+    }
+
+    private static float SourceJointRotationDegrees(
+        BodyTrack track,
+        int timelineFrame,
+        string sourceJointName)
+    {
+        int jointIndex = JointIndex(track, sourceJointName);
+        if (jointIndex < 0)
+            return -1.0f;
+        BodyKeyframe keyframe = track.keyframes
+            .FirstOrDefault(item => item.timeline_frame == timelineFrame);
+        if (keyframe == null || jointIndex >= keyframe.joint_rotations.Length)
+            return -1.0f;
+        return Quaternion.Angle(
+            Quaternion.identity,
+            QuaternionValueOf(keyframe.joint_rotations[jointIndex]));
     }
 
     private static BodyRealizationDiagnostic CaptureBodyRealizationDiagnostic(
@@ -1091,6 +1126,18 @@ public static class CutSceneAIGeneratedPerformance
                 pose = SnapshotHumanPose(handler);
             }
 
+            float maxLegMuscle = MaxLegMuscleAbs(
+                pose,
+                out string maxLegMuscleName);
+            float sourceLeftKneeRotation = SourceJointRotationDegrees(
+                active,
+                frame,
+                "left_knee");
+            float sourceRightKneeRotation = SourceJointRotationDegrees(
+                active,
+                frame,
+                "right_knee");
+
             samples.Add(new BodyRealizationSample {
                 frame = frame,
                 phase_semantic_id = active.semantic_id,
@@ -1110,8 +1157,11 @@ public static class CutSceneAIGeneratedPerformance
                 right_ground_clearance_m = rightClearance,
                 left_knee_angle_deg = KneeAngle(leftUpperLeg, leftLowerLeg, leftFoot),
                 right_knee_angle_deg = KneeAngle(rightUpperLeg, rightLowerLeg, rightFoot),
+                source_left_knee_rotation_deg = sourceLeftKneeRotation,
+                source_right_knee_rotation_deg = sourceRightKneeRotation,
                 target_facing_error_deg = facingError,
-                max_leg_muscle_abs = MaxLegMuscleAbs(pose),
+                max_leg_muscle_abs = maxLegMuscle,
+                max_leg_muscle_name = maxLegMuscleName,
             });
         }
         director.time = 0.0;
