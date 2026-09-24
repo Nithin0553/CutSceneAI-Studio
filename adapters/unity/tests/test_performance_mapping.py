@@ -112,7 +112,7 @@ def test_compile_maps_exact_bundle_into_unity_native_contract(
     body = mapping.body_tracks[0]
     assert body.source_artifact == package.body_tracks[0].artifact
     assert body.provenance == package.body_tracks[0].provenance
-    assert body.root_translation_space == "target-reference-pose-offset"
+    assert body.root_translation_space == "actor-motion-root-local-offset"
     assert body.rotation_space == "target-reference-pose-relative-parent-local"
     assert tuple(item.target_human_bone for item in body.joint_bindings) == (
         UNITY_HUMANOID_BONES
