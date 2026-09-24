@@ -515,6 +515,70 @@ def _parse_json_model(data: bytes, *, label: str, model: type[ModelT]) -> ModelT
         ) from exc
 
 
+def replace_body_artifacts(
+    bundle: PerformanceBundle,
+    body_artifacts: Mapping[str, BodyMotionArtifact],
+) -> PerformanceBundle:
+    """Return a verified bundle with only canonical body artifact bytes replaced."""
+
+    verify_performance_bundle(bundle)
+    expected_ids = {track.semantic_id for track in bundle.package.body_tracks}
+    if set(body_artifacts) != expected_ids:
+        missing = sorted(expected_ids - set(body_artifacts))
+        unknown = sorted(set(body_artifacts) - expected_ids)
+        details: list[str] = []
+        if missing:
+            details.append("missing: " + ", ".join(missing))
+        if unknown:
+            details.append("unknown: " + ", ".join(unknown))
+        raise PerformanceOutputError(
+            "Replacement body artifacts do not exactly match bundle tracks ("
+            + "; ".join(details)
+            + ")."
+        )
+
+    artifact_files = dict(bundle.artifact_files)
+    body_tracks: list[BodyMotionTrack] = []
+    for track in bundle.package.body_tracks:
+        artifact = body_artifacts[track.semantic_id]
+        if (
+            artifact.fps != bundle.package.fps
+            or artifact.frame_count != track.sample_count
+            or artifact.skeleton_profile != track.skeleton_profile
+            or artifact.coordinate_space != bundle.package.coordinate_space
+        ):
+            raise PerformanceOutputError(
+                f"Replacement body artifact '{track.semantic_id}' does not match its track."
+            )
+        data = render_body_motion(artifact).encode("utf-8")
+        artifact_files[track.artifact.relative_path] = data
+        body_tracks.append(
+            track.model_copy(
+                update={
+                    "artifact": _artifact_reference(
+                        kind=ArtifactKind.BODY_MOTION,
+                        format=ArtifactFormat.CUTSCENEAI_MOTION_JSON,
+                        relative_path=track.artifact.relative_path,
+                        data=data,
+                    )
+                },
+                deep=True,
+            )
+        )
+
+    package = bundle.package.model_copy(
+        update={"body_tracks": body_tracks},
+        deep=True,
+    )
+    derived = PerformanceBundle(
+        plan=bundle.plan.model_copy(deep=True),
+        package=package,
+        artifact_files=artifact_files,
+    )
+    verify_performance_bundle(derived)
+    return derived
+
+
 def verify_performance_bundle(bundle: PerformanceBundle) -> None:
     """Verify every plan, manifest, provenance, hash, path, and artifact relationship."""
 
