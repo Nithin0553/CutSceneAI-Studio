@@ -183,9 +183,11 @@ def test_fixed_compositor_keeps_xyz_and_root_consistent_across_phase_boundary() 
     assert diagnostic.rotation_only_composition_track_count == 0
     assert diagnostic.max_composed_root_geometry_error_m == pytest.approx(0.0)
     boundary = diagnostic.phase_boundaries[0]
-    assert boundary.root_position_gap_m == pytest.approx(0.0)
-    assert boundary.geometry_pelvis_gap_m == pytest.approx(0.0)
-    assert boundary.max_joint_position_gap_m == pytest.approx(0.0)
+    assert boundary.root_position_gap_m > 0.0
+    assert boundary.geometry_pelvis_gap_m == pytest.approx(boundary.root_position_gap_m)
+    assert boundary.max_joint_position_gap_m == pytest.approx(boundary.root_position_gap_m)
+    assert boundary.boundary_geometry_velocity_mps is not None
+    assert boundary.boundary_geometry_velocity_mps > 0.0
 
 
 def test_diagnostic_reports_geometry_orientation_consistency_for_unmodified_motion() -> None:
@@ -258,3 +260,49 @@ def test_diagnostic_detects_hidden_zero_step_freeze_at_phase_boundary() -> None:
     assert boundary.previous_to_boundary_velocity_jump_mps == pytest.approx(12.0)
     assert boundary.boundary_to_current_velocity_jump_mps == pytest.approx(0.0)
     assert diagnostic.max_previous_to_boundary_velocity_jump_mps == pytest.approx(12.0)
+
+
+def test_fixed_compositor_reduces_boundary_velocity_jump_without_freeze() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    first = _request("body:scene:beat:guard:01:fast-fixed", 0, 3)
+    second = _request("body:scene:beat:guard:01:slow-fixed", 3, 6)
+
+    raw = {
+        first.semantic_id: _normalized(
+            first,
+            _motion([0.0, 0.5, 1.0], [identity, identity, identity]),
+        ),
+        second.semantic_id: _normalized(
+            second,
+            _motion([0.0, 0.1, 0.2], [identity, identity, identity]),
+        ),
+    }
+    composed = compose_body_sequence(
+        [first, second],
+        raw,
+        blend_frames=3,
+    )
+    plan = PerformanceGenerationPlan.model_construct(
+        project_id="diagnostic-fixture",
+        cir_fingerprint_sha256=_HASH,
+        fps=24,
+        duration_frames=6,
+        experiment_seed=1,
+        body_requests=[first, second],
+        facial_requests=[],
+        camera_requests=[],
+    )
+
+    diagnostic = diagnose_body_composition(
+        plan,
+        raw,
+        {key: value.artifact for key, value in composed.items()},
+    )
+    boundary = diagnostic.phase_boundaries[0]
+
+    assert boundary.previous_geometry_velocity_mps == pytest.approx(12.0)
+    assert boundary.boundary_geometry_velocity_mps == pytest.approx(8.8)
+    assert boundary.current_geometry_velocity_mps == pytest.approx(5.6)
+    assert boundary.previous_to_boundary_velocity_jump_mps == pytest.approx(3.2)
+    assert boundary.boundary_to_current_velocity_jump_mps == pytest.approx(3.2)
+    assert boundary.boundary_geometry_velocity_mps > 0.0
