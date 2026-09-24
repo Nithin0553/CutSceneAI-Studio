@@ -461,6 +461,11 @@ public static class CutSceneAIStudioBridge
                     result = BuildReadback("Unity editor readback captured.");
                     break;
                 case "run_importer":
+                    // Persist the leased importer command before AssetDatabase.Refresh().
+                    // Refreshing a generated C# importer can trigger a script-domain reload
+                    // before RunManagedImporter returns, which would otherwise lose the
+                    // in-memory lease and strand the backend command until lease expiry.
+                    DeferCommand(command);
                     result = RunManagedImporter(command.payload);
                     break;
                 default:
