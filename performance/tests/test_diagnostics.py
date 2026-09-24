@@ -106,7 +106,7 @@ def test_diagnostic_exposes_rotation_only_composition_and_geometry_boundary_jump
         raw,
         blend_frames=2,
     )
-    plan = PerformanceGenerationPlan(
+    plan = PerformanceGenerationPlan.model_construct(
         project_id="diagnostic-fixture",
         cir_fingerprint_sha256=_HASH,
         fps=24,
@@ -146,7 +146,7 @@ def test_diagnostic_reports_geometry_orientation_consistency_for_unmodified_moti
     request = _request("body:scene:beat:guard:01:hold", 0, 2)
     motion = _motion([0.0, 0.0], [identity, identity])
     raw = {request.semantic_id: _normalized(request, motion)}
-    plan = PerformanceGenerationPlan(
+    plan = PerformanceGenerationPlan.model_construct(
         project_id="diagnostic-fixture",
         cir_fingerprint_sha256=_HASH,
         fps=24,
