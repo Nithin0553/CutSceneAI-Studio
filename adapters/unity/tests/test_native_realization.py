@@ -33,6 +33,7 @@ from cutsceneai_unity import (
     UnityNativeSceneBinding,
     compile_performance_bundle,
     compile_unity_native_performance_package,
+    render_unity_body_stream_runtime_script,
     render_unity_native_performance_package,
     render_unity_native_performance_script,
     render_unity_native_runner_script,
@@ -88,6 +89,7 @@ def _package():
 def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None:
     package = _package()
     script = render_unity_native_performance_script(package)
+    runtime = render_unity_body_stream_runtime_script()
     runner = render_unity_native_runner_script(package)
 
     assert package.mapping.body_tracks[0].root_translation_space == (
@@ -113,7 +115,10 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "animator.avatarRoot",
         "AnimationMode.BeginSampling",
         "AnimationMode.SampleAnimationClip",
-        "director.SetGenericBinding(rootTrack, actorAnimator)",
+        "ConfigureBodyStreamDriver",
+        "CutSceneAIBodyStreamDriver.PoseFrame",
+        "driver.RebuildGraph()",
+        "EvaluateBodyStreamDrivers(director, director.time)",
         "director.SetGenericBinding(track, AnimatorComponentFor(actors[face.actor_binding_id]",
         "actorFaceTracks.Length == 0",
         "required facial blendshapes for",
@@ -145,7 +150,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "canonical_reference_direction",
         "target_reference_direction_parent_local",
         "canonical_to_target_parent_basis",
-        'retargeting_method = "rest-direction-parent-basis-v1+direct-target-bone-quaternion-v3-generic-avatar+actor-motion-root-v3-authored-transform"',
+        'retargeting_method = "rest-direction-parent-basis-v1+animation-stream-body-v1+generic-avatar+actor-motion-root-v3-authored-transform"',
         '"retarget-profile.json"',
         "frame.weights[curveIndex] * 100.0f",
         "BodyActorPrefix + actorTarget.actor_binding_id",
@@ -212,6 +217,19 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "SceneObjectAtPath",
     ):
         assert token in script
+    assert "director.SetGenericBinding(rootTrack, actorAnimator)" not in script
+    for token in (
+        "[ExecuteAlways]",
+        "public sealed class CutSceneAIBodyStreamDriver",
+        "NativeArray<TransformStreamHandle>",
+        "animator.BindStreamTransform",
+        "AnimationScriptPlayable.Create",
+        "handle.SetLocalRotation(stream, rotations[index])",
+        "EvaluateAtTime(double timeSeconds)",
+        "Quaternion.Slerp",
+        "AnimatorCullingMode.AlwaysAnimate",
+    ):
+        assert token in runtime
     assert ".Where(item => item.transform != null).Select" not in script
     assert 'throw new InvalidOperationException("Humanoid bone is not mapped: "' not in script
     assert 'throw new InvalidOperationException("Generated clip sampling is missing Humanoid bone: "' not in script
