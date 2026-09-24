@@ -1218,6 +1218,344 @@ public static class CutSceneAIGeneratedPerformance
         };
     }
 
+    private static bool TrySourceBendDirection(
+        Vector3 root,
+        Vector3 mid,
+        Vector3 end,
+        out Vector3 bendDirection)
+    {
+        bendDirection = Vector3.zero;
+        Vector3 rootToEnd = end - root;
+        if (rootToEnd.sqrMagnitude <= 1e-12f)
+            return false;
+        Vector3 axis = rootToEnd.normalized;
+        Vector3 rootToMid = mid - root;
+        Vector3 bend = rootToMid - axis * Vector3.Dot(rootToMid, axis);
+        if (bend.sqrMagnitude <= 1e-10f)
+            return false;
+        bendDirection = bend.normalized;
+        return true;
+    }
+
+    private static TwoBoneGeometrySolution SolveTwoBoneGeometry(
+        Vector3 sourceRoot,
+        Vector3 sourceMid,
+        Vector3 sourceEnd,
+        Vector3 targetRoot,
+        float targetUpperLength,
+        float targetLowerLength,
+        Vector3 fallbackBendDirection,
+        bool hasFallback)
+    {
+        TwoBoneGeometrySolution result = new TwoBoneGeometrySolution {
+            root = targetRoot,
+            mid = targetRoot,
+            end = targetRoot,
+            bend_direction = Vector3.zero,
+            source_extension_ratio = 0.0f,
+            source_bend_direction_defined = false,
+            reach_was_clamped = false,
+            solved = false,
+        };
+
+        float sourceUpper = Vector3.Distance(sourceRoot, sourceMid);
+        float sourceLower = Vector3.Distance(sourceMid, sourceEnd);
+        Vector3 sourceDisplacement = sourceEnd - sourceRoot;
+        float sourceReach = sourceDisplacement.magnitude;
+        if (
+            sourceUpper <= 1e-9f
+            || sourceLower <= 1e-9f
+            || sourceReach <= 1e-9f
+            || targetUpperLength <= 1e-9f
+            || targetLowerLength <= 1e-9f)
+            return result;
+
+        Vector3 direction = sourceDisplacement / sourceReach;
+        float sourceTotal = sourceUpper + sourceLower;
+        float extensionRatio = Mathf.Clamp01(sourceReach / sourceTotal);
+        float targetTotal = targetUpperLength + targetLowerLength;
+        float requestedReach = extensionRatio * targetTotal;
+        float minimumReach = Mathf.Abs(targetUpperLength - targetLowerLength);
+        float epsilon = Mathf.Max(targetTotal * 1e-7f, 1e-8f);
+        float lowerBound = Mathf.Min(minimumReach + epsilon, targetTotal - epsilon);
+        float upperBound = targetTotal - epsilon;
+        float targetReach = Mathf.Clamp(requestedReach, lowerBound, upperBound);
+        Vector3 targetEnd = targetRoot + direction * targetReach;
+
+        bool sourceBendDefined = TrySourceBendDirection(
+            sourceRoot,
+            sourceMid,
+            sourceEnd,
+            out Vector3 bendDirection);
+        if (!sourceBendDefined)
+        {
+            if (!hasFallback)
+            {
+                result.end = targetEnd;
+                result.source_extension_ratio = extensionRatio;
+                result.reach_was_clamped =
+                    Mathf.Abs(targetReach - requestedReach) > epsilon;
+                return result;
+            }
+            Vector3 rejected =
+                fallbackBendDirection
+                - direction * Vector3.Dot(fallbackBendDirection, direction);
+            if (rejected.sqrMagnitude <= 1e-10f)
+            {
+                result.end = targetEnd;
+                result.source_extension_ratio = extensionRatio;
+                result.reach_was_clamped =
+                    Mathf.Abs(targetReach - requestedReach) > epsilon;
+                return result;
+            }
+            bendDirection = rejected.normalized;
+        }
+
+        float along = (
+            targetUpperLength * targetUpperLength
+            - targetLowerLength * targetLowerLength
+            + targetReach * targetReach
+        ) / (2.0f * targetReach);
+        float heightSquared = Mathf.Max(
+            0.0f,
+            targetUpperLength * targetUpperLength - along * along);
+        float height = Mathf.Sqrt(heightSquared);
+        Vector3 targetMid =
+            targetRoot + direction * along + bendDirection * height;
+
+        result.mid = targetMid;
+        result.end = targetEnd;
+        result.bend_direction = bendDirection;
+        result.source_extension_ratio = extensionRatio;
+        result.source_bend_direction_defined = sourceBendDefined;
+        result.reach_was_clamped =
+            Mathf.Abs(targetReach - requestedReach) > epsilon;
+        result.solved = true;
+        return result;
+    }
+
+    private static bool FirstSourceBendDirection(
+        Mapping mapping,
+        string actorBindingId,
+        string rootJoint,
+        string midJoint,
+        string endJoint,
+        out Vector3 bendDirection)
+    {
+        bendDirection = Vector3.zero;
+        foreach (BodyTrack track in mapping.body_tracks
+            .Where(item => item.actor_binding_id == actorBindingId)
+            .OrderBy(item => item.start_frame)
+            .ThenBy(item => item.semantic_id))
+        {
+            int rootIndex = JointIndex(track, rootJoint);
+            int midIndex = JointIndex(track, midJoint);
+            int endIndex = JointIndex(track, endJoint);
+            if (rootIndex < 0 || midIndex < 0 || endIndex < 0)
+                continue;
+            foreach (BodyKeyframe frame in track.keyframes)
+            {
+                if (
+                    frame.joint_positions_m == null
+                    || rootIndex >= frame.joint_positions_m.Length
+                    || midIndex >= frame.joint_positions_m.Length
+                    || endIndex >= frame.joint_positions_m.Length)
+                    continue;
+                if (TrySourceBendDirection(
+                    Vector(frame.joint_positions_m[rootIndex]),
+                    Vector(frame.joint_positions_m[midIndex]),
+                    Vector(frame.joint_positions_m[endIndex]),
+                    out bendDirection))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private static LegGeometrySolverDiagnostic CaptureLegGeometrySolverDiagnostic(
+        Mapping mapping,
+        Target target)
+    {
+        List<LegGeometrySolverSample> samples =
+            new List<LegGeometrySolverSample>();
+        float maxUpperError = 0.0f;
+        float maxLowerError = 0.0f;
+        int unresolved = 0;
+
+        foreach (IGrouping<string, BodyTrack> actorGroup in mapping.body_tracks
+            .GroupBy(item => item.actor_binding_id))
+        {
+            BodyTrack template = actorGroup
+                .OrderBy(item => item.start_frame)
+                .ThenBy(item => item.semantic_id)
+                .First();
+            ActorTarget actorTarget = ActorTargetFor(target, actorGroup.Key);
+            GameObject prefab = LoadPrefab(actorTarget);
+            Animator animator = AnimatorFor(prefab, actorTarget);
+            RetargetLimb left = CaptureRetargetLimb(
+                animator,
+                "left_leg",
+                HumanBodyBones.LeftUpperLeg,
+                HumanBodyBones.LeftLowerLeg,
+                HumanBodyBones.LeftFoot);
+            RetargetLimb right = CaptureRetargetLimb(
+                animator,
+                "right_leg",
+                HumanBodyBones.RightUpperLeg,
+                HumanBodyBones.RightLowerLeg,
+                HumanBodyBones.RightFoot);
+
+            Dictionary<string, Vector3> carriedBend =
+                new Dictionary<string, Vector3>(StringComparer.Ordinal);
+            Dictionary<string, bool> carriedBendDefined =
+                new Dictionary<string, bool>(StringComparer.Ordinal);
+            foreach (string limbName in new[] { "left_leg", "right_leg" })
+            {
+                bool leftSide = limbName == "left_leg";
+                bool defined = FirstSourceBendDirection(
+                    mapping,
+                    actorGroup.Key,
+                    leftSide ? "left_hip" : "right_hip",
+                    leftSide ? "left_knee" : "right_knee",
+                    leftSide ? "left_ankle" : "right_ankle",
+                    out Vector3 firstBend);
+                carriedBend[limbName] = firstBend;
+                carriedBendDefined[limbName] = defined;
+            }
+
+            foreach (BodyTrack track in actorGroup
+                .OrderBy(item => item.start_frame)
+                .ThenBy(item => item.semantic_id))
+            {
+                foreach (var limbSpec in new[] {
+                    new {
+                        name = "left_leg",
+                        root = "left_hip",
+                        mid = "left_knee",
+                        end = "left_ankle",
+                        geometry = left,
+                    },
+                    new {
+                        name = "right_leg",
+                        root = "right_hip",
+                        mid = "right_knee",
+                        end = "right_ankle",
+                        geometry = right,
+                    },
+                })
+                {
+                    int rootIndex = JointIndex(track, limbSpec.root);
+                    int midIndex = JointIndex(track, limbSpec.mid);
+                    int endIndex = JointIndex(track, limbSpec.end);
+                    foreach (BodyKeyframe frame in track.keyframes)
+                    {
+                        LegGeometrySolverSample sample =
+                            new LegGeometrySolverSample {
+                                frame = frame.timeline_frame,
+                                phase_semantic_id = track.semantic_id,
+                                actor_binding_id = track.actor_binding_id,
+                                limb_name = limbSpec.name,
+                                target_upper_length_m =
+                                    limbSpec.geometry.upper_length_m,
+                                target_lower_length_m =
+                                    limbSpec.geometry.lower_length_m,
+                                solved = false,
+                            };
+                        if (
+                            frame.joint_positions_m == null
+                            || rootIndex < 0
+                            || midIndex < 0
+                            || endIndex < 0
+                            || rootIndex >= frame.joint_positions_m.Length
+                            || midIndex >= frame.joint_positions_m.Length
+                            || endIndex >= frame.joint_positions_m.Length)
+                        {
+                            unresolved++;
+                            samples.Add(sample);
+                            continue;
+                        }
+
+                        Vector3 sourceRoot =
+                            Vector(frame.joint_positions_m[rootIndex]);
+                        Vector3 sourceMid =
+                            Vector(frame.joint_positions_m[midIndex]);
+                        Vector3 sourceEnd =
+                            Vector(frame.joint_positions_m[endIndex]);
+                        bool currentBendDefined = TrySourceBendDirection(
+                            sourceRoot,
+                            sourceMid,
+                            sourceEnd,
+                            out Vector3 currentBend);
+                        if (currentBendDefined)
+                        {
+                            carriedBend[limbSpec.name] = currentBend;
+                            carriedBendDefined[limbSpec.name] = true;
+                        }
+
+                        TwoBoneGeometrySolution solution = SolveTwoBoneGeometry(
+                            sourceRoot,
+                            sourceMid,
+                            sourceEnd,
+                            sourceRoot,
+                            limbSpec.geometry.upper_length_m,
+                            limbSpec.geometry.lower_length_m,
+                            carriedBend[limbSpec.name],
+                            carriedBendDefined[limbSpec.name]);
+                        sample.source_root = VectorData(sourceRoot);
+                        sample.source_mid = VectorData(sourceMid);
+                        sample.source_end = VectorData(sourceEnd);
+                        sample.solved_root = VectorData(solution.root);
+                        sample.solved_mid = VectorData(solution.mid);
+                        sample.solved_end = VectorData(solution.end);
+                        sample.bend_direction =
+                            VectorData(solution.bend_direction);
+                        sample.source_extension_ratio =
+                            solution.source_extension_ratio;
+                        sample.source_bend_direction_defined =
+                            solution.source_bend_direction_defined;
+                        sample.reach_was_clamped =
+                            solution.reach_was_clamped;
+                        sample.solved = solution.solved;
+                        if (!solution.solved)
+                        {
+                            unresolved++;
+                            samples.Add(sample);
+                            continue;
+                        }
+
+                        sample.solved_upper_length_error_m = Mathf.Abs(
+                            Vector3.Distance(solution.root, solution.mid)
+                            - limbSpec.geometry.upper_length_m);
+                        sample.solved_lower_length_error_m = Mathf.Abs(
+                            Vector3.Distance(solution.mid, solution.end)
+                            - limbSpec.geometry.lower_length_m);
+                        maxUpperError = Mathf.Max(
+                            maxUpperError,
+                            sample.solved_upper_length_error_m);
+                        maxLowerError = Mathf.Max(
+                            maxLowerError,
+                            sample.solved_lower_length_error_m);
+                        samples.Add(sample);
+                    }
+                }
+            }
+        }
+
+        return new LegGeometrySolverDiagnostic {
+            diagnostic_version = "0.1.0",
+            engine = "Unity",
+            engine_version = Application.unityVersion,
+            source_bundle_sha256 = mapping.source_bundle_sha256,
+            max_upper_length_error_m = maxUpperError,
+            max_lower_length_error_m = maxLowerError,
+            unresolved_sample_count = unresolved,
+            samples = samples
+                .OrderBy(item => item.frame)
+                .ThenBy(item => item.limb_name)
+                .ToArray(),
+        };
+    }
+
     private static void CaptureRetargetProfile(Mapping mapping, Target target)
     {
         RetargetActor[] actors = mapping.body_tracks
