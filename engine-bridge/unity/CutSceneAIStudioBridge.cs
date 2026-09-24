@@ -19,6 +19,8 @@ public static class CutSceneAIStudioBridge
     private const string BridgeVersion = "0.2.0";
     private const double HeartbeatIntervalSeconds = 10.0;
     private const double PollIntervalSeconds = 2.0;
+    private const string DeferredCommandSessionKey =
+        "CutSceneAIStudioBridge.DeferredCommand";
 
     [Serializable]
     private sealed class Config
@@ -186,6 +188,8 @@ public static class CutSceneAIStudioBridge
     private static bool _requestInFlight;
     private static double _nextHeartbeat;
     private static double _nextPoll;
+    private static BridgeCommand _deferredCommand;
+    private static double _nextDeferredRetry;
 
     static CutSceneAIStudioBridge()
     {
@@ -219,6 +223,7 @@ public static class CutSceneAIStudioBridge
             _agentId = Environment.MachineName + ":unity:" + _config.project_id;
             _nextHeartbeat = 0;
             _nextPoll = 0;
+            RestoreDeferredCommand();
             Debug.Log(
                 "CutSceneAI Studio Bridge ready for project "
                 + _config.project_id
@@ -229,6 +234,82 @@ public static class CutSceneAIStudioBridge
         {
             _config = null;
             Debug.LogError("CutSceneAI Studio Bridge configuration error: " + exc.Message);
+        }
+    }
+
+    private static void RestoreDeferredCommand()
+    {
+        _deferredCommand = null;
+        _nextDeferredRetry = 0;
+        string json = SessionState.GetString(
+            DeferredCommandSessionKey,
+            string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return;
+
+        try
+        {
+            BridgeCommand command = JsonUtility.FromJson<BridgeCommand>(json);
+            if (
+                command == null
+                || string.IsNullOrWhiteSpace(command.command_id)
+                || string.IsNullOrWhiteSpace(command.command)
+                || command.project_id != _config.project_id)
+            {
+                SessionState.EraseString(DeferredCommandSessionKey);
+                return;
+            }
+
+            _deferredCommand = command;
+            Debug.Log(
+                "CutSceneAI Studio Bridge restored deferred command "
+                + command.command_id
+                + " after editor reload.");
+        }
+        catch (Exception exc)
+        {
+            SessionState.EraseString(DeferredCommandSessionKey);
+            Debug.LogWarning(
+                "CutSceneAI Studio Bridge discarded invalid deferred command: "
+                + exc.Message);
+        }
+    }
+
+    private static void DeferCommand(BridgeCommand command)
+    {
+        _deferredCommand = command;
+        _nextDeferredRetry =
+            EditorApplication.timeSinceStartup + PollIntervalSeconds;
+        SessionState.SetString(
+            DeferredCommandSessionKey,
+            JsonUtility.ToJson(command));
+    }
+
+    private static void ClearDeferredCommand(string commandId)
+    {
+        if (
+            _deferredCommand != null
+            && _deferredCommand.command_id == commandId)
+        {
+            _deferredCommand = null;
+            _nextDeferredRetry = 0;
+        }
+
+        string json = SessionState.GetString(
+            DeferredCommandSessionKey,
+            string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return;
+
+        try
+        {
+            BridgeCommand stored = JsonUtility.FromJson<BridgeCommand>(json);
+            if (stored == null || stored.command_id == commandId)
+                SessionState.EraseString(DeferredCommandSessionKey);
+        }
+        catch
+        {
+            SessionState.EraseString(DeferredCommandSessionKey);
         }
     }
 
@@ -250,6 +331,13 @@ public static class CutSceneAIStudioBridge
         if (now >= _nextHeartbeat)
         {
             SendHeartbeat();
+            return;
+        }
+
+        if (_deferredCommand != null)
+        {
+            if (now >= _nextDeferredRetry)
+                ExecuteCommand(_deferredCommand);
             return;
         }
 
@@ -387,7 +475,7 @@ public static class CutSceneAIStudioBridge
                 + command.command_id
                 + ": "
                 + exc.Message);
-            _nextPoll = EditorApplication.timeSinceStartup + PollIntervalSeconds;
+            DeferCommand(command);
             return;
         }
         catch (Exception exc)
@@ -397,6 +485,7 @@ public static class CutSceneAIStudioBridge
             result = BuildReadback("Command failed.");
         }
 
+        ClearDeferredCommand(command.command_id);
         CompleteRequest completion = new CompleteRequest
         {
             agent_id = _agentId,
