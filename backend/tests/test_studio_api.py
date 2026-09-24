@@ -663,6 +663,8 @@ def test_unity_bridge_install_heartbeat_and_command_round_trip(tmp_path: Path, m
     assert "Quaternion.Euler(0f, 180f, 0f)" in benchmark_source
     bridge_source = bridge_path.read_text(encoding="utf-8")
     assert "RetryLaterException" in bridge_source
+    assert "DeferCommand(command);" in bridge_source
+    assert "SessionState.SetString" in bridge_source
     assert "EditorApplication.isPlayingOrWillChangePlaymode" in bridge_source
     assert "blendshape_names" in bridge_source
     assert "canonical_world_position_meters" in bridge_source
