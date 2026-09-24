@@ -2542,6 +2542,9 @@ function Copy-CutSceneAIFile([string]$Source, [string]$Destination) {
     Copy-Item -LiteralPath $Source -Destination $Destination
 }
 
+$runtimeSource = Join-Path $PSScriptRoot "CutSceneAIBodyStreamDriver.cs"
+$runtimeTarget = Join-Path $projectRoot "Assets\CutSceneAI\Runtime\CutSceneAIBodyStreamDriver.cs"
+Copy-CutSceneAIFile $runtimeSource $runtimeTarget
 $editorSource = Join-Path $PSScriptRoot "CutSceneAIGeneratedPerformance.cs"
 $editorTarget = Join-Path $projectRoot "Assets\Editor\CutSceneAIGeneratedPerformance.cs"
 Copy-CutSceneAIFile $editorSource $editorTarget
@@ -2623,6 +2626,11 @@ def render_unity_native_performance_package(
             archive,
             "Scripts/CutSceneAIGeneratedPerformance.cs",
             render_unity_native_performance_script(package).encode("utf-8"),
+        )
+        _write_entry(
+            archive,
+            "Scripts/CutSceneAIBodyStreamDriver.cs",
+            render_unity_body_stream_runtime_script().encode("utf-8"),
         )
         _write_entry(
             archive,
