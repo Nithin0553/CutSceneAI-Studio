@@ -91,6 +91,13 @@ def test_humanml_rest_pose_becomes_identity_local_rotations() -> None:
         assert rotation.y == pytest.approx(0.0, abs=1e-7)
         assert rotation.z == pytest.approx(0.0, abs=1e-7)
         assert rotation.w == pytest.approx(1.0, abs=1e-7)
+    assert artifact.samples[0].joint_positions is not None
+    assert len(artifact.samples[0].joint_positions) == 22
+    assert artifact.samples[0].joint_positions[0].model_dump() == {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
 
 
 def test_humanml_whole_body_yaw_is_carried_by_pelvis_not_counter_rotated_limbs() -> (
@@ -120,6 +127,12 @@ def test_humanml_root_translation_is_rebased_and_rotated_to_minus_z_forward() ->
     )
 
     assert artifact.samples[1].root_translation.model_dump() == {
+        "x": -1.5,
+        "y": 0.25,
+        "z": -2.0,
+    }
+    assert artifact.samples[1].joint_positions is not None
+    assert artifact.samples[1].joint_positions[0].model_dump() == {
         "x": -1.5,
         "y": 0.25,
         "z": -2.0,
@@ -182,6 +195,18 @@ def test_humanml_v02_basis_repair_matches_v03_conversion() -> None:
                         )
                         for rotation in sample.joint_rotations
                     ],
+                    "joint_positions": (
+                        [
+                            Vector3(
+                                x=-position.x,
+                                y=position.y,
+                                z=position.z,
+                            )
+                            for position in sample.joint_positions
+                        ]
+                        if sample.joint_positions is not None
+                        else None
+                    ),
                 },
                 deep=True,
             )
