@@ -50,6 +50,7 @@ class UnityBodyKeyframe(UnityModel):
     timeline_frame: int = Field(ge=0)
     root_position_m: UnityVector
     joint_rotations: list[UnityQuaternion]
+    joint_positions_m: list[UnityVector] | None = None
 
 
 class UnityGeneratedTrack(UnityModel):
@@ -104,6 +105,21 @@ class UnityGeneratedBodyTrack(UnityGeneratedTrack):
         ):
             raise ValueError(
                 "body keyframes must contain one rotation per joint binding"
+            )
+        if any(
+            item.joint_positions_m is not None
+            and len(item.joint_positions_m) != len(self.joint_bindings)
+            for item in self.keyframes
+        ):
+            raise ValueError(
+                "body keyframes with joint positions must contain one position per joint binding"
+            )
+        position_presence = {
+            item.joint_positions_m is not None for item in self.keyframes
+        }
+        if len(position_presence) > 1:
+            raise ValueError(
+                "body keyframe joint positions must be present on every frame or on none"
             )
         return self
 
