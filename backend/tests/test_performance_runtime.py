@@ -448,6 +448,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
         diagnostic = client.get(
             f"/api/v1/studio/performance/runs/{run_id}/body-composition-diagnostic"
         )
+        preview = client.get(
+            f"/api/v1/studio/performance/runs/{run_id}/body-composition-preview"
+        )
         bundle = client.get(f"/api/v1/studio/performance/runs/{run_id}/bundle")
     finally:
         app.dependency_overrides.clear()
@@ -460,6 +463,8 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert listed.json()[0]["run_id"] == run_id
     assert diagnostic.status_code == 200
     assert len(diagnostic.json()["track_metrics"]) == generated.json()["body_request_count"]
+    assert preview.status_code == 200
+    assert len(preview.json()["track_metrics"]) == generated.json()["body_request_count"]
     assert bundle.status_code == 200
     assert bundle.headers["content-type"].startswith("application/zip")
     load_performance_bundle(bundle.content)
