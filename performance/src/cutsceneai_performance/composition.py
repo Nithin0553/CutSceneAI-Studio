@@ -161,43 +161,65 @@ def _stitch_entry_trajectory(
     *,
     blend_frames: int,
 ) -> BodyMotionArtifact:
-    """C1-stitch the incoming root path without duplicating the boundary frame."""
+    """Blend sampled root velocity across a phase boundary and integrate forward."""
 
     count = min(blend_frames, motion.frame_count)
-    if count <= 1 or previous_velocity is None:
+    if count <= 0 or previous_velocity is None:
         return motion
 
-    target_index = count - 1
-    target_position = motion.samples[target_index].root_translation
-    target_velocity = _scale_vector(
-        _subtract_vector(
-            motion.samples[target_index].root_translation,
-            motion.samples[target_index - 1].root_translation,
-        ),
-        float(motion.fps),
-    )
-    duration = count / float(motion.fps)
+    previous_step = _scale_vector(previous_velocity, 1.0 / float(motion.fps))
+    previous_position = previous_end.root_translation
+    transition_samples: list[BodyMotionSample] = []
 
-    samples: list[BodyMotionSample] = []
-    for index, sample in enumerate(motion.samples):
-        if index >= count:
-            samples.append(sample.model_copy(deep=True))
-            continue
+    for index in range(count):
+        sample = motion.samples[index]
+        if motion.frame_count > 1:
+            if index == 0:
+                source_step = _subtract_vector(
+                    motion.samples[1].root_translation,
+                    motion.samples[0].root_translation,
+                )
+            else:
+                source_step = _subtract_vector(
+                    motion.samples[index].root_translation,
+                    motion.samples[index - 1].root_translation,
+                )
+        else:
+            source_step = previous_step
 
-        t = (index + 1) / float(motion.fps)
-        u = t / duration
-        root_translation = _hermite_vector(
-            previous_end.root_translation,
-            previous_velocity,
-            target_position,
-            target_velocity,
-            duration,
-            u,
-        )
+        alpha = (index + 1) / count
+        blended_step = _lerp_vector(previous_step, source_step, alpha)
+        root_translation = _add_vector(previous_position, blended_step)
         root_edit = _subtract_vector(root_translation, sample.root_translation)
         joint_positions = (
             [
                 _add_vector(position, root_edit)
+                for position in sample.joint_positions
+            ]
+            if sample.joint_positions is not None
+            else None
+        )
+        transition_samples.append(
+            sample.model_copy(
+                update={
+                    "root_translation": root_translation,
+                    "joint_positions": joint_positions,
+                },
+                deep=True,
+            )
+        )
+        previous_position = root_translation
+
+    tail_offset = _subtract_vector(
+        transition_samples[-1].root_translation,
+        motion.samples[count - 1].root_translation,
+    )
+    samples = list(transition_samples)
+    for sample in motion.samples[count:]:
+        root_translation = _add_vector(sample.root_translation, tail_offset)
+        joint_positions = (
+            [
+                _add_vector(position, tail_offset)
                 for position in sample.joint_positions
             ]
             if sample.joint_positions is not None
@@ -601,28 +623,6 @@ def _scale_vector(value: Vector3, amount: float) -> Vector3:
         x=value.x * amount,
         y=value.y * amount,
         z=value.z * amount,
-    )
-
-
-def _hermite_vector(
-    start: Vector3,
-    start_velocity: Vector3,
-    end: Vector3,
-    end_velocity: Vector3,
-    duration: float,
-    u: float,
-) -> Vector3:
-    u = max(0.0, min(1.0, u))
-    u2 = u * u
-    u3 = u2 * u
-    h00 = 2.0 * u3 - 3.0 * u2 + 1.0
-    h10 = u3 - 2.0 * u2 + u
-    h01 = -2.0 * u3 + 3.0 * u2
-    h11 = u3 - u2
-    return Vector3(
-        x=h00 * start.x + h10 * duration * start_velocity.x + h01 * end.x + h11 * duration * end_velocity.x,
-        y=h00 * start.y + h10 * duration * start_velocity.y + h01 * end.y + h11 * duration * end_velocity.y,
-        z=h00 * start.z + h10 * duration * start_velocity.z + h01 * end.z + h11 * duration * end_velocity.z,
     )
 
 
