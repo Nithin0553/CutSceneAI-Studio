@@ -91,7 +91,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     runner = render_unity_native_runner_script(package)
 
     assert package.mapping.body_tracks[0].root_translation_space == (
-        "target-reference-pose-offset"
+        "actor-motion-root-local-offset"
     )
     assert package.mapping.body_tracks[0].rotation_space == (
         "target-reference-pose-relative-parent-local"
@@ -131,11 +131,18 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
         "animator.avatarRoot.InverseTransformPoint(transform.position)",
         "Quaternion.Inverse(parentComponent) * canonicalDelta * parentComponent",
         "return parentDelta * referenceLocal",
-        'retargeting_method = "parent-component-bind-conjugation-v1"',
+        'retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v1"',
         '"retarget-profile.json"',
         "frame.weights[curveIndex] * 100.0f",
         "BodyActorPrefix + actorTarget.actor_binding_id",
+        "MotionRootPrefix + actorTarget.actor_binding_id",
+        "CreateMotionRootClip",
+        "MotionRootAnimationPath",
+        "motionRoot.transform.localPosition = originalLocalPosition",
+        "instance.transform.localPosition = Vector3.zero",
+        "motionTrack.trackOffset = TrackOffset.ApplySceneOffsets",
         "rootTrack.trackOffset = TrackOffset.ApplySceneOffsets",
+        "referencePose.bodyPosition.y + bodyDelta.y",
         "AnimationTrack track = animationRoots[body.actor_binding_id]",
         "removeStartOffset = false",
         "foreach (ActorPlan actorPlan in plan.sequences.Single().actors)",
@@ -167,6 +174,7 @@ def test_compiles_exact_bundle_and_renders_strict_unity_editor_harness() -> None
     assert "Quaternion.Inverse(animator.transform.rotation) * bone.rotation" not in script
     assert "animator.transform.InverseTransformPoint(transform.position)" not in script
     assert "timeline.CreateTrack<AnimationTrack>(animationRoots[body.actor_binding_id]" not in script
+    assert "+ Quaternion.Inverse(parentComponents[jointIndex])" not in script
     assert "GetComponent<AudioSource>() ??" not in script
     assert runner.count("& $UnityEditor") == 2
     assert 'Join-Path $projectRoot "CutSceneAIEvidence\\Unity"' in runner
