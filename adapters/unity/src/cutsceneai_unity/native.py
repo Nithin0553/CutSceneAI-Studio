@@ -865,6 +865,8 @@ public static class CutSceneAIGeneratedPerformance
             animator.avatar = null;
             animator.runtimeAnimatorController = null;
             animator.applyRootMotion = false;
+            animator.Rebind();
+            animator.Update(0.0f);
 
             if (!AnimationMode.InAnimationMode())
             {
@@ -1668,6 +1670,8 @@ public static class CutSceneAIGeneratedPerformance
             actorAnimator.avatar = null;
             actorAnimator.runtimeAnimatorController = null;
             actorAnimator.applyRootMotion = false;
+            actorAnimator.Rebind();
+            actorAnimator.Update(0.0f);
             director.SetGenericBinding(rootTrack, actorAnimator);
 
             actors.Add(actorTarget.actor_binding_id, instance);
