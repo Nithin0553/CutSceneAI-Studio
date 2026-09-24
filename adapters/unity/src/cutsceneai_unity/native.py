@@ -194,7 +194,7 @@ public static class CutSceneAIGeneratedPerformance
     }
     [Serializable] private sealed class BodyKeyframe { public int timeline_frame; public VectorValue root_position_m; public QuaternionValue[] joint_rotations; }
     [Serializable] private sealed class BodyTrack {
-        public string semantic_id; public string actor_binding_id; public int start_frame;
+        public string semantic_id; public string actor_binding_id; public string source_performance_cue_id; public int start_frame;
         public int end_frame; public string target_animation_path; public Artifact source_artifact;
         public JointBinding[] joint_bindings; public BodyKeyframe[] keyframes;
     }
@@ -285,6 +285,22 @@ public static class CutSceneAIGeneratedPerformance
         public string readback_version; public string engine; public string engine_version;
         public string adapter_version; public string timeline_asset; public TimelineSemantics semantics;
         public ReadbackEvidence evidence; public string[] warnings;
+    }
+    [Serializable] private sealed class BodyRealizationSample {
+        public int frame; public string phase_semantic_id; public string actor_binding_id;
+        public string target_binding_id; public VectorValue motion_root_position;
+        public QuaternionValue motion_root_rotation; public VectorValue actor_forward;
+        public VectorValue hips_position; public VectorValue left_knee_position;
+        public VectorValue right_knee_position; public VectorValue left_foot_position;
+        public VectorValue right_foot_position; public bool left_ground_found;
+        public bool right_ground_found; public float left_ground_clearance_m;
+        public float right_ground_clearance_m; public float left_knee_angle_deg;
+        public float right_knee_angle_deg; public float target_facing_error_deg;
+        public float max_leg_muscle_abs;
+    }
+    [Serializable] private sealed class BodyRealizationDiagnostic {
+        public string diagnostic_version; public string engine; public string engine_version;
+        public string source_bundle_sha256; public BodyRealizationSample[] samples;
     }
     [Serializable] private sealed class RenderedFrame { public int frame; public string relative_path; public string sha256; }
     [Serializable] private sealed class RenderManifest {
@@ -953,6 +969,163 @@ public static class CutSceneAIGeneratedPerformance
         File.WriteAllText(Path.Combine(evidenceRoot, "retarget-profile.json"), JsonUtility.ToJson(profile, true), new UTF8Encoding(false));
     }
 
+    private static float KneeAngle(Transform hip, Transform knee, Transform ankle)
+    {
+        if (hip == null || knee == null || ankle == null)
+            return -1.0f;
+        return Vector3.Angle(hip.position - knee.position, ankle.position - knee.position);
+    }
+
+    private static bool GroundClearance(
+        Vector3 point,
+        Transform excludedRoot,
+        out float clearance)
+    {
+        RaycastHit[] hits = Physics.RaycastAll(
+            point + Vector3.up * 1.0f,
+            Vector3.down,
+            5.0f,
+            Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+        foreach (RaycastHit hit in hits.OrderBy(item => item.distance))
+        {
+            if (hit.collider == null)
+                continue;
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == excludedRoot || hitTransform.IsChildOf(excludedRoot))
+                continue;
+            clearance = point.y - hit.point.y;
+            return true;
+        }
+        clearance = 0.0f;
+        return false;
+    }
+
+    private static float GroundFacingError(Vector3 forward, Vector3 towardTarget)
+    {
+        forward.y = 0.0f;
+        towardTarget.y = 0.0f;
+        if (forward.sqrMagnitude <= 1e-10f || towardTarget.sqrMagnitude <= 1e-10f)
+            return -1.0f;
+        return Vector3.Angle(forward.normalized, towardTarget.normalized);
+    }
+
+    private static float MaxLegMuscleAbs(HumanPose pose)
+    {
+        float maximum = 0.0f;
+        for (int index = 0; index < pose.muscles.Length; index++)
+        {
+            string name = HumanTrait.MuscleName[index];
+            if (name.IndexOf("Leg", StringComparison.OrdinalIgnoreCase) < 0
+                && name.IndexOf("Foot", StringComparison.OrdinalIgnoreCase) < 0
+                && name.IndexOf("Toes", StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            maximum = Mathf.Max(maximum, Mathf.Abs(pose.muscles[index]));
+        }
+        return maximum;
+    }
+
+    private static BodyRealizationDiagnostic CaptureBodyRealizationDiagnostic(
+        Plan plan,
+        Mapping mapping,
+        Target target,
+        PlayableDirector director,
+        Dictionary<string, GameObject> actors,
+        Dictionary<string, GameObject> motionRoots)
+    {
+        List<BodyRealizationSample> samples = new List<BodyRealizationSample>();
+        director.RebuildGraph();
+        for (int frame = 0; frame < mapping.duration_frames; frame++)
+        {
+            BodyTrack active = mapping.body_tracks
+                .Where(item => item.start_frame <= frame && frame < item.end_frame)
+                .OrderBy(item => item.start_frame)
+                .FirstOrDefault();
+            if (active == null)
+                continue;
+            if (!actors.TryGetValue(active.actor_binding_id, out GameObject actor))
+                continue;
+            if (!motionRoots.TryGetValue(active.actor_binding_id, out GameObject motionRoot))
+                continue;
+
+            director.time = (double)frame / mapping.fps;
+            director.Evaluate();
+            Physics.SyncTransforms();
+
+            ActorTarget actorTarget = ActorTargetFor(target, active.actor_binding_id);
+            Animator animator = AnimatorFor(actor, actorTarget);
+            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform leftUpperLeg = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+            Transform rightUpperLeg = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+            Transform leftLowerLeg = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+            Transform rightLowerLeg = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+
+            bool leftGroundFound = GroundClearance(
+                leftFoot.position,
+                motionRoot.transform,
+                out float leftClearance);
+            bool rightGroundFound = GroundClearance(
+                rightFoot.position,
+                motionRoot.transform,
+                out float rightClearance);
+
+            SemanticPerformance cue = plan.semantics.scenes.Single().performance_cues
+                .SingleOrDefault(item => item.cue_id == active.source_performance_cue_id);
+            string targetBindingId = cue == null ? null : cue.look_at_binding_id;
+            float facingError = -1.0f;
+            if (!string.IsNullOrEmpty(targetBindingId)
+                && actors.TryGetValue(targetBindingId, out GameObject targetActor))
+            {
+                facingError = GroundFacingError(
+                    motionRoot.transform.forward,
+                    targetActor.transform.position - motionRoot.transform.position);
+            }
+
+            HumanPose pose;
+            using (HumanPoseHandler handler = new HumanPoseHandler(
+                animator.avatar,
+                animator.avatarRoot))
+            {
+                pose = SnapshotHumanPose(handler);
+            }
+
+            samples.Add(new BodyRealizationSample {
+                frame = frame,
+                phase_semantic_id = active.semantic_id,
+                actor_binding_id = active.actor_binding_id,
+                target_binding_id = targetBindingId,
+                motion_root_position = VectorData(motionRoot.transform.position),
+                motion_root_rotation = QuaternionData(motionRoot.transform.rotation),
+                actor_forward = VectorData(motionRoot.transform.forward),
+                hips_position = VectorData(hips.position),
+                left_knee_position = VectorData(leftLowerLeg.position),
+                right_knee_position = VectorData(rightLowerLeg.position),
+                left_foot_position = VectorData(leftFoot.position),
+                right_foot_position = VectorData(rightFoot.position),
+                left_ground_found = leftGroundFound,
+                right_ground_found = rightGroundFound,
+                left_ground_clearance_m = leftClearance,
+                right_ground_clearance_m = rightClearance,
+                left_knee_angle_deg = KneeAngle(leftUpperLeg, leftLowerLeg, leftFoot),
+                right_knee_angle_deg = KneeAngle(rightUpperLeg, rightLowerLeg, rightFoot),
+                target_facing_error_deg = facingError,
+                max_leg_muscle_abs = MaxLegMuscleAbs(pose),
+            });
+        }
+        director.time = 0.0;
+        director.Evaluate();
+        Physics.SyncTransforms();
+        return new BodyRealizationDiagnostic {
+            diagnostic_version = "0.1.0",
+            engine = "Unity",
+            engine_version = Application.unityVersion,
+            source_bundle_sha256 = mapping.source_bundle_sha256,
+            samples = samples.ToArray(),
+        };
+    }
+
     private static AnimationClip CreateFaceClip(FaceTrack track, GameObject prefab, ActorTarget target, int fps)
     {
         Animator animator = AnimatorFor(prefab, target);
@@ -1263,6 +1436,17 @@ public static class CutSceneAIGeneratedPerformance
         EnsureFolder(target.scene_asset_path); EditorSceneManager.SaveScene(scene, target.scene_asset_path);
         string evidenceRoot = EvidenceRoot(target);
         Directory.CreateDirectory(evidenceRoot);
+        BodyRealizationDiagnostic bodyDiagnostic = CaptureBodyRealizationDiagnostic(
+            plan,
+            mapping,
+            target,
+            director,
+            actors,
+            motionRoots);
+        File.WriteAllText(
+            Path.Combine(evidenceRoot, "body-realization-diagnostic.json"),
+            JsonUtility.ToJson(bodyDiagnostic, true),
+            new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
             render_completed = false, retargeting_method = "parent-component-bind-conjugation-v1+actor-motion-root-v2",
