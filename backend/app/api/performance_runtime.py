@@ -9,6 +9,7 @@ from cutsceneai_performance.errors import PerformanceError
 from app.models.performance_runtime import (
     PerformanceEvaluationResponse,
     PerformanceGenerateRequest,
+    PerformanceRepairResponse,
     PerformanceReadinessResponse,
     PerformanceRunRecord,
 )
@@ -103,6 +104,21 @@ def evaluate_performance_run(
 ) -> PerformanceEvaluationResponse:
     try:
         return executor.evaluate_run(run_id, iteration=iteration)
+    except (ValueError, PerformanceError) as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/runs/{run_id}/repair",
+    response_model=PerformanceRepairResponse,
+)
+def repair_performance_run(
+    run_id: str,
+    iteration: int = Query(default=0, ge=0, le=20),
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceRepairResponse:
+    try:
+        return executor.repair_run(run_id, iteration=iteration)
     except (ValueError, PerformanceError) as exc:
         raise _bad_request(exc) from exc
 
