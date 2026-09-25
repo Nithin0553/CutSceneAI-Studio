@@ -555,20 +555,29 @@ def test_executor_repairs_canonical_bone_length_instability_without_inference(
     )
 
     executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    print("CHECKPOINT: generation:start", flush=True)
     source = asyncio.run(
-        executor.generate(
-            PerformanceGenerateRequest(project=_project_without_dialogue())
+        asyncio.wait_for(
+            executor.generate(
+                PerformanceGenerateRequest(project=_project_without_dialogue())
+            ),
+            timeout=10.0,
         )
     )
+    print("CHECKPOINT: generation:done", flush=True)
 
     assert source.status is PerformanceRunStatus.SUCCEEDED
+    print("CHECKPOINT: evaluation:start", flush=True)
     before = executor.evaluate_run(source.run_id)
+    print("CHECKPOINT: evaluation:done", flush=True)
     assert any(
         issue.code == "bone_length_instability"
         for issue in before.report.issues
     )
 
+    print("CHECKPOINT: repair:start", flush=True)
     repaired = executor.repair_run(source.run_id)
+    print("CHECKPOINT: repair:done", flush=True)
 
     assert repaired.derived_run is not None
     assert repaired.derived_run.derived_from_run_id == source.run_id
