@@ -67,7 +67,33 @@ def compose_body_sequence(
             normalized = artifacts[request.semantic_id]
             motion = normalized.artifact.model_copy(deep=True)
 
-            if previous_end is not None:
+            synthesized_hold = False
+            synthesized_turn = False
+            if previous_end is not None and _is_stationary_hold(request):
+                # Stateful holds/listens are constraints on the incoming performance
+                # state, not independent motions. Reusing the planted incoming pose
+                # prevents a text-to-motion provider from inventing a crouch, stand-up,
+                # or unrelated gesture during a phase whose semantic job is stillness.
+                motion = _hold_previous_pose(motion, previous_end)
+                synthesized_hold = True
+            elif (
+                previous_end is not None
+                and _is_target_facing_turn(request)
+                and scene_transforms is not None
+            ):
+                # A target turn is likewise conditioned on the pose that precedes it.
+                # Pivot the incoming stance toward the bound target instead of asking an
+                # independently generated clip to supply both transition context and
+                # scene-relative orientation.
+                motion = _pivot_turn_from_previous_pose(
+                    motion,
+                    previous_end,
+                    actor_binding_id=actor_binding_id,
+                    target_binding_id=request.target_binding_id,
+                    scene_transforms=scene_transforms,
+                )
+                synthesized_turn = True
+            elif previous_end is not None:
                 motion = _rebase_root(motion, previous_end.root_translation)
                 motion = _stitch_entry_trajectory(
                     motion,
@@ -89,7 +115,11 @@ def compose_body_sequence(
                     scene_transforms=scene_transforms,
                 )
 
-            if _is_target_facing_turn(request) and scene_transforms is not None:
+            if (
+                not synthesized_turn
+                and _is_target_facing_turn(request)
+                and scene_transforms is not None
+            ):
                 motion = _constrain_turn_to_target(
                     motion,
                     actor_binding_id=actor_binding_id,
@@ -97,7 +127,7 @@ def compose_body_sequence(
                     scene_transforms=scene_transforms,
                 )
 
-            if _is_target_facing_hold(request):
+            if not synthesized_hold and _is_target_facing_hold(request):
                 motion = _lock_stationary_root_and_heading(motion)
 
             composed[request.semantic_id] = NormalizedArtifact(
@@ -445,6 +475,20 @@ def _is_target_facing_turn(request: BodyGenerationRequest) -> bool:
     return any(token in text for token in ("turn", "pivot", "rotate"))
 
 
+def _is_stationary_hold(request: BodyGenerationRequest) -> bool:
+    text = _atomic_action_text(request)
+    if any(
+        token in text
+        for token in ("walk", "run", "jog", "advance", "approach", "proceed", "turn", "pivot", "rotate")
+    ):
+        return False
+    return (
+        ("hold" in text and any(token in text for token in ("pose", "stance", "still", "position", "listen")))
+        or ("remain" in text and any(token in text for token in ("still", "facing", "stance", "position")))
+        or ("listen" in text and any(token in text for token in ("hold", "still", "pose", "guarded")))
+    )
+
+
 def _is_target_facing_hold(request: BodyGenerationRequest) -> bool:
     if request.target_binding_id is None:
         return False
@@ -453,6 +497,152 @@ def _is_target_facing_hold(request: BodyGenerationRequest) -> bool:
         any(token in text for token in ("hold", "remain", "stand"))
         and any(token in text for token in ("facing", "toward", "still", "stance"))
     )
+
+
+def _hold_previous_pose(
+    motion: BodyMotionArtifact,
+    previous_end: BodyMotionSample,
+) -> BodyMotionArtifact:
+    samples = [
+        previous_end.model_copy(
+            update={"frame_index": sample.frame_index},
+            deep=True,
+        )
+        for sample in motion.samples
+    ]
+    return motion.model_copy(update={"samples": samples}, deep=True)
+
+
+def _pivot_turn_from_previous_pose(
+    motion: BodyMotionArtifact,
+    previous_end: BodyMotionSample,
+    *,
+    actor_binding_id: str,
+    target_binding_id: str | None,
+    scene_transforms: Mapping[str, CanonicalSceneTransform],
+) -> BodyMotionArtifact:
+    if target_binding_id is None:
+        return motion
+    try:
+        actor_transform = scene_transforms[actor_binding_id]
+    except KeyError as exc:
+        raise ValueError(
+            f"Missing canonical scene transform for actor '{actor_binding_id}'."
+        ) from exc
+    try:
+        target_transform = scene_transforms[target_binding_id]
+    except KeyError as exc:
+        raise ValueError(
+            f"Missing canonical scene transform for target '{target_binding_id}'."
+        ) from exc
+
+    world_root_offset = _rotate_vector(
+        actor_transform.rotation,
+        previous_end.root_translation,
+    )
+    world_root = Vector3(
+        x=actor_transform.position.x + world_root_offset.x,
+        y=actor_transform.position.y + world_root_offset.y,
+        z=actor_transform.position.z + world_root_offset.z,
+    )
+    desired = _normalize_ground_direction(
+        Vector3(
+            x=target_transform.position.x - world_root.x,
+            y=0.0,
+            z=target_transform.position.z - world_root.z,
+        ),
+        label=f"target direction '{target_binding_id}'",
+    )
+
+    previous_world_pelvis = multiply_quaternions(
+        actor_transform.rotation,
+        previous_end.joint_rotations[0],
+    )
+    current = _rotate_vector(previous_world_pelvis, _CANONICAL_FORWARD)
+    current = _normalize_ground_direction(
+        Vector3(x=current.x, y=0.0, z=current.z),
+        label=f"actor heading '{actor_binding_id}'",
+    )
+
+    dot = max(-1.0, min(1.0, current.x * desired.x + current.z * desired.z))
+    cross_y = current.z * desired.x - current.x * desired.z
+    yaw = math.atan2(cross_y, dot)
+    if abs(yaw) <= _EPSILON:
+        return _hold_previous_pose(motion, previous_end)
+
+    half = yaw / 2.0
+    world_correction = Quaternion(
+        x=0.0,
+        y=math.sin(half),
+        z=0.0,
+        w=math.cos(half),
+    )
+    local_correction = multiply_quaternions(
+        multiply_quaternions(
+            invert_quaternion(actor_transform.rotation),
+            world_correction,
+        ),
+        actor_transform.rotation,
+    )
+
+    pivot = previous_end.root_translation
+    if previous_end.joint_positions is not None:
+        preferred_foot = "left_foot" if yaw >= 0.0 else "right_foot"
+        try:
+            pivot_index = motion.joint_names.index(preferred_foot)
+        except ValueError:
+            pivot_index = -1
+        if pivot_index >= 0:
+            pivot = previous_end.joint_positions[pivot_index]
+
+    samples: list[BodyMotionSample] = []
+    denominator = max(1, motion.frame_count - 1)
+    for index, source_sample in enumerate(motion.samples):
+        t = index / denominator
+        alpha = t * t * (3.0 - 2.0 * t)
+        correction = slerp_quaternion(_IDENTITY, local_correction, alpha)
+        root_translation = _add_vector(
+            pivot,
+            _rotate_vector(
+                correction,
+                _subtract_vector(previous_end.root_translation, pivot),
+            ),
+        )
+        rotations = [
+            rotation.model_copy(deep=True)
+            for rotation in previous_end.joint_rotations
+        ]
+        rotations[0] = multiply_quaternions(
+            correction,
+            previous_end.joint_rotations[0],
+        )
+        joint_positions = (
+            [
+                _add_vector(
+                    pivot,
+                    _rotate_vector(
+                        correction,
+                        _subtract_vector(position, pivot),
+                    ),
+                )
+                for position in previous_end.joint_positions
+            ]
+            if previous_end.joint_positions is not None
+            else None
+        )
+        samples.append(
+            previous_end.model_copy(
+                update={
+                    "frame_index": source_sample.frame_index,
+                    "root_translation": root_translation,
+                    "joint_rotations": rotations,
+                    "joint_positions": joint_positions,
+                },
+                deep=True,
+            )
+        )
+
+    return motion.model_copy(update={"samples": samples}, deep=True)
 
 
 def _constrain_turn_to_target(

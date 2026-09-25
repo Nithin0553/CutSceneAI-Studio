@@ -261,10 +261,133 @@ def test_target_facing_hold_locks_root_and_pelvis_heading() -> None:
     anchor_root = composed_hold.samples[0].root_translation
     anchor_pelvis = composed_hold.samples[0].joint_rotations[0]
 
-    assert anchor_root != composed_turn.samples[-1].root_translation
+    assert anchor_root == composed_turn.samples[-1].root_translation
+    assert anchor_pelvis == composed_turn.samples[-1].joint_rotations[0]
     assert all(sample.root_translation == anchor_root for sample in composed_hold.samples)
-    assert all(sample.joint_rotations[0] == anchor_pelvis for sample in composed_hold.samples)
+    assert all(sample.joint_rotations == composed_turn.samples[-1].joint_rotations for sample in composed_hold.samples)
 
+
+
+def test_stationary_listen_reuses_previous_composed_pose() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+    stop = _request(
+        "body:scene:beat:guard:01:stop",
+        start=0,
+        end=2,
+        prompt="Action: decelerate and stop walking Style: restrained.",
+    )
+    listen = _request(
+        "body:scene:beat:guard:01:listen",
+        start=2,
+        end=5,
+        prompt="Action: hold a guarded listening pose Style: tense stillness.",
+    )
+
+    result = compose_body_sequence(
+        [stop, listen],
+        {
+            stop.semantic_id: _normalized(
+                stop,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (0.1, 0.0, 0.0)],
+                    [identity, identity],
+                ),
+            ),
+            listen.semantic_id: _normalized(
+                listen,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (0.5, 0.4, 0.2), (1.0, 0.8, 0.4)],
+                    [opposite, opposite, opposite],
+                ),
+            ),
+        },
+    )
+
+    previous = result[stop.semantic_id].artifact.samples[-1]
+    composed_listen = result[listen.semantic_id].artifact
+    for sample in composed_listen.samples:
+        assert sample.root_translation == previous.root_translation
+        assert sample.joint_rotations == previous.joint_rotations
+        assert sample.joint_positions == previous.joint_positions
+
+
+def test_scene_conditioned_turn_with_previous_pose_pivots_from_previous_stance() -> None:
+    identity = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    opposite = Quaternion(x=0.0, y=1.0, z=0.0, w=0.0)
+    stop = _request(
+        "body:scene:beat:guard:01:stop",
+        start=0,
+        end=2,
+        prompt="Action: stop walking Style: restrained.",
+    )
+    turn = _request(
+        "body:scene:beat:guard:01:turn",
+        start=2,
+        end=5,
+        target="actor:door",
+        prompt="Action: turn toward the door Style: cautious.",
+    )
+    transforms = {
+        "actor:guard": CanonicalSceneTransform(
+            position=Vector3(x=0.0, y=0.0, z=-5.0),
+            rotation=identity,
+        ),
+        "actor:door": CanonicalSceneTransform(
+            position=Vector3(x=2.0, y=0.0, z=1.0),
+            rotation=identity,
+        ),
+    }
+
+    source_turn = _motion_with_positions(
+        [(0.0, 0.0, 0.0), (0.8, 0.5, 0.5), (1.5, 1.0, 1.0)],
+        [opposite, opposite, opposite],
+    )
+    result = compose_body_sequence(
+        [stop, turn],
+        {
+            stop.semantic_id: _normalized(
+                stop,
+                _motion_with_positions(
+                    [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)],
+                    [identity, identity],
+                ),
+            ),
+            turn.semantic_id: _normalized(turn, source_turn),
+        },
+        scene_transforms=transforms,
+    )
+
+    previous = result[stop.semantic_id].artifact.samples[-1]
+    composed_turn = result[turn.semantic_id].artifact
+    assert composed_turn.samples[0].root_translation == previous.root_translation
+    assert composed_turn.samples[0].joint_positions == previous.joint_positions
+    assert composed_turn.samples[-1].joint_rotations[1] == previous.joint_rotations[1]
+    assert composed_turn.samples[-1].root_translation != source_turn.samples[-1].root_translation
+
+    foot_index = CANONICAL_HUMANOID_JOINTS.index("left_foot")
+    pivot = previous.joint_positions[foot_index]
+    assert all(
+        sample.joint_positions is not None
+        and sample.joint_positions[foot_index] == pivot
+        for sample in composed_turn.samples
+    )
+
+    final = composed_turn.samples[-1]
+    desired = Vector3(
+        x=transforms["actor:door"].position.x - final.root_translation.x,
+        y=0.0,
+        z=transforms["actor:door"].position.z
+        - (transforms["actor:guard"].position.z + final.root_translation.z),
+    )
+    actual = _rotate(
+        final.joint_rotations[0],
+        Vector3(x=0.0, y=0.0, z=-1.0),
+    )
+    actual_xz = _ground_direction(actual)
+    desired_xz = _ground_direction(desired)
+    assert actual_xz[0] == pytest.approx(desired_xz[0], abs=1e-6)
+    assert actual_xz[1] == pytest.approx(desired_xz[1], abs=1e-6)
 
 
 def test_turn_is_not_misclassified_as_hold_from_larger_performance_context() -> None:
