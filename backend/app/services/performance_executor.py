@@ -23,6 +23,7 @@ from cutsceneai_performance import (
     compose_body_sequence,
     decode_performance_bundle,
     diagnose_body_composition,
+    evaluate_canonical_performance,
     compile_generation_plan,
     load_performance_bundle,
     render_body_motion,
@@ -31,9 +32,11 @@ from cutsceneai_performance import (
     replace_body_artifacts,
     render_performance_package,
     normalize_body_output,
+    plan_repairs,
 )
 
 from app.models.performance_runtime import (
+    PerformanceEvaluationResponse,
     PerformanceGenerateRequest,
     PerformanceProviderState,
     PerformanceReadinessResponse,
@@ -487,6 +490,38 @@ class StudioPerformanceExecutor:
                 + ", ".join(missing)
             )
         return raw_normalized
+
+    def evaluate_run(
+        self,
+        run_id: str,
+        *,
+        iteration: int = 0,
+    ) -> PerformanceEvaluationResponse:
+        record = self.get_run(run_id)
+        if record.status is not PerformanceRunStatus.SUCCEEDED:
+            raise ValueError(
+                "Performance evaluation is unavailable because the run did not succeed."
+            )
+        run_dir = self.run_root / _safe_run_id(run_id)
+        bundle = load_performance_bundle(self.bundle_bytes(run_id))
+        report = evaluate_canonical_performance(
+            bundle,
+            performance_run_id=run_id,
+            iteration=iteration,
+        )
+        repair_plan = plan_repairs(report)
+        self._write_json(
+            run_dir / "evaluation.json",
+            report.model_dump(mode="json"),
+        )
+        self._write_json(
+            run_dir / "repair-plan.json",
+            repair_plan.model_dump(mode="json"),
+        )
+        return PerformanceEvaluationResponse(
+            report=report,
+            repair_plan=repair_plan,
+        )
 
     def body_composition_diagnostic(self, run_id: str) -> BodyCompositionDiagnostic:
         record = self.get_run(run_id)
