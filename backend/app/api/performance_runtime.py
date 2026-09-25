@@ -7,6 +7,7 @@ from cutsceneai_performance import BodyCompositionDiagnostic
 from cutsceneai_performance.errors import PerformanceError
 
 from app.models.performance_runtime import (
+    PerformanceEvaluationResponse,
     PerformanceGenerateRequest,
     PerformanceReadinessResponse,
     PerformanceRunRecord,
@@ -88,6 +89,21 @@ def get_performance_run(
     try:
         return executor.get_run(run_id)
     except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.post(
+    "/runs/{run_id}/evaluate",
+    response_model=PerformanceEvaluationResponse,
+)
+def evaluate_performance_run(
+    run_id: str,
+    iteration: int = Query(default=0, ge=0, le=20),
+    executor: StudioPerformanceExecutor = Depends(get_performance_executor),
+) -> PerformanceEvaluationResponse:
+    try:
+        return executor.evaluate_run(run_id, iteration=iteration)
+    except (ValueError, PerformanceError) as exc:
         raise _bad_request(exc) from exc
 
 
