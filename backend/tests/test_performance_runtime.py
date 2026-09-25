@@ -346,6 +346,17 @@ def test_executor_generates_verified_bundle_and_evidence(tmp_path: Path, monkeyp
     diagnostic = executor.body_composition_diagnostic(record.run_id)
     assert len(diagnostic.track_metrics) == record.body_request_count
     assert (run_dir / "body-composition-diagnostic.json").exists()
+    evaluation = executor.evaluate_run(record.run_id)
+    assert evaluation.report.performance_run_id == record.run_id
+    assert evaluation.report.stages_evaluated == ["canonical"]
+    assert evaluation.report.accepted is False
+    assert any(
+        issue.code == "canonical_geometry_missing"
+        for issue in evaluation.report.issues
+    )
+    assert evaluation.repair_plan.requires_fresh_inference is True
+    assert (run_dir / "evaluation.json").exists()
+    assert (run_dir / "repair-plan.json").exists()
     assert executor.get_run(record.run_id).bundle_sha256 == record.bundle_sha256
     assert executor.list_runs()[0].run_id == record.run_id
 
@@ -481,6 +492,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
         diagnostic = client.get(
             f"/api/v1/studio/performance/runs/{run_id}/body-composition-diagnostic"
         )
+        evaluation = client.post(
+            f"/api/v1/studio/performance/runs/{run_id}/evaluate"
+        )
         preview = client.get(
             f"/api/v1/studio/performance/runs/{run_id}/body-composition-preview"
         )
@@ -499,6 +513,10 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert listed.json()[0]["run_id"] == run_id
     assert diagnostic.status_code == 200
     assert len(diagnostic.json()["track_metrics"]) == generated.json()["body_request_count"]
+    assert evaluation.status_code == 200
+    assert evaluation.json()["report"]["performance_run_id"] == run_id
+    assert evaluation.json()["report"]["stages_evaluated"] == ["canonical"]
+    assert evaluation.json()["repair_plan"]["requires_fresh_inference"] is True
     assert preview.status_code == 200
     assert len(preview.json()["track_metrics"]) == generated.json()["body_request_count"]
     assert recomposed.status_code == 200
