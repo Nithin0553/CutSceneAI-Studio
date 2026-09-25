@@ -36,6 +36,18 @@ from .diagnostics import (
     diagnose_body_composition,
 )
 from .errors import PerformanceError, PerformanceInputError, PerformanceOutputError
+from .evaluation import (
+    ClosedLoopPolicy,
+    EvaluationReport,
+    EvaluationStage,
+    IssueSeverity,
+    PerformanceIssue,
+    RepairAction,
+    RepairActionKind,
+    RepairPlan,
+    plan_repairs,
+    stable_issue_id,
+)
 from .facial import (
     ARKIT_52_BLENDSHAPE_NAMES,
     ARKIT_52_CURVES,
@@ -187,6 +199,14 @@ __all__ = [
     "DecodedPerformanceBundle",
     "DialogueAudioArtifact",
     "DialogueAudioTrack",
+    "ClosedLoopPolicy",
+    "EvaluationReport",
+    "EvaluationStage",
+    "IssueSeverity",
+    "PerformanceIssue",
+    "RepairAction",
+    "RepairActionKind",
+    "RepairPlan",
     "FacialAnimationTrack",
     "FacialCurveArtifact",
     "FacialCurveSample",
@@ -234,6 +254,7 @@ __all__ = [
     "normalize_facial_output",
     "performance_package_fingerprint",
     "performance_package_json_schema",
+    "plan_repairs",
     "render_body_motion",
     "render_body_motion_json_schema",
     "render_camera_curve_json_schema",
@@ -257,6 +278,7 @@ __all__ = [
     "write_body_motion_json_schema",
     "write_camera_curve_json_schema",
     "write_facial_curve_json_schema",
+    "stable_issue_id",
     "smplx_axis_angle_to_canonical",
     "write_performance_package_json_schema",
 ]
