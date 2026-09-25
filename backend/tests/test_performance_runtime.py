@@ -495,6 +495,9 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
         evaluation = client.post(
             f"/api/v1/studio/performance/runs/{run_id}/evaluate"
         )
+        repair = client.post(
+            f"/api/v1/studio/performance/runs/{run_id}/repair"
+        )
         preview = client.get(
             f"/api/v1/studio/performance/runs/{run_id}/body-composition-preview"
         )
@@ -517,6 +520,10 @@ def test_performance_runtime_api_generate_list_and_download(tmp_path: Path, monk
     assert evaluation.json()["report"]["performance_run_id"] == run_id
     assert evaluation.json()["report"]["stages_evaluated"] == ["canonical"]
     assert evaluation.json()["repair_plan"]["requires_fresh_inference"] is True
+    assert repair.status_code == 200
+    assert repair.json()["derived_run"] is None
+    assert repair.json()["applied_action_ids"] == []
+    assert repair.json()["deferred_action_ids"]
     assert preview.status_code == 200
     assert len(preview.json()["track_metrics"]) == generated.json()["body_request_count"]
     assert recomposed.status_code == 200
