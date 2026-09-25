@@ -3439,35 +3439,14 @@ public static class CutSceneAIGeneratedPerformance
                 BodyActorPrefix + actorTarget.actor_binding_id);
             rootTrack.trackOffset = TrackOffset.ApplySceneOffsets;
             Animator actorAnimator = AnimatorFor(instance, actorTarget);
-            BodyTrack actorBodyTrack = mapping.body_tracks
-                .FirstOrDefault(item =>
-                    item.actor_binding_id == actorTarget.actor_binding_id);
-            if (actorBodyTrack != null)
-            {
-                Avatar genericAvatar = AvatarBuilder.BuildGenericAvatar(
-                    actorAnimator.gameObject,
-                    string.Empty);
-                if (
-                    genericAvatar == null
-                    || !genericAvatar.isValid
-                    || genericAvatar.isHuman)
-                    throw new InvalidOperationException(
-                        "Failed to build a valid Generic Avatar for actor: "
-                        + actorTarget.actor_binding_id);
-                genericAvatar.name =
-                    "CutSceneAI_Generic_" + actorTarget.actor_binding_id;
-                string genericAvatarPath = GenericAvatarPath(actorBodyTrack);
-                EnsureFolder(genericAvatarPath);
-                AssetDatabase.CreateAsset(genericAvatar, genericAvatarPath);
-                actorAnimator.avatar = genericAvatar;
-                actorAnimator.runtimeAnimatorController = null;
-                actorAnimator.applyRootMotion = false;
-                actorAnimator.Rebind();
-                actorAnimator.Update(0.0f);
-            }
-            // Body clips remain on Timeline as semantic/readback evidence only.
-            // Runtime skeletal realization is owned exclusively by
-            // CutSceneAIBodyStreamDriver through Unity's AnimationStream.
+            actorAnimator.runtimeAnimatorController = null;
+            actorAnimator.applyRootMotion = false;
+            actorAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            actorAnimator.Rebind();
+            actorAnimator.Update(0.0f);
+            // Keep the source prefab's Humanoid Avatar intact. Humanoid targets are
+            // realized through AnimationHumanStream IK. Generic direct-bone playback
+            // remains a compatibility fallback selected below.
             actors.Add(actorTarget.actor_binding_id, instance);
             motionRoots.Add(actorTarget.actor_binding_id, motionRoot);
             motionRootTracks.Add(actorTarget.actor_binding_id, motionTrack);
@@ -3510,12 +3489,59 @@ public static class CutSceneAIGeneratedPerformance
             .GroupBy(item => item.actor_binding_id))
         {
             string actorBindingId = actorTracks.Key;
-            ConfigureBodyStreamDriver(
-                actors[actorBindingId],
-                ActorTargetFor(target, actorBindingId),
-                actorTracks.ToArray(),
-                director,
-                mapping.fps);
+            GameObject actor = actors[actorBindingId];
+            ActorTarget actorTarget = ActorTargetFor(target, actorBindingId);
+            BodyTrack[] tracks = actorTracks.ToArray();
+            Animator animator = AnimatorComponentFor(actor, actorTarget);
+            bool hasCanonicalGeometry = tracks.All(track =>
+                track.keyframes.All(frame => frame.joint_positions_m != null));
+
+            if (
+                animator.avatar != null
+                && animator.avatar.isValid
+                && animator.avatar.isHuman
+                && hasCanonicalGeometry)
+            {
+                ConfigureHumanoidIKDriver(
+                    actor,
+                    actorTarget,
+                    tracks,
+                    director,
+                    mapping.fps);
+            }
+            else
+            {
+                BodyTrack template = tracks
+                    .OrderBy(item => item.start_frame)
+                    .ThenBy(item => item.semantic_id)
+                    .First();
+                Avatar genericAvatar = AvatarBuilder.BuildGenericAvatar(
+                    animator.gameObject,
+                    string.Empty);
+                if (
+                    genericAvatar == null
+                    || !genericAvatar.isValid
+                    || genericAvatar.isHuman)
+                    throw new InvalidOperationException(
+                        "Failed to build a valid Generic Avatar fallback for actor: "
+                        + actorBindingId);
+                genericAvatar.name = "CutSceneAI_Generic_" + actorBindingId;
+                string genericAvatarPath = GenericAvatarPath(template);
+                EnsureFolder(genericAvatarPath);
+                AssetDatabase.CreateAsset(genericAvatar, genericAvatarPath);
+                animator.avatar = genericAvatar;
+                animator.runtimeAnimatorController = null;
+                animator.applyRootMotion = false;
+                animator.Rebind();
+                animator.Update(0.0f);
+
+                ConfigureBodyStreamDriver(
+                    actor,
+                    actorTarget,
+                    tracks,
+                    director,
+                    mapping.fps);
+            }
         }
 
         foreach (BodyTrack body in mapping.body_tracks)
@@ -3615,7 +3641,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "geometry-legs-v1+legacy-upper-body-v1+animation-stream-body-v1+generic-avatar+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "humanoid-ik-full-limbs-v1+humanoid-avatar+generic-direct-bone-fallback-v1+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
