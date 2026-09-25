@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from cutsceneai_performance import (
     BodyMotionArtifact,
     BodyMotionSample,
@@ -109,7 +111,11 @@ def test_normalize_actor_skeleton_makes_bone_lengths_frame_invariant() -> None:
             for joint, parent in enumerate(CANONICAL_HUMANOID_PARENTS):
                 if parent < 0:
                     continue
-                assert _bone_length(sample, joint) == lengths[joint]
+                assert _bone_length(sample, joint) == pytest.approx(
+                    lengths[joint],
+                    rel=1e-12,
+                    abs=1e-12,
+                )
 
 
 def test_normalization_preserves_per_frame_bone_direction() -> None:
