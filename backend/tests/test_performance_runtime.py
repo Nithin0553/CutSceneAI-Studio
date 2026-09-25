@@ -7,7 +7,12 @@ import wave
 
 from cutsceneai_cir import Project
 from cutsceneai_dialogue import SpeechBackendResult
-from cutsceneai_performance import load_performance_bundle
+from cutsceneai_performance import (
+    HumanMLXYZMotion,
+    ProviderArtifact,
+    humanml_xyz_to_canonical,
+    load_performance_bundle,
+)
 from fastapi.testclient import TestClient
 import pytest
 
@@ -475,7 +480,77 @@ def test_executor_repairs_canonical_bone_length_instability_without_inference(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    _configure_humanml_body_provider(tmp_path, monkeypatch)
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_COMMAND", "[\"fixture\"]")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-humanml")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "varying-skeleton")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+
+    class FakeHumanMLBackend:
+        configured = True
+
+        def probe_health(self, **kwargs):
+            return None, None, {}
+
+        async def generate_body(self, request):
+            frame_count = request.end_frame - request.start_frame
+            names = [
+                "pelvis","left_hip","right_hip","spine1","left_knee","right_knee",
+                "spine2","left_ankle","right_ankle","spine3","left_foot","right_foot",
+                "neck","left_collar","right_collar","head","left_shoulder","right_shoulder",
+                "left_elbow","right_elbow","left_wrist","right_wrist",
+            ]
+            parents = [-1,0,0,0,1,2,3,4,5,6,7,8,9,9,9,12,13,14,16,17,18,19]
+            offsets = [
+                (0,0,0),(0.2,-0.1,0),(-0.2,-0.1,0),(0,0.2,0),(0,-0.4,0.1),
+                (0,-0.4,0.1),(0,0.2,0),(0,-0.4,-0.1),(0,-0.4,-0.1),(0,0.2,0),
+                (0,-0.05,0.2),(0,-0.05,0.2),(0,0.2,0),(0.15,0.05,0),
+                (-0.15,0.05,0),(0,0.2,0),(0.25,0,0),(-0.25,0,0),
+                (0.25,0,0),(-0.25,0,0),(0.25,0,0),(-0.25,0,0),
+            ]
+            frames = []
+            for frame in range(frame_count):
+                scale = 0.8 if frame % 2 == 0 else 1.25
+                positions = []
+                for index, parent in enumerate(parents):
+                    if parent < 0:
+                        positions.append([0.0, 1.0, -0.01 * frame])
+                    else:
+                        px, py, pz = positions[parent]
+                        ox, oy, oz = offsets[index]
+                        positions.append(
+                            [px + ox * scale, py + oy * scale, pz + oz * scale]
+                        )
+                frames.append(positions)
+
+            artifact = humanml_xyz_to_canonical(
+                HumanMLXYZMotion(
+                    fps=20,
+                    frame_count=frame_count,
+                    joint_names=names,
+                    positions=frames,
+                )
+            )
+            return ProviderArtifact(
+                request_semantic_id=request.semantic_id,
+                artifact=artifact,
+                provider=request.provider,
+                model=request.model,
+                model_revision=request.model_revision,
+                prompt_sha256=request.prompt_sha256,
+                configuration_sha256=request.configuration_sha256,
+                seed=request.seed,
+                generated_at_inference=True,
+                retrieved_pre_authored_clip=False,
+                deterministic_algorithms=True,
+            )
+
+    fake_backend = FakeHumanMLBackend()
+    monkeypatch.setattr(
+        performance_executor_module.ExternalCanonicalBodyBackend,
+        "from_environment",
+        classmethod(lambda cls: fake_backend),
+    )
+
     executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
     source = asyncio.run(
         executor.generate(
@@ -483,6 +558,7 @@ def test_executor_repairs_canonical_bone_length_instability_without_inference(
         )
     )
 
+    assert source.status is PerformanceRunStatus.SUCCEEDED
     before = executor.evaluate_run(source.run_id)
     assert any(
         issue.code == "bone_length_instability"
@@ -507,7 +583,6 @@ def test_executor_repairs_canonical_bone_length_instability_without_inference(
     )
     assert derivation["fresh_body_inference"] is False
     assert (run_dir / "repair-execution.json").is_file()
-
 
 def test_executor_persists_body_outputs_before_postprocessing_failure(
     tmp_path: Path, monkeypatch
