@@ -46,3 +46,21 @@ with the experiment evidence.
 The earlier MDM reference choreography still has possible foot slide during
 the walk. A deterministic correction of the stop and turn improved contact
 metrics but produced an unnatural knee pose; it was not adopted.
+
+## Kaggle GPU notebook for a 16 GiB laptop
+
+The local Kimodo text encoder uses LLM2Vec based on Llama 3 8B in bfloat16.
+Moving it to CPU reduces GPU memory demand but requires considerably more
+system RAM than a 16 GiB laptop can reliably spare. `kaggle-guard-pilot.ipynb`
+contains this exact `meta.json` and `constraints.json` alongside
+`kaggle_pilot.py`, so it works even if this repository is private to Kaggle.
+
+In Kaggle Notebooks, select GPU T4 x2, enable Internet, and add a private
+Kaggle Secret named `HF_TOKEN` with a Hugging Face access token that can read
+`meta-llama/Meta-Llama-3-8B-Instruct`. Grant notebook access to the secret.
+Run the notebook and download `guard-kimodo-18fe-evidence.zip` from its
+outputs. The notebook keeps model caches outside downloadable outputs and
+never prints the token. It first checks CUDA and available system RAM, then
+installs the MotionCorrection build prerequisites, pins Kimodo source to
+`58e781898b3d7e328a676a75d3e338c45dce3ad9`, and generates a single
+candidate. An NPZ or BVH is **evidence to review**, not visual acceptance.
