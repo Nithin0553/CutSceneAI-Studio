@@ -165,6 +165,7 @@ def _configure_humanml_body_provider(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-humanml")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "varying-skeleton")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS", "5")
 
 
 def _configure_body_provider(tmp_path: Path, monkeypatch) -> None:
@@ -177,6 +178,7 @@ def _configure_body_provider(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-motion")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "identity-canonical")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS", "5")
 
 
 def _wav(duration_seconds: float = 0.08, sample_rate: int = 16000) -> bytes:
@@ -484,6 +486,7 @@ def test_executor_repairs_canonical_bone_length_instability_without_inference(
     monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-humanml")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "varying-skeleton")
     monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER_TIMEOUT_SECONDS", "5")
 
     class FakeHumanMLBackend:
         configured = True
