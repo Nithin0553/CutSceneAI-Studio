@@ -3521,8 +3521,13 @@ public static class CutSceneAIGeneratedPerformance
             bool hasCanonicalGeometry = tracks.All(track =>
                 track.keyframes.All(frame => frame.joint_positions_m != null));
 
+            // Experimental AnimationHumanStream IK is intentionally disabled until
+            // it has a real upstream humanoid source pose. Resetting/solving from stance
+            // produced a structurally valid but visually invalid seated/floating pose.
+            bool useHumanoidIK = false;
             if (
-                animator.avatar != null
+                useHumanoidIK
+                && animator.avatar != null
                 && animator.avatar.isValid
                 && animator.avatar.isHuman
                 && hasCanonicalGeometry)
@@ -3666,7 +3671,7 @@ public static class CutSceneAIGeneratedPerformance
             new UTF8Encoding(false));
         Lifecycle receipt = new Lifecycle { lifecycle_version = "0.1.0", import_process_id = ProcessId,
             import_completed = true, saved = true, restarted = false, readback_completed = false,
-            render_completed = false, retargeting_method = "humanoid-ik-full-limbs-v1+humanoid-avatar+generic-direct-bone-fallback-v1+actor-motion-root-v3-authored-transform",
+            render_completed = false, retargeting_method = "geometry-legs-v1+legacy-upper-body-v1+animation-stream-body-v1+generic-avatar+actor-motion-root-v3-authored-transform",
             retarget_profile = "retarget-profile.json", errors = Array.Empty<string>() };
         File.WriteAllText(Path.Combine(evidenceRoot, "lifecycle.json"), JsonUtility.ToJson(receipt, true), new UTF8Encoding(false));
         Debug.Log("CutSceneAI native Unity import saved successfully.");
