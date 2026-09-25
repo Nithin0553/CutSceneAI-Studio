@@ -64,3 +64,10 @@ never prints the token. It first checks CUDA and available system RAM, then
 installs the MotionCorrection build prerequisites, pins Kimodo source to
 `58e781898b3d7e328a676a75d3e338c45dce3ad9`, and generates a single
 candidate. An NPZ or BVH is **evidence to review**, not visual acceptance.
+
+Kaggle's Ubuntu 22.04 `pybind11-dev` is version 2.9.1 and `python3-dev`
+supplies Python 3.10 headers even when the notebook runs Python 3.12. The
+pilot now installs pybind11 2.13.6 for this extension and requests only
+`Development.Module` from CMake. If the native build still fails, the first
+compiler error and the tail of `/kaggle/working/guard-kimodo-18fe/build.log`
+appear directly in notebook output; the log is included in successful evidence.
