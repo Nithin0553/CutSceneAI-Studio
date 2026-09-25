@@ -4,6 +4,7 @@ from enum import Enum
 
 from cutsceneai_cir import Project
 from cutsceneai_dialogue import VoiceProfile
+from cutsceneai_performance import EvaluationReport, RepairPlan
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.studio import StudioBindingSelection
@@ -66,3 +67,8 @@ class PerformanceRunRecord(PerformanceRuntimeModel):
     derivation: str | None = None
     warnings: list[str] = Field(default_factory=list)
     error: str | None = None
+
+
+class PerformanceEvaluationResponse(PerformanceRuntimeModel):
+    report: EvaluationReport
+    repair_plan: RepairPlan
