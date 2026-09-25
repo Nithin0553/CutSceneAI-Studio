@@ -14,6 +14,7 @@ from .bundle import (
     load_performance_bundle,
     render_performance_bundle,
     replace_body_artifacts,
+    replace_camera_artifacts,
     verify_performance_bundle,
 )
 from .canonical_evaluation import evaluate_canonical_performance
@@ -105,6 +106,10 @@ from .providers import (
     normalize_body_output,
     normalize_camera_output,
     normalize_facial_output,
+)
+from .reference_choreography import (
+    synthesize_reference_body_sequence,
+    synthesize_reference_camera_sequence,
 )
 from .retargeting import (
     PARENT_COMPONENT_BIND_RETARGETING_METHOD,
@@ -273,6 +278,7 @@ __all__ = [
     "render_native_evidence_collector_script",
     "render_performance_bundle",
     "replace_body_artifacts",
+    "replace_camera_artifacts",
     "render_performance_package",
     "render_performance_package_json_schema",
     "estimate_reference_bone_lengths",
@@ -281,6 +287,8 @@ __all__ = [
     "resample_body_motion",
     "resample_camera_curves",
     "resample_facial_curves",
+    "synthesize_reference_body_sequence",
+    "synthesize_reference_camera_sequence",
     "retarget_parent_local_rotation",
     "solve_two_bone_chain",
     "verify_performance_bundle",

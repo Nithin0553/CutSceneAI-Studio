@@ -579,6 +579,69 @@ def replace_body_artifacts(
     return derived
 
 
+def replace_camera_artifacts(
+    bundle: PerformanceBundle,
+    camera_artifacts: Mapping[str, CameraCurveArtifact],
+) -> PerformanceBundle:
+    """Return a verified bundle with only canonical camera artifact bytes replaced."""
+
+    verify_performance_bundle(bundle)
+    expected_ids = {track.semantic_id for track in bundle.package.camera_tracks}
+    if set(camera_artifacts) != expected_ids:
+        missing = sorted(expected_ids - set(camera_artifacts))
+        unknown = sorted(set(camera_artifacts) - expected_ids)
+        details: list[str] = []
+        if missing:
+            details.append("missing: " + ", ".join(missing))
+        if unknown:
+            details.append("unknown: " + ", ".join(unknown))
+        raise PerformanceOutputError(
+            "Replacement camera artifacts do not exactly match bundle tracks ("
+            + "; ".join(details)
+            + ")."
+        )
+
+    artifact_files = dict(bundle.artifact_files)
+    camera_tracks: list[CameraAnimationTrack] = []
+    for track in bundle.package.camera_tracks:
+        artifact = camera_artifacts[track.semantic_id]
+        if (
+            artifact.fps != bundle.package.fps
+            or artifact.frame_count != track.sample_count
+            or artifact.coordinate_space != bundle.package.coordinate_space
+        ):
+            raise PerformanceOutputError(
+                f"Replacement camera artifact '{track.semantic_id}' does not match its track."
+            )
+        data = render_camera_curves(artifact).encode("utf-8")
+        artifact_files[track.artifact.relative_path] = data
+        camera_tracks.append(
+            track.model_copy(
+                update={
+                    "artifact": _artifact_reference(
+                        kind=ArtifactKind.CAMERA_CURVES,
+                        format=ArtifactFormat.CUTSCENEAI_CAMERA_JSON,
+                        relative_path=track.artifact.relative_path,
+                        data=data,
+                    )
+                },
+                deep=True,
+            )
+        )
+
+    package = bundle.package.model_copy(
+        update={"camera_tracks": camera_tracks},
+        deep=True,
+    )
+    derived = PerformanceBundle(
+        plan=bundle.plan.model_copy(deep=True),
+        package=package,
+        artifact_files=artifact_files,
+    )
+    verify_performance_bundle(derived)
+    return derived
+
+
 def verify_performance_bundle(bundle: PerformanceBundle) -> None:
     """Verify every plan, manifest, provenance, hash, path, and artifact relationship."""
 
