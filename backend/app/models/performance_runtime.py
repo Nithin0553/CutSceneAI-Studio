@@ -72,3 +72,13 @@ class PerformanceRunRecord(PerformanceRuntimeModel):
 class PerformanceEvaluationResponse(PerformanceRuntimeModel):
     report: EvaluationReport
     repair_plan: RepairPlan
+
+
+class PerformanceRepairResponse(PerformanceRuntimeModel):
+    source_report: EvaluationReport
+    source_repair_plan: RepairPlan
+    derived_run: PerformanceRunRecord | None = None
+    applied_action_ids: list[str] = Field(default_factory=list)
+    deferred_action_ids: list[str] = Field(default_factory=list)
+    post_report: EvaluationReport | None = None
+    post_repair_plan: RepairPlan | None = None
