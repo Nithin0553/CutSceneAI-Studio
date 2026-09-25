@@ -3696,6 +3696,218 @@ public sealed class CutSceneAIBodyStreamDriver : MonoBehaviour
             rotations.Dispose();
     }
 }
+
+[ExecuteAlways]
+public sealed class CutSceneAIHumanoidIKDriver : MonoBehaviour
+{
+    [Serializable]
+    public sealed class PoseFrame
+    {
+        public int timeline_frame;
+        public Vector3 left_foot_local;
+        public Vector3 right_foot_local;
+        public Vector3 left_hand_local;
+        public Vector3 right_hand_local;
+        public Vector3 left_knee_hint_local;
+        public Vector3 right_knee_hint_local;
+        public Vector3 left_elbow_hint_local;
+        public Vector3 right_elbow_hint_local;
+    }
+
+    public Animator animator;
+    public PlayableDirector director;
+    public int fps = 30;
+    public PoseFrame[] frames = Array.Empty<PoseFrame>();
+
+    private PlayableGraph graph;
+    private AnimationScriptPlayable playable;
+    private TransformStreamHandle rootHandle;
+    private HumanoidIKJob job;
+    private bool initialized;
+
+    private struct HumanoidIKJob : IAnimationJob
+    {
+        public TransformStreamHandle root;
+        public Vector3 leftFootLocal;
+        public Vector3 rightFootLocal;
+        public Vector3 leftHandLocal;
+        public Vector3 rightHandLocal;
+        public Vector3 leftKneeHintLocal;
+        public Vector3 rightKneeHintLocal;
+        public Vector3 leftElbowHintLocal;
+        public Vector3 rightElbowHintLocal;
+
+        private static Vector3 ToWorld(
+            Vector3 local,
+            Vector3 rootPosition,
+            Quaternion rootRotation)
+            => rootPosition + rootRotation * local;
+
+        public void ProcessRootMotion(AnimationStream stream) {}
+
+        public void ProcessAnimation(AnimationStream stream)
+        {
+            if (!stream.isHumanStream || !root.IsValid(stream))
+                return;
+
+            AnimationHumanStream human = stream.AsHuman();
+            if (!human.isValid)
+                return;
+
+            human.ResetToStancePose();
+
+            human.SetGoalLocalPosition(AvatarIKGoal.LeftFoot, leftFootLocal);
+            human.SetGoalLocalPosition(AvatarIKGoal.RightFoot, rightFootLocal);
+            human.SetGoalLocalPosition(AvatarIKGoal.LeftHand, leftHandLocal);
+            human.SetGoalLocalPosition(AvatarIKGoal.RightHand, rightHandLocal);
+            human.SetGoalWeightPosition(AvatarIKGoal.LeftFoot, 1.0f);
+            human.SetGoalWeightPosition(AvatarIKGoal.RightFoot, 1.0f);
+            human.SetGoalWeightPosition(AvatarIKGoal.LeftHand, 1.0f);
+            human.SetGoalWeightPosition(AvatarIKGoal.RightHand, 1.0f);
+            human.SetGoalWeightRotation(AvatarIKGoal.LeftFoot, 0.0f);
+            human.SetGoalWeightRotation(AvatarIKGoal.RightFoot, 0.0f);
+            human.SetGoalWeightRotation(AvatarIKGoal.LeftHand, 0.0f);
+            human.SetGoalWeightRotation(AvatarIKGoal.RightHand, 0.0f);
+
+            Vector3 rootPosition = root.GetPosition(stream);
+            Quaternion rootRotation = root.GetRotation(stream);
+            human.SetHintPosition(
+                AvatarIKHint.LeftKnee,
+                ToWorld(leftKneeHintLocal, rootPosition, rootRotation));
+            human.SetHintPosition(
+                AvatarIKHint.RightKnee,
+                ToWorld(rightKneeHintLocal, rootPosition, rootRotation));
+            human.SetHintPosition(
+                AvatarIKHint.LeftElbow,
+                ToWorld(leftElbowHintLocal, rootPosition, rootRotation));
+            human.SetHintPosition(
+                AvatarIKHint.RightElbow,
+                ToWorld(rightElbowHintLocal, rootPosition, rootRotation));
+            human.SetHintWeightPosition(AvatarIKHint.LeftKnee, 1.0f);
+            human.SetHintWeightPosition(AvatarIKHint.RightKnee, 1.0f);
+            human.SetHintWeightPosition(AvatarIKHint.LeftElbow, 1.0f);
+            human.SetHintWeightPosition(AvatarIKHint.RightElbow, 1.0f);
+            human.SolveIK();
+        }
+    }
+
+    public void RebuildGraph()
+    {
+        ReleaseGraph();
+        if (
+            animator == null
+            || animator.avatar == null
+            || !animator.avatar.isValid
+            || !animator.avatar.isHuman
+            || frames == null
+            || frames.Length == 0)
+            return;
+
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        animator.applyRootMotion = false;
+        animator.runtimeAnimatorController = null;
+        animator.Rebind();
+        animator.Update(0.0f);
+
+        Transform root = animator.avatarRoot != null
+            ? animator.avatarRoot
+            : animator.transform;
+        rootHandle = animator.BindStreamTransform(root);
+        job = new HumanoidIKJob { root = rootHandle };
+
+        graph = PlayableGraph.Create(
+            "CutSceneAI-HumanoidIK-" + gameObject.name);
+        graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
+        playable = AnimationScriptPlayable.Create(graph, job, 0);
+        AnimationPlayableOutput output = AnimationPlayableOutput.Create(
+            graph,
+            "CutSceneAI-HumanoidIKOutput",
+            animator);
+        output.SetSourcePlayable(playable);
+        graph.Play();
+        initialized = true;
+    }
+
+    private static Vector3 Blend(Vector3 left, Vector3 right, float amount)
+        => Vector3.Lerp(left, right, amount);
+
+    public void EvaluateAtTime(double timeSeconds)
+    {
+        if (!initialized || !graph.IsValid())
+            RebuildGraph();
+        if (!initialized || frames == null || frames.Length == 0)
+            return;
+
+        float framePosition = (float)(timeSeconds * Math.Max(1, fps));
+        int upper = 0;
+        while (
+            upper < frames.Length
+            && frames[upper].timeline_frame < framePosition)
+            upper++;
+
+        int lower;
+        float blend;
+        if (upper <= 0)
+        {
+            lower = 0;
+            upper = 0;
+            blend = 0.0f;
+        }
+        else if (upper >= frames.Length)
+        {
+            lower = frames.Length - 1;
+            upper = lower;
+            blend = 0.0f;
+        }
+        else
+        {
+            lower = upper - 1;
+            float span =
+                frames[upper].timeline_frame - frames[lower].timeline_frame;
+            blend = span <= 0.0f
+                ? 0.0f
+                : Mathf.Clamp01(
+                    (framePosition - frames[lower].timeline_frame) / span);
+        }
+
+        PoseFrame left = frames[lower];
+        PoseFrame right = frames[upper];
+        job.leftFootLocal = Blend(left.left_foot_local, right.left_foot_local, blend);
+        job.rightFootLocal = Blend(left.right_foot_local, right.right_foot_local, blend);
+        job.leftHandLocal = Blend(left.left_hand_local, right.left_hand_local, blend);
+        job.rightHandLocal = Blend(left.right_hand_local, right.right_hand_local, blend);
+        job.leftKneeHintLocal = Blend(left.left_knee_hint_local, right.left_knee_hint_local, blend);
+        job.rightKneeHintLocal = Blend(left.right_knee_hint_local, right.right_knee_hint_local, blend);
+        job.leftElbowHintLocal = Blend(left.left_elbow_hint_local, right.left_elbow_hint_local, blend);
+        job.rightElbowHintLocal = Blend(left.right_elbow_hint_local, right.right_elbow_hint_local, blend);
+
+        playable.SetJobData(job);
+        graph.Evaluate(1.0f / Math.Max(1, fps));
+    }
+
+    private void Update()
+    {
+        if (director != null)
+            EvaluateAtTime(director.time);
+    }
+
+    private void OnDisable()
+    {
+        ReleaseGraph();
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseGraph();
+    }
+
+    private void ReleaseGraph()
+    {
+        initialized = false;
+        if (graph.IsValid())
+            graph.Destroy();
+    }
+}
 """
 
 
