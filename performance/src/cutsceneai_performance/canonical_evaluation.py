@@ -14,7 +14,8 @@ from .evaluation import (
 )
 
 
-_STATIONARY_HINTS = ("stop", "listen", "hold", "idle", "stand")
+_STATIONARY_HINTS = ("listen", "hold", "idle", "stand", "remain")
+_STOP_HINTS = ("stop", "halt")
 _TURN_HINTS = ("turn", "pivot", "rotate")
 
 
@@ -98,6 +99,7 @@ def _issue(
     message: str,
     semantic_id: str | None,
     actor_binding_id: str | None,
+    component: str | None,
     start_frame: int | None,
     end_frame: int | None,
     metrics: dict[str, float],
@@ -108,6 +110,7 @@ def _issue(
             code=code,
             semantic_id=semantic_id,
             actor_binding_id=actor_binding_id,
+            component=component,
             start_frame=start_frame,
             end_frame=end_frame,
         ),
@@ -118,6 +121,7 @@ def _issue(
         message=message,
         semantic_id=semantic_id,
         actor_binding_id=actor_binding_id,
+        component=component,
         start_frame=start_frame,
         end_frame=end_frame,
         metrics=metrics,
@@ -156,6 +160,7 @@ def evaluate_canonical_performance(
                         message="Canonical body motion is missing joint geometry.",
                         semantic_id=track.semantic_id,
                         actor_binding_id=actor_binding_id,
+                        component=None,
                         start_frame=track.start_frame,
                         end_frame=track.end_frame,
                         metrics={},
@@ -202,6 +207,7 @@ def evaluate_canonical_performance(
                         ),
                         semantic_id=track.semantic_id,
                         actor_binding_id=actor_binding_id,
+                        component=None,
                         start_frame=track.start_frame,
                         end_frame=track.end_frame,
                         metrics={
@@ -229,16 +235,51 @@ def evaluate_canonical_performance(
                         code="stationary_phase_root_travel",
                         severity=IssueSeverity.ERROR,
                         message=(
-                            "A phase whose semantics imply standing/stopping moves "
+                            "A phase whose semantics imply remaining stationary moves "
                             "the canonical pelvis more than 0.20 m."
                         ),
                         semantic_id=track.semantic_id,
                         actor_binding_id=actor_binding_id,
+                        component=None,
                         start_frame=track.start_frame,
                         end_frame=track.end_frame,
                         metrics={"root_displacement_m": root_displacement},
                     )
                 )
+
+            if any(token in phase_name for token in _STOP_HINTS):
+                if len(artifact.samples) >= 2:
+                    tail = artifact.samples[-min(4, len(artifact.samples)) :]
+                    speeds = [
+                        _distance(
+                            tail[index].joint_positions[pelvis_index],
+                            tail[index - 1].joint_positions[pelvis_index],
+                        )
+                        * artifact.fps
+                        for index in range(1, len(tail))
+                    ]
+                    ending_speed = statistics.median(speeds) if speeds else 0.0
+                else:
+                    ending_speed = 0.0
+                if ending_speed > 0.20:
+                    issues.append(
+                        _issue(
+                            stage=EvaluationStage.CANONICAL,
+                            domain="semantic",
+                            code="stop_phase_not_settled",
+                            severity=IssueSeverity.ERROR,
+                            message=(
+                                "A stop/halt phase still has substantial pelvis speed "
+                                "at the end of the phase."
+                            ),
+                            semantic_id=track.semantic_id,
+                            actor_binding_id=actor_binding_id,
+                            component=None,
+                            start_frame=max(track.start_frame, track.end_frame - 4),
+                            end_frame=track.end_frame,
+                            metrics={"ending_speed_mps": ending_speed},
+                        )
+                    )
 
             heading_change = abs(
                 _heading_delta_degrees(
@@ -262,6 +303,7 @@ def evaluate_canonical_performance(
                         ),
                         semantic_id=track.semantic_id,
                         actor_binding_id=actor_binding_id,
+                        component=None,
                         start_frame=track.start_frame,
                         end_frame=track.end_frame,
                         metrics={"heading_change_deg": heading_change},
@@ -361,6 +403,7 @@ def evaluate_canonical_performance(
                         ),
                         semantic_id=current_phase,
                         actor_binding_id=actor_binding_id,
+                        component=None,
                         start_frame=current_frame,
                         end_frame=current_frame + 1,
                         metrics={"speed_jump_mps": speed_jump},
