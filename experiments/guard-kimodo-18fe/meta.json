@@ -1,0 +1,16 @@
+{
+  "texts": [
+    "A person walks cautiously forward through an empty hallway with natural, steady steps.",
+    "A person slows from a cautious walk, plants their feet, and listens after hearing a noise.",
+    "A person turns about forty degrees to the right toward a door, then holds an alert standing pose."
+  ],
+  "durations": [5.0, 2.0, 5.0],
+  "num_samples": 1,
+  "seed": 20260812,
+  "diffusion_steps": 100,
+  "cfg": {
+    "enabled": true,
+    "text_weight": 2.0,
+    "constraint_weight": 2.0
+  }
+}
