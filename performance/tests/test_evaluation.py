@@ -83,9 +83,28 @@ def test_stable_issue_id_is_deterministic_and_scope_sensitive() -> None:
         start_frame=11,
         end_frame=20,
     )
+    left = stable_issue_id(
+        stage=EvaluationStage.CANONICAL,
+        code="possible_foot_slide",
+        semantic_id="body:guard_walk",
+        actor_binding_id="actor:guard",
+        component="left_foot",
+        start_frame=10,
+        end_frame=20,
+    )
+    right = stable_issue_id(
+        stage=EvaluationStage.CANONICAL,
+        code="possible_foot_slide",
+        semantic_id="body:guard_walk",
+        actor_binding_id="actor:guard",
+        component="right_foot",
+        start_frame=10,
+        end_frame=20,
+    )
 
     assert first == second
     assert first != changed
+    assert left != right
 
 
 def test_evaluation_report_accepts_warnings_but_rejects_error_acceptance() -> None:
