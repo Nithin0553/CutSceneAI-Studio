@@ -368,7 +368,10 @@ class ExternalCanonicalBodyBackend:
             )
         except TimeoutError as exc:
             process.kill()
-            await process.wait()
+            try:
+                await asyncio.wait_for(process.communicate(), timeout=5.0)
+            except TimeoutError:
+                pass
             raise PerformanceProviderExecutionError(
                 f"Body provider exceeded {self.timeout_seconds:g}s timeout."
             ) from exc
