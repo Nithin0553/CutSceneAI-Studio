@@ -16,6 +16,7 @@ from .bundle import (
     replace_body_artifacts,
     verify_performance_bundle,
 )
+from .canonical_evaluation import evaluate_canonical_performance
 from .camera import (
     CAMERA_RESAMPLING_METHOD,
     CameraCurveArtifact,
@@ -232,6 +233,7 @@ __all__ = [
     "Vector3",
     "assemble_performance_bundle",
     "canonical_scene_transforms",
+    "evaluate_canonical_performance",
     "body_motion_artifact_sha256",
     "body_motion_json_schema",
     "camera_curve_artifact_sha256",
