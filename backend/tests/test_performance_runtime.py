@@ -85,6 +85,83 @@ sys.stdout.write(json.dumps(response))
     )
 
 
+def _write_humanml_body_provider(path: Path) -> None:
+    path.write_text(
+        """
+import json
+import re
+import sys
+
+payload = json.loads(sys.stdin.read())
+request = payload["request"]
+frame_count = request["end_frame"] - request["start_frame"]
+match = re.search(r"at (\\d+) fps", request["prompt"])
+fps = int(match.group(1)) if match else 20
+names = [
+    "pelvis","left_hip","right_hip","spine1","left_knee","right_knee",
+    "spine2","left_ankle","right_ankle","spine3","left_foot","right_foot",
+    "neck","left_collar","right_collar","head","left_shoulder","right_shoulder",
+    "left_elbow","right_elbow","left_wrist","right_wrist",
+]
+parents = [-1,0,0,0,1,2,3,4,5,6,7,8,9,9,9,12,13,14,16,17,18,19]
+offsets = [
+    (0,0,0),(0.2,-0.1,0),(-0.2,-0.1,0),(0,0.2,0),(0,-0.4,0.1),
+    (0,-0.4,0.1),(0,0.2,0),(0,-0.4,-0.1),(0,-0.4,-0.1),(0,0.2,0),
+    (0,-0.05,0.2),(0,-0.05,0.2),(0,0.2,0),(0.15,0.05,0),
+    (-0.15,0.05,0),(0,0.2,0),(0.25,0,0),(-0.25,0,0),
+    (0.25,0,0),(-0.25,0,0),(0.25,0,0),(-0.25,0,0),
+]
+frames = []
+for frame in range(frame_count):
+    scale = 0.8 if frame % 2 == 0 else 1.25
+    positions = []
+    for index, parent in enumerate(parents):
+        if parent < 0:
+            positions.append([0.0, 1.0, -0.01 * frame])
+        else:
+            px, py, pz = positions[parent]
+            ox, oy, oz = offsets[index]
+            positions.append([px + ox * scale, py + oy * scale, pz + oz * scale])
+    frames.append(positions)
+
+response = {
+    "request_semantic_id": request["semantic_id"],
+    "provider": request["provider"],
+    "model": request["model"],
+    "model_revision": request["model_revision"],
+    "prompt_sha256": request["prompt_sha256"],
+    "configuration_sha256": request["configuration_sha256"],
+    "seed": request["seed"],
+    "generated_at_inference": True,
+    "retrieved_pre_authored_clip": False,
+    "deterministic_algorithms": True,
+    "artifact_format": "humanml-xyz-v0.1",
+    "artifact": {
+        "fps": fps,
+        "frame_count": frame_count,
+        "joint_names": names,
+        "positions": frames,
+    },
+}
+sys.stdout.write(json.dumps(response))
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _configure_humanml_body_provider(tmp_path: Path, monkeypatch) -> None:
+    script = tmp_path / "humanml_body_provider.py"
+    _write_humanml_body_provider(script)
+    monkeypatch.setenv(
+        "CUTSCENEAI_BODY_PROVIDER_COMMAND",
+        json.dumps([sys.executable, str(script)]),
+    )
+    monkeypatch.setenv("CUTSCENEAI_BODY_PROVIDER", "fixture-humanml")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL", "varying-skeleton")
+    monkeypatch.setenv("CUTSCENEAI_BODY_MODEL_REVISION", "test-r1")
+
+
 def _configure_body_provider(tmp_path: Path, monkeypatch) -> None:
     script = tmp_path / "body_provider.py"
     _write_body_provider(script)
@@ -392,6 +469,44 @@ def test_executor_derives_recomposed_body_run_without_new_inference(
     assert (run_dir / "body-provider-outputs").is_dir()
     assert (run_dir / "body-composition-diagnostic.json").is_file()
     load_performance_bundle(executor.bundle_bytes(derived.run_id))
+
+
+def test_executor_repairs_canonical_bone_length_instability_without_inference(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _configure_humanml_body_provider(tmp_path, monkeypatch)
+    executor = StudioPerformanceExecutor(run_root=tmp_path / "runs")
+    source = asyncio.run(
+        executor.generate(
+            PerformanceGenerateRequest(project=_project_without_dialogue())
+        )
+    )
+
+    before = executor.evaluate_run(source.run_id)
+    assert any(
+        issue.code == "bone_length_instability"
+        for issue in before.report.issues
+    )
+
+    repaired = executor.repair_run(source.run_id)
+
+    assert repaired.derived_run is not None
+    assert repaired.derived_run.derived_from_run_id == source.run_id
+    assert repaired.derived_run.derivation == "canonical-skeleton-normalization-v1"
+    assert repaired.applied_action_ids
+    assert repaired.post_report is not None
+    assert not any(
+        issue.code == "bone_length_instability"
+        for issue in repaired.post_report.issues
+    )
+    assert repaired.derived_run.bundle_sha256 != source.bundle_sha256
+    run_dir = tmp_path / "runs" / repaired.derived_run.run_id
+    derivation = json.loads(
+        (run_dir / "derivation.json").read_text(encoding="utf-8")
+    )
+    assert derivation["fresh_body_inference"] is False
+    assert (run_dir / "repair-execution.json").is_file()
 
 
 def test_executor_persists_body_outputs_before_postprocessing_failure(
