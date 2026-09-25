@@ -142,6 +142,11 @@ from .smplx import (
     SMPLXAxisAngleMotion,
     smplx_axis_angle_to_canonical,
 )
+from .skeleton_repair import (
+    estimate_reference_bone_lengths,
+    normalize_actor_skeleton,
+    project_motion_to_fixed_skeleton,
+)
 from .serialization import (
     body_motion_artifact_sha256,
     camera_curve_artifact_sha256,
@@ -270,6 +275,9 @@ __all__ = [
     "replace_body_artifacts",
     "render_performance_package",
     "render_performance_package_json_schema",
+    "estimate_reference_bone_lengths",
+    "normalize_actor_skeleton",
+    "project_motion_to_fixed_skeleton",
     "resample_body_motion",
     "resample_camera_curves",
     "resample_facial_curves",
