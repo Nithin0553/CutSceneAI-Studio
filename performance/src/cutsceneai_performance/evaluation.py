@@ -56,6 +56,7 @@ class PerformanceIssue(PerformanceModel):
     message: str = Field(min_length=1)
     semantic_id: SemanticId | None = None
     actor_binding_id: SemanticId | None = None
+    component: str | None = Field(default=None, min_length=1)
     start_frame: int | None = Field(default=None, ge=0)
     end_frame: int | None = Field(default=None, ge=0)
     metrics: dict[str, float] = Field(default_factory=dict)
@@ -101,6 +102,7 @@ class RepairAction(PerformanceModel):
     issue_ids: list[str] = Field(min_length=1)
     semantic_id: SemanticId | None = None
     actor_binding_id: SemanticId | None = None
+    component: str | None = Field(default=None, min_length=1)
     start_frame: int | None = Field(default=None, ge=0)
     end_frame: int | None = Field(default=None, ge=0)
     instruction: str = Field(min_length=1)
@@ -235,6 +237,7 @@ def stable_issue_id(
     code: str,
     semantic_id: str | None = None,
     actor_binding_id: str | None = None,
+    component: str | None = None,
     start_frame: int | None = None,
     end_frame: int | None = None,
 ) -> str:
@@ -243,6 +246,7 @@ def stable_issue_id(
         "code": code,
         "semantic_id": semantic_id,
         "actor_binding_id": actor_binding_id,
+        "component": component,
         "start_frame": start_frame,
         "end_frame": end_frame,
     }
@@ -298,6 +302,7 @@ def plan_repairs(report: EvaluationReport) -> RepairPlan:
                 issue_ids=[issue.issue_id],
                 semantic_id=issue.semantic_id,
                 actor_binding_id=issue.actor_binding_id,
+                component=issue.component,
                 start_frame=issue.start_frame,
                 end_frame=issue.end_frame,
                 instruction=instruction,
