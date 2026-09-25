@@ -356,6 +356,7 @@ def evaluate_canonical_performance(
                             ),
                             semantic_id=track.semantic_id,
                             actor_binding_id=actor_binding_id,
+                            component=foot_name,
                             start_frame=track.start_frame,
                             end_frame=track.end_frame,
                             metrics={
