@@ -439,6 +439,16 @@ public static class CutSceneAIGeneratedPerformance
     [Serializable] private sealed class RetargetActor {
         public string actor_binding_id;
         public string prefab_path;
+        public bool avatar_is_valid;
+        public bool avatar_is_human;
+        public float human_scale;
+        public float upper_arm_twist;
+        public float lower_arm_twist;
+        public float upper_leg_twist;
+        public float lower_leg_twist;
+        public float arm_stretch;
+        public float leg_stretch;
+        public float feet_spacing;
         public RetargetJoint[] joints;
         public RetargetLimb[] limbs;
     }
@@ -2099,16 +2109,31 @@ public static class CutSceneAIGeneratedPerformance
                     HumanBodyBones.RightLowerArm,
                     HumanBodyBones.RightHand),
             };
+            Avatar avatar = animator.avatar;
+            bool avatarIsValid = avatar != null && avatar.isValid;
+            bool avatarIsHuman = avatarIsValid && avatar.isHuman;
+            HumanDescription humanDescription =
+                avatarIsHuman ? avatar.humanDescription : new HumanDescription();
             return new RetargetActor {
                 actor_binding_id = track.actor_binding_id,
                 prefab_path = actorTarget.prefab_path,
+                avatar_is_valid = avatarIsValid,
+                avatar_is_human = avatarIsHuman,
+                human_scale = avatarIsHuman ? animator.humanScale : 0.0f,
+                upper_arm_twist = avatarIsHuman ? humanDescription.upperArmTwist : 0.0f,
+                lower_arm_twist = avatarIsHuman ? humanDescription.lowerArmTwist : 0.0f,
+                upper_leg_twist = avatarIsHuman ? humanDescription.upperLegTwist : 0.0f,
+                lower_leg_twist = avatarIsHuman ? humanDescription.lowerLegTwist : 0.0f,
+                arm_stretch = avatarIsHuman ? humanDescription.armStretch : 0.0f,
+                leg_stretch = avatarIsHuman ? humanDescription.legStretch : 0.0f,
+                feet_spacing = avatarIsHuman ? humanDescription.feetSpacing : 0.0f,
                 joints = joints,
                 limbs = limbs,
             };
         }).ToArray();
         RetargetProfile profile = new RetargetProfile {
-            profile_version = "0.2.0",
-            retargeting_method = "geometry-profile-v0.2+rest-direction-parent-basis-v1",
+            profile_version = "0.3.0",
+            retargeting_method = "humanoid-capability-profile-v0.3+geometry-profile-v0.2",
             canonical_reference_frame = "cutsceneai-humanoid-v1-unity-reflected-rest-directions",
             engine = "Unity",
             engine_version = Application.unityVersion,
