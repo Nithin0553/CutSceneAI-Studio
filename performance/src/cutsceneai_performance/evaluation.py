@@ -165,6 +165,13 @@ _REPAIR_RULES: dict[str, tuple[RepairActionKind, str, bool, bool, bool]] = {
         False,
         True,
     ),
+    "stop_phase_not_settled": (
+        RepairActionKind.RECOMPOSE_ROOT,
+        "Adjust only the tail of the stop phase so pelvis velocity settles near zero while preserving the deceleration path.",
+        False,
+        False,
+        True,
+    ),
     "large_phase_boundary_speed_jump": (
         RepairActionKind.SMOOTH_TRANSITION,
         "Recompose the phase boundary to preserve pose and velocity continuity.",
