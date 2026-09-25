@@ -2331,6 +2331,270 @@ public static class CutSceneAIGeneratedPerformance
         }
     }
 
+    private static CutSceneAIHumanoidIKDriver ConfigureHumanoidIKDriver(
+        GameObject actor,
+        ActorTarget actorTarget,
+        BodyTrack[] tracks,
+        PlayableDirector director,
+        int fps)
+    {
+        if (tracks == null || tracks.Length == 0)
+            throw new InvalidOperationException(
+                "Humanoid IK driver requires at least one body track.");
+
+        BodyTrack template = tracks
+            .OrderBy(item => item.start_frame)
+            .ThenBy(item => item.semantic_id)
+            .First();
+        Animator actorAnimator = AnimatorComponentFor(actor, actorTarget);
+        if (
+            actorAnimator.avatar == null
+            || !actorAnimator.avatar.isValid
+            || !actorAnimator.avatar.isHuman)
+            throw new InvalidOperationException(
+                "Humanoid IK realization requires the target's original Humanoid Avatar.");
+
+        GameObject prefab = LoadPrefab(actorTarget);
+        Animator prefabAnimator = AnimatorFor(prefab, actorTarget);
+        if (
+            prefabAnimator.avatar == null
+            || !prefabAnimator.avatar.isValid
+            || !prefabAnimator.avatar.isHuman)
+            throw new InvalidOperationException(
+                "Target prefab does not provide a valid Humanoid Avatar.");
+
+        int pelvisIndex = JointIndex(template, "pelvis");
+        int spineIndex = JointIndex(template, "spine1");
+        int leftHipIndex = JointIndex(template, "left_hip");
+        int rightHipIndex = JointIndex(template, "right_hip");
+        int leftKneeIndex = JointIndex(template, "left_knee");
+        int rightKneeIndex = JointIndex(template, "right_knee");
+        int leftFootIndex = JointIndex(template, "left_ankle");
+        int rightFootIndex = JointIndex(template, "right_ankle");
+        int leftShoulderIndex = JointIndex(template, "left_shoulder");
+        int rightShoulderIndex = JointIndex(template, "right_shoulder");
+        int leftElbowIndex = JointIndex(template, "left_elbow");
+        int rightElbowIndex = JointIndex(template, "right_elbow");
+        int leftHandIndex = JointIndex(template, "left_wrist");
+        int rightHandIndex = JointIndex(template, "right_wrist");
+
+        int[] required = new[] {
+            pelvisIndex, spineIndex, leftHipIndex, rightHipIndex,
+            leftKneeIndex, rightKneeIndex, leftFootIndex, rightFootIndex,
+            leftShoulderIndex, rightShoulderIndex,
+            leftElbowIndex, rightElbowIndex, leftHandIndex, rightHandIndex,
+        };
+        if (required.Any(index => index < 0))
+            throw new InvalidOperationException(
+                "Canonical body mapping is missing joints required for Humanoid IK.");
+
+        Vector3 pelvisReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.Hips));
+        Vector3 spineReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.Spine));
+        Vector3 leftHipReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftUpperLeg));
+        Vector3 rightHipReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightUpperLeg));
+        Vector3 leftKneeReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftLowerLeg));
+        Vector3 rightKneeReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightLowerLeg));
+        Vector3 leftFootReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftFoot));
+        Vector3 rightFootReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightFoot));
+        Vector3 leftShoulderReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm));
+        Vector3 rightShoulderReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm));
+        Vector3 leftElbowReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftLowerArm));
+        Vector3 rightElbowReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightLowerArm));
+        Vector3 leftHandReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.LeftHand));
+        Vector3 rightHandReference = ComponentPosition(
+            prefabAnimator,
+            prefabAnimator.GetBoneTransform(HumanBodyBones.RightHand));
+
+        if (!TryAnatomicalBodyBasis(
+            pelvisReference,
+            leftHipReference,
+            rightHipReference,
+            spineReference,
+            out Quaternion targetBodyBasis))
+            throw new InvalidOperationException(
+                "Target Humanoid does not define a valid anatomical body basis.");
+
+        var limbs = new[] {
+            new {
+                name = "left_leg",
+                rootIndex = leftHipIndex,
+                midIndex = leftKneeIndex,
+                endIndex = leftFootIndex,
+                rootReference = leftHipReference,
+                midReference = leftKneeReference,
+                endReference = leftFootReference,
+            },
+            new {
+                name = "right_leg",
+                rootIndex = rightHipIndex,
+                midIndex = rightKneeIndex,
+                endIndex = rightFootIndex,
+                rootReference = rightHipReference,
+                midReference = rightKneeReference,
+                endReference = rightFootReference,
+            },
+            new {
+                name = "left_arm",
+                rootIndex = leftShoulderIndex,
+                midIndex = leftElbowIndex,
+                endIndex = leftHandIndex,
+                rootReference = leftShoulderReference,
+                midReference = leftElbowReference,
+                endReference = leftHandReference,
+            },
+            new {
+                name = "right_arm",
+                rootIndex = rightShoulderIndex,
+                midIndex = rightElbowIndex,
+                endIndex = rightHandIndex,
+                rootReference = rightShoulderReference,
+                midReference = rightElbowReference,
+                endReference = rightHandReference,
+            },
+        };
+
+        Dictionary<string, Vector3> carriedBend =
+            new Dictionary<string, Vector3>(StringComparer.Ordinal);
+        Dictionary<string, bool> carriedBendDefined = limbs
+            .ToDictionary(item => item.name, _ => false, StringComparer.Ordinal);
+        Dictionary<int, CutSceneAIHumanoidIKDriver.PoseFrame> frames =
+            new Dictionary<int, CutSceneAIHumanoidIKDriver.PoseFrame>();
+
+        foreach (BodyTrack track in tracks
+            .OrderBy(item => item.start_frame)
+            .ThenBy(item => item.semantic_id))
+        {
+            foreach (BodyKeyframe frame in track.keyframes)
+            {
+                if (
+                    frame.joint_positions_m == null
+                    || required.Any(index => index >= frame.joint_positions_m.Length))
+                    throw new InvalidOperationException(
+                        "Humanoid IK realization requires canonical XYZ on every body frame.");
+
+                Vector3 sourcePelvis = Vector(frame.joint_positions_m[pelvisIndex]);
+                Vector3 sourceSpine = Vector(frame.joint_positions_m[spineIndex]);
+                Vector3 sourceLeftHip = Vector(frame.joint_positions_m[leftHipIndex]);
+                Vector3 sourceRightHip = Vector(frame.joint_positions_m[rightHipIndex]);
+                if (!TryAnatomicalBodyBasis(
+                    sourcePelvis,
+                    sourceLeftHip,
+                    sourceRightHip,
+                    sourceSpine,
+                    out Quaternion sourceBodyBasis))
+                    throw new InvalidOperationException(
+                        "Canonical frame does not define a valid anatomical body basis.");
+
+                Quaternion sourceToTargetBody =
+                    targetBodyBasis * Quaternion.Inverse(sourceBodyBasis);
+                Dictionary<string, TwoBoneGeometrySolution> solved =
+                    new Dictionary<string, TwoBoneGeometrySolution>(
+                        StringComparer.Ordinal);
+
+                foreach (var limb in limbs)
+                {
+                    Vector3 sourceRoot =
+                        Vector(frame.joint_positions_m[limb.rootIndex]);
+                    Vector3 sourceMid =
+                        Vector(frame.joint_positions_m[limb.midIndex]);
+                    Vector3 sourceEnd =
+                        Vector(frame.joint_positions_m[limb.endIndex]);
+                    Vector3 mappedRoot = limb.rootReference;
+                    Vector3 mappedMid =
+                        mappedRoot
+                        + sourceToTargetBody * (sourceMid - sourceRoot);
+                    Vector3 mappedEnd =
+                        mappedRoot
+                        + sourceToTargetBody * (sourceEnd - sourceRoot);
+
+                    if (TrySourceBendDirection(
+                        mappedRoot,
+                        mappedMid,
+                        mappedEnd,
+                        out Vector3 currentBend))
+                    {
+                        carriedBend[limb.name] = currentBend;
+                        carriedBendDefined[limb.name] = true;
+                    }
+
+                    TwoBoneGeometrySolution solution = SolveTwoBoneGeometry(
+                        mappedRoot,
+                        mappedMid,
+                        mappedEnd,
+                        mappedRoot,
+                        Vector3.Distance(
+                            limb.rootReference,
+                            limb.midReference),
+                        Vector3.Distance(
+                            limb.midReference,
+                            limb.endReference),
+                        carriedBendDefined[limb.name]
+                            ? carriedBend[limb.name]
+                            : Vector3.zero,
+                        carriedBendDefined[limb.name]);
+                    if (!solution.solved)
+                        throw new InvalidOperationException(
+                            "Humanoid IK could not solve canonical limb: "
+                            + limb.name + " at frame " + frame.timeline_frame);
+                    solved[limb.name] = solution;
+                }
+
+                frames[frame.timeline_frame] =
+                    new CutSceneAIHumanoidIKDriver.PoseFrame {
+                        timeline_frame = frame.timeline_frame,
+                        left_foot_local = solved["left_leg"].end,
+                        right_foot_local = solved["right_leg"].end,
+                        left_hand_local = solved["left_arm"].end,
+                        right_hand_local = solved["right_arm"].end,
+                        left_knee_hint_local = solved["left_leg"].mid,
+                        right_knee_hint_local = solved["right_leg"].mid,
+                        left_elbow_hint_local = solved["left_arm"].mid,
+                        right_elbow_hint_local = solved["right_arm"].mid,
+                    };
+            }
+        }
+
+        CutSceneAIHumanoidIKDriver driver =
+            actor.GetComponent<CutSceneAIHumanoidIKDriver>();
+        if (driver == null)
+            driver = actor.AddComponent<CutSceneAIHumanoidIKDriver>();
+        driver.animator = actorAnimator;
+        driver.director = director;
+        driver.fps = fps;
+        driver.frames = frames
+            .OrderBy(item => item.Key)
+            .Select(item => item.Value)
+            .ToArray();
+        driver.RebuildGraph();
+        return driver;
+    }
+
     private static CutSceneAIBodyStreamDriver ConfigureBodyStreamDriver(
         GameObject actor,
         ActorTarget actorTarget,
