@@ -142,6 +142,13 @@ class ClosedLoopPolicy(PerformanceModel):
 
 
 _REPAIR_RULES: dict[str, tuple[RepairActionKind, str, bool, bool, bool]] = {
+    "canonical_geometry_missing": (
+        RepairActionKind.REGENERATE_SEGMENT,
+        "Regenerate only the affected motion segment with the required canonical body representation.",
+        True,
+        False,
+        True,
+    ),
     "bone_length_instability": (
         RepairActionKind.NORMALIZE_SKELETON,
         "Normalize canonical skeleton geometry without changing semantic timing.",
