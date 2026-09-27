@@ -661,6 +661,9 @@ function App() {
         postJson("/api/v1/studio/performance/plan", {
           project: cir,
           experiment_seed: 20260812,
+          ...(selectedProject?.manifest?.scene_snapshot
+            ? { project_id: selectedProjectId, bindings: selectedBindings }
+            : {}),
         }),
         apiJson("/api/v1/studio/performance/readiness"),
       ]);
@@ -689,6 +692,9 @@ function App() {
         project: cir,
         experiment_seed: 20260812,
         voices: {},
+        ...(selectedProject?.manifest?.scene_snapshot
+          ? { project_id: selectedProjectId, bindings: selectedBindings }
+          : {}),
       });
       setPerformanceRun(run);
       if (run.status === "succeeded") {
