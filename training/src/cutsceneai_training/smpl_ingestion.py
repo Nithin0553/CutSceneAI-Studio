@@ -47,6 +47,10 @@ def write_canonical_smpl_record(
         "record_version": "0.1.0",
         "record_kind": "canonical_smpl_motion",
         "canonical_contract_version": "0.1.0",
+        "canonical_rig_profile": {
+            "profile_id": "cutsceneai-humanoid-v1",
+            "contract_version": "0.1.0",
+        },
         "source": {
             "dataset": source_dataset,
             "record_id": motion.source_record_id,
