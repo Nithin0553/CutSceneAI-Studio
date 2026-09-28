@@ -871,3 +871,33 @@ representation. It does not by itself create scene-conditioned turn examples.
 windows from canonicalized human motion, reject clips with inadequate heading change or excessive
 translation, then attach synthetic engine-neutral target geometry along the observed final facing.
 Preserve the source record/family identity so train/val/test splits cannot leak sibling clips.
+
+### 2026-09-28 — Canonical Turn Clip Mining v0.1 verified
+
+Implemented and verified in the `training` package:
+
+- reconstruction of canonical heading from `rotation_6d_columns`;
+- turn activity detection from canonical root angular speed;
+- gap-aware grouping of continuous turning motion;
+- configurable context expansion;
+- heading-change range filtering;
+- horizontal-displacement filtering for turn-in-place / low-translation examples;
+- signed left/right turn identity;
+- turn-direction consistency filtering;
+- canonical-record mining with inherited source rights/provenance;
+- explicit `synthetic_directional_proxy` target semantics so CutSceneAI does not falsely claim that
+  the original performer attended to a real object;
+- CLI: `cutsceneai-mine-turns`.
+
+Verification:
+
+- dedicated GitHub Actions **Training foundation** job passed;
+- tests verify stable 90-degree left/right turns are mined;
+- small heading changes are rejected;
+- turns with excessive root translation are rejected.
+
+**Exact next development step:** materialize mined human turn windows into **Scene-Conditioned Turn
+Training Candidates v0.1**. Slice the accepted canonical human body motion, attach an engine-neutral
+synthetic target marker along the observed final facing, inherit rights/provenance/family identity,
+and keep contact/gaze labels unavailable unless genuinely measured or derived. These samples must
+remain review candidates until motion/data quality gates pass.
