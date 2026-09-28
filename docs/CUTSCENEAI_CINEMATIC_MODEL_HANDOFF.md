@@ -1001,3 +1001,43 @@ candidates: artifact hash/shape checks, family-split leakage detection, root/fac
 constraint satisfaction, continuity statistics, rights-pool checks, and explicit human-review
 status. Then run that QA on a small locally obtained AMASS pilot before any learned baseline is
 trained.
+
+### 2026-09-28 — Turn Dataset QA v0.1 verified
+
+Automated QA for scene-conditioned turn candidates is now implemented and verified.
+
+Checks include:
+
+- artifact existence, SHA-256, and byte-length validation;
+- required body-array presence and exact shapes;
+- finite numeric values;
+- 6D ground-truth rotation orthonormality;
+- body-facing constraint error over the constrained frame window;
+- root speed, acceleration, jerk, and angular-speed statistics;
+- usage-pool / rights consistency;
+- family-level train/validation/test leakage detection;
+- explicit separation between `automated_qa_pass`, `human_review_pass`, and
+  `training_ready`.
+
+A sample may pass automated QA while remaining non-trainable until human motion review is approved.
+
+Verification:
+
+- GitHub Actions **Training foundation** passed on commit
+  `d58f3be865becda3ed1829533cdd690afe703801`.
+- The overall legacy Python matrix can still be red because of pre-existing repository-wide
+  formatting drift; the isolated training job is the authoritative signal for this package.
+
+New blocker discovered before real-data training:
+
+The runtime retargeter documents CutSceneAI canonical joint rotations as **axis-aligned
+parent-space deltas**. A source such as SMPL/SMPL-X may share the same 22 semantic joints without
+necessarily sharing the exact canonical reference/bind basis. Therefore semantic joint-name
+matching alone is insufficient proof that source local rotations can be copied directly into
+CutSceneAI training targets.
+
+**Do not train AMASS-derived joint rotations until this rig-basis question is explicitly resolved.**
+
+**Exact next development step:** define/verify **CanonicalRigProfile v0.1** and source-rig
+canonicalization semantics. Prove that a neutral/reference source pose maps to canonical identity
+deltas and that equivalent physical source poses from supported representations map consistently.
