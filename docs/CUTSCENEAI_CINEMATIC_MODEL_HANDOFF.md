@@ -640,3 +640,29 @@ Repository-state finding:
 **Exact next development step:** define and freeze **Choreography / Temporal Representation v0.1**
 (immediate-next-work item 3). It must represent overlapping phases, events, targets, root/path goals,
 contacts/gaze windows, transition constraints, and future goals before frame-level body generation.
+
+### 2026-09-28 — Choreography / Temporal Representation v0.1 frozen
+
+Immediate-next-work item 3 is complete.
+
+Frozen temporal/choreography rules:
+
+- choreography is engine-neutral and uses the 30-fps canonical model timebase;
+- point events and overlapping behavioral phases are separate abstractions;
+- phases explicitly declare affected body channels and priority;
+- semantically related overlapping phases can be grouped through coordination groups;
+- root position/path/velocity, body-facing, gaze, support-contact, target-distance, posture, and hold constraints are explicit;
+- hard and soft constraints are distinct;
+- sparse root paths are intent-level conditioning, not leaked frame-level body targets;
+- choreography is a Temporal Director target but a Body Generator input;
+- exact future joint rotations and exact frame contact truth are forbidden from choreography conditioning.
+
+Authoritative files:
+
+- `docs/model/CHOREOGRAPHY_TEMPORAL_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/choreography-temporal-representation-v0.1.json`
+
+**Exact next development step:** define and freeze **Canonical Body Target Representation v0.1**
+(immediate-next-work item 4). It must define explicit root position/orientation, 22-joint canonical
+rotations, optional joint-position auxiliary supervision, continuity/velocity semantics, masks,
+and the conversion boundary to the runtime Generated Performance Package.
