@@ -6,7 +6,14 @@ from pathlib import Path
 import numpy as np
 
 
-_ALLOWED_RIGHTS = {"owned", "licensed", "permissive", "research_only", "restricted", "unknown"}
+_ALLOWED_RIGHTS = {
+    "owned",
+    "licensed",
+    "permissive",
+    "research_only",
+    "restricted",
+    "unknown",
+}
 _ALLOWED_DECISIONS = {"allowed", "not_allowed", "unclear", "not_reviewed"}
 _ALLOWED_POOLS = {"research", "production_candidate"}
 
@@ -87,9 +94,7 @@ class SMPLSourceMotion:
             raise ValueError("body_pose must have shape [T, 63] or [T, 21, 3].")
         if transl.ndim != 2 or transl.shape[1] != 3:
             raise ValueError("transl must have shape [T, 3].")
-        if not (
-            global_orient.shape[0] == body_pose.shape[0] == transl.shape[0]
-        ):
+        if not (global_orient.shape[0] == body_pose.shape[0] == transl.shape[0]):
             raise ValueError("SMPL source arrays must have identical frame counts.")
         if global_orient.shape[0] < 1:
             raise ValueError("SMPL source must contain at least one frame.")
