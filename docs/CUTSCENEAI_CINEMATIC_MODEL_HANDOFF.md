@@ -955,3 +955,49 @@ contract references or unreviewed/restricted public data into the production-can
 **Exact next development step:** select the first motion source, document its rights decision, ingest
 a small pilot corpus, mine/materialize turn candidates, run dataset QA, and only then train the first
 target-conditioned-turn baseline.
+
+### 2026-09-28 — AMASS research-pilot tooling verified
+
+The first external motion-source decision and pilot runner are complete.
+
+Decision:
+
+- AMASS is the first **research-only** pilot source because its SMPL-family representation maps
+  directly into the CutSceneAI training canonicalizer.
+- The official AMASS license is non-commercial. AMASS-derived data/checkpoints must remain in the
+  CutSceneAI `research` pool and must never be represented as production-cleared.
+- BABEL is deferred until action/Temporal-Director labeling is needed; it is also non-commercial.
+- HumanML3D does not bypass AMASS source-data rights.
+- KIT-ML is not marked production-cleared without a separate explicit rights review.
+
+Authoritative decision:
+
+- `docs/model/MOTION_DATA_SOURCE_DECISION_001.md`
+
+Implemented:
+
+- CLI `cutsceneai-amass-turn-pilot`;
+- recursive discovery of standard AMASS `*_poses.npz` files;
+- explicit user confirmation that AMASS was obtained under its license;
+- fixed research-only rights metadata;
+- source dataset/subject-directory family identity;
+- local batch canonicalization → turn mining → scene-conditioned candidate materialization;
+- aggregate pilot manifest;
+- `.cutsceneai-training-data/` ignored by Git so local source/derived motion is not accidentally
+  committed.
+
+Verification:
+
+- dedicated GitHub Actions **Training foundation** job passed;
+- **22 training tests passed**;
+- tests verify the license-confirmation gate, file discovery, research-only rights metadata,
+  canonical ingestion, turn mining, target materialization, split-family protection, and previous
+  training foundations.
+
+No AMASS motion data has been downloaded or committed by this work.
+
+**Exact next development step:** implement automated **Turn Dataset QA v0.1** over materialized
+candidates: artifact hash/shape checks, family-split leakage detection, root/facing metrics,
+constraint satisfaction, continuity statistics, rights-pool checks, and explicit human-review
+status. Then run that QA on a small locally obtained AMASS pilot before any learned baseline is
+trained.
