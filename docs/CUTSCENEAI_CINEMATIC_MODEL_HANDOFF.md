@@ -692,3 +692,27 @@ Authoritative files:
 
 **Exact next development step:** define and freeze **Contact / Gaze Target Representation v0.1**
 (immediate-next-work item 5).
+
+### 2026-09-28 — Contact / Gaze Target Representation v0.1 frozen
+
+Immediate-next-work item 5 is complete.
+
+Frozen contact/gaze rules:
+
+- left/right foot contact are first-class frame-aligned supervision;
+- unavailable contact is masked, not encoded as false;
+- optional support-surface identity and world contact points are supported;
+- contact confidence and derivation provenance are explicit;
+- gaze-active state, semantic target identity, head direction, and optional eye-gaze direction are separate;
+- gaze components have independent availability masks and confidence/provenance;
+- head direction is not treated as identical to body/root facing;
+- exact frame-level contact/gaze truth remains separate from coarse choreography intent;
+- contact/gaze targets align exactly with the canonical body sequence.
+
+Authoritative files:
+
+- `docs/model/CONTACT_GAZE_TARGET_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/contact-gaze-target-representation-v0.1.json`
+
+**Exact next development step:** define and freeze **Canonical Camera Target Representation v0.1**
+(immediate-next-work item 6).
