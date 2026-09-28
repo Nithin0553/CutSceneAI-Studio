@@ -1,0 +1,580 @@
+# CutSceneAI Cinematic Performance Model — Continuation Handoff
+
+**Last updated:** 2026-09-27  
+**Repository:** `Nithin0553/CutSceneAI-Studio`  
+**Primary working branch:** `agent/cross-engine-parity-v0.1`
+
+## Why this document exists
+
+This file is the durable handoff for the next phase of CutSceneAI: replacing the weak middle of the current pipeline with a purpose-built, trainable, engine-neutral cinematic performance model.
+
+When continuing in a new ChatGPT conversation, read this file before making architectural or implementation changes. Do not restart from old MDM-only assumptions.
+
+## Current product goal
+
+The target workflow remains:
+
+```text
+User connects an existing Unity or Unreal project
+→ user describes a cutscene in natural language
+→ CutSceneAI generates a CIR
+→ user binds CIR roles to actual project characters / objects / environment
+→ CutSceneAI creates ONE canonical complete performance
+→ Unity and Unreal adapters realize that SAME canonical performance
+→ both engines should be semantically and visually equivalent
+→ later edits should regenerate only what is necessary
+```
+
+Unity and Unreal are realization targets, not motion-generation sources.
+
+## Current architecture that should be preserved
+
+The following infrastructure is valuable and should not be discarded:
+
+- CIR and validation
+- project connection and project discovery
+- role / asset binding
+- Studio UI
+- local engine bridge
+- Generated Performance Package contracts
+- provenance / hashing
+- Unity realization path
+- Unreal realization path
+- readback / verification infrastructure
+- natural-language revision foundations
+
+The main failure is not that these pieces do not run. The latest full user-flow test successfully reached native Unity cutscene generation.
+
+## Latest important test result
+
+A complete Unity user flow was exercised:
+
+```text
+Connect Unity project
+→ install / connect bridge
+→ generate CIR
+→ bind:
+   Guard → RobotKyle verified prefab
+   Abandoned Hallway → HallwayEnvironment live scene object
+   Closed Door → Door_01 live scene object
+→ validate bindings
+→ prepare performance
+→ generate canonical performance package
+→ compile Unity realization
+→ build native performance
+→ Unity cutscene generated successfully
+```
+
+The generated result was visually unacceptable.
+
+The user reported that movement, camera behavior, and the overall cutscene were completely wrong.
+
+This is now considered the central evidence that infrastructure success is not equal to cinematic success.
+
+## What the current system is missing
+
+### 1. A real Motion Director / choreography solver
+
+The current Performance Compiler mainly decomposes CIR performance phases into separate generation requests.
+
+That is not enough.
+
+A real cinematic performance needs explicit coordination of:
+
+- start and end root positions
+- root trajectory
+- velocity and deceleration
+- phase overlap
+- foot plants
+- turn direction and angle
+- body orientation
+- head / torso sequencing
+- gaze target
+- environmental target constraints
+- entry and exit poses
+- timing relationships
+- dialogue timing
+- reaction timing
+
+For the benchmark guard scene, the system needs to reason more like:
+
+```text
+0.0–3.2  walk toward patrol endpoint
+3.0–3.6  decelerate
+3.2      hear-noise event
+3.3–3.7 reaction
+3.6      plant support foot
+3.7–4.2 head turns toward Door_01
+3.9–4.6 torso follows
+4.1–4.9 body rotates with foot repositioning
+4.9–6.7 cautious hold / maintain gaze
+5.4      dialogue: "Who's there?"
+```
+
+These exact values can be generated dynamically, but this level of choreography must exist.
+
+### 2. Scene-conditioned physical constraints
+
+Binding a semantic role to `Door_01` is not enough.
+
+The model / compiler needs actual physical conditioning such as:
+
+- actor world transform
+- door world transform
+- relative target vector
+- required final facing direction
+- root path constraints
+- target distance
+- target visibility
+- floor / ground information
+- environment bounds
+- collision / obstacle information where available
+
+The desired relation is:
+
+```text
+semantic target
++ live scene geometry
+→ physical constraints
+→ generation / refinement
+```
+
+not just:
+
+```text
+target object ID
+→ text prompt
+```
+
+### 3. Motion composition and cleanup
+
+Independently generated motion segments do not automatically form a believable performance.
+
+The canonical body pipeline likely needs:
+
+```text
+generated segments
+→ root alignment
+→ pose matching
+→ velocity matching
+→ transition blending
+→ contact detection
+→ foot locking
+→ grounding
+→ IK
+→ look-at constraints
+→ environmental constraints
+→ motion cleanup
+→ final canonical motion
+```
+
+### 4. Robust retargeting
+
+A generic bone-name map is not enough.
+
+We need explicit abstractions such as:
+
+```text
+CanonicalRigProfile
+TargetRigProfile
+RetargetProfile
+```
+
+They should encode:
+
+- canonical reference pose
+- target reference pose
+- bone basis conversion
+- local coordinate axes
+- scale ratios
+- root / pelvis orientation
+- spine distribution
+- twist-bone handling
+- limb pole vectors
+- foot orientation
+- IK targets
+- hierarchy differences
+
+### 5. A real cinematic camera system
+
+The current camera backend is intentionally only a deterministic baseline.
+
+It does simple procedural movement and does not properly solve:
+
+- actual subject position
+- actual target position
+- look-at orientation
+- framing
+- actor bounds
+- occlusion
+- collision
+- shot continuity
+- screen composition
+- 180-degree rule
+- lens continuity
+- environment geometry
+
+A real camera subsystem needs to condition on the live scene and canonical actor motion.
+
+### 6. Better facial / dialogue performance
+
+The current facial generator is also a procedural baseline.
+
+Future target:
+
+```text
+dialogue text
+→ generated / supplied audio
+→ phoneme timestamps
+→ visemes
+→ facial curves
+→ emotional expression overlay
+→ natural blink / micro-expression
+```
+
+### 7. Canonical acceptance before engine realization
+
+The pipeline must stop treating successful files / hashes / importers as success.
+
+Before Unity or Unreal realization, the canonical performance should pass semantic and kinematic checks such as:
+
+- actor actually moves in requested direction
+- stop timing is correct
+- final facing direction matches target
+- gaze error is within tolerance
+- planted feet remain stable
+- feet do not penetrate the floor
+- root motion is continuous
+- segment boundaries do not snap
+- joint motion is plausible
+- dialogue timing is correct
+- camera frames intended subjects
+- camera does not collide with known geometry
+
+Only a canonical performance that passes this gate should proceed to Unity / Unreal parity testing.
+
+## New strategic direction
+
+Build a purpose-built trainable model for CutSceneAI rather than relying on a generic text-to-motion model as the central intelligence.
+
+Working name:
+
+**CutSceneAI Cinematic Performance Model**
+
+The model should be engine-neutral.
+
+Its job is not to generate Unity or Unreal assets.
+
+Its job is to generate a canonical cinematic performance.
+
+## Proposed model input
+
+The model should condition on a structured combination of:
+
+- natural-language intent
+- CIR
+- role bindings
+- scene graph
+- actor transforms
+- object transforms
+- target relationships
+- character / rig profile
+- requested timing
+- previous pose / motion context
+- optional future pose constraints
+- dialogue / emotion
+- camera intent
+
+Conceptually:
+
+```text
+Prompt
++
+CIR
++
+Scene graph
++
+Character state
++
+Bound targets
++
+Temporal constraints
++
+Rig profile
+→ CutSceneAI Cinematic Performance Model
+```
+
+## Proposed model output
+
+The canonical output should contain, at minimum:
+
+### Body
+
+- root position per frame
+- root orientation per frame
+- canonical joint rotations
+- optional canonical joint positions
+- left / right foot contact state
+- phase identity
+- target identity
+- gaze direction / target
+- event timing
+
+### Camera
+
+- shot / cut timing
+- camera position
+- camera rotation
+- focal length
+- target / subject references
+- composition metadata
+
+### Face / dialogue
+
+- dialogue timing
+- phoneme / viseme timing where available
+- canonical facial curves
+- emotion timing
+
+## Proposed model architecture
+
+Do not initially assume one monolithic network is best.
+
+A practical architecture could be:
+
+```text
+Prompt / CIR ───────────────┐
+                            │
+Scene Graph ────────────────┤
+                            ↓
+Character / Rig ─────→ Scene-Conditioned Encoder
+                            ↓
+                     Temporal Director
+                            ↓
+              ┌─────────────┴─────────────┐
+              ↓                           ↓
+       Body Motion Model            Camera Model
+              ↓                           ↓
+    Contact / Gaze Head          Composition Head
+              └─────────────┬─────────────┘
+                            ↓
+                  Constraint Refiner
+                            ↓
+                  Canonical Performance
+```
+
+The most important component is the **Temporal Director**.
+
+It should learn coordinated, overlapping cinematic phases rather than treating motion clips as independent sequential requests.
+
+## Body-generation requirement
+
+The body generator should not be merely:
+
+```text
+text → motion
+```
+
+It should be closer to:
+
+```text
+text
++ current pose
++ previous velocity
++ future target pose
++ root path
++ target object / target vector
++ foot contacts
++ duration
++ environment constraints
+→ motion
+```
+
+Candidate model families may include:
+
+- transformer-based motion generation
+- diffusion
+- flow matching
+- hybrid autoregressive + refinement systems
+
+The architecture should be selected after defining the representation, dataset, losses, and benchmark.
+
+## Training data requirement
+
+The training data problem is at least as important as the model architecture.
+
+Ordinary motion datasets are insufficient because CutSceneAI needs:
+
+```text
+motion
++
+environment
++
+targets
++
+events
++
+gaze
++
+contacts
++
+timing
++
+camera
+```
+
+A training example should look conceptually like:
+
+```text
+scene geometry
+actor start transform
+target object transform
+narrative intent
+temporal choreography labels
+canonical body frames
+foot contacts
+gaze labels
+camera trajectory
+dialogue timing
+```
+
+## Dataset strategy
+
+A new CutSceneAI dataset can combine:
+
+1. existing public motion / mocap datasets for generic motion priors;
+2. synthetic scene-conditioned examples generated in Blender / Unity / Unreal;
+3. procedural annotation of:
+   - contacts
+   - root paths
+   - gaze targets
+   - target-facing angles
+   - environment relationships
+   - camera framing
+4. curated high-quality cinematic examples;
+5. later, manually reviewed or captured scene-performance pairs.
+
+Using existing datasets does not prevent the model from being a new CutSceneAI model if we own the architecture, conditioning, objectives, training pipeline, evaluation, and weights.
+
+## Evaluation targets
+
+Do not use "perfect" as the scientific claim.
+
+Use measurable constraints.
+
+Candidate metrics:
+
+- semantic action completion
+- root-path error
+- final target-facing error
+- gaze-angle error
+- planted-foot sliding distance
+- ground penetration
+- transition jerk
+- pose discontinuity
+- camera subject visibility
+- camera framing error
+- camera collision rate
+- dialogue synchronization error
+- cross-engine parity after realization
+
+Example target criteria for the guard benchmark may eventually be:
+
+- final body facing error to Door_01 < 5 degrees
+- head / gaze error < 3 degrees
+- planted-foot sliding < 2 cm
+- floor penetration < 1 cm
+- camera subject visibility > 95%
+
+These thresholds should be validated experimentally rather than treated as fixed final requirements today.
+
+## First benchmark / milestone
+
+Use this scene as the first canonical benchmark:
+
+> A guard walks through an abandoned hallway, hears a noise, stops, turns toward a door, and quietly asks who is there.
+
+Do not hard-code the benchmark.
+
+Create a scene family with varied:
+
+- guard start positions
+- guard headings
+- door positions
+- door headings
+- hallway dimensions
+- timing
+- walk distance
+- reaction timing
+- camera intent
+
+The first meaningful milestone is:
+
+**Generate one visually correct canonical body performance for the guard scene family before sending it to Unity or Unreal.**
+
+Acceptance should include:
+
+- natural walk
+- coherent root trajectory
+- believable reaction
+- natural deceleration and stop
+- correct turn toward the bound door
+- coordinated head / torso / body motion
+- stable feet
+- maintained gaze
+- correct dialogue timing
+- no obvious skeletal distortion
+
+After canonical acceptance:
+
+1. realize the SAME performance in Unity;
+2. realize the SAME performance in Unreal;
+3. compare them;
+4. fix retargeting / realization differences;
+5. only then expand to more complex scenes.
+
+## Development rule from now on
+
+At every step ask:
+
+> Does this directly improve the correctness of the canonical cinematic performance?
+
+If not, it is secondary unless it directly blocks the milestone.
+
+Do not claim success because:
+
+- an API returned 200;
+- a performance bundle exists;
+- a hash exists;
+- an importer ran;
+- a Timeline exists;
+- a Sequencer exists;
+- an animation asset exists;
+- readback succeeds.
+
+Success requires semantic and visual evidence.
+
+## Immediate next work
+
+Before writing training code, the next phase should define and freeze:
+
+1. canonical training representation;
+2. scene-conditioning representation;
+3. choreography / temporal labels;
+4. body target representation;
+5. contact / gaze labels;
+6. camera target representation;
+7. training dataset schema;
+8. evaluation metrics;
+9. first guard-scene training/evaluation dataset;
+10. minimum trainable baseline model.
+
+After that, implement the training pipeline and train the first CutSceneAI-specific model.
+
+## Resume instruction for future chats
+
+When starting a new conversation, tell the assistant:
+
+> Read `docs/CUTSCENEAI_CINEMATIC_MODEL_HANDOFF.md` from the `Nithin0553/CutSceneAI-Studio` repository on the current working branch, verify the latest branch/commit state, and continue from the exact latest model-development step. Do not revert to MDM-only development or Unity-specific motion fixes.
+
+Also verify the current branch state before making changes because commits may have been added after this document was written.
