@@ -345,3 +345,43 @@ def materialize_turn_candidates(
     }
     write_json(output / f"manifest-{source_hash[:12]}.json", manifest)
     return manifest
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Materialize mined human turns as scene-conditioned training candidates."
+    )
+    parser.add_argument("record_dir")
+    parser.add_argument("output_dir")
+    parser.add_argument("--min-target-distance-m", type=float, default=2.0)
+    parser.add_argument("--max-target-distance-m", type=float, default=5.0)
+    parser.add_argument("--seed", type=int, default=20260928)
+    args = parser.parse_args()
+
+    manifest = materialize_turn_candidates(
+        args.record_dir,
+        args.output_dir,
+        config=TurnCandidateConfig(
+            seed=args.seed,
+            min_target_distance_m=args.min_target_distance_m,
+            max_target_distance_m=args.max_target_distance_m,
+        ),
+    )
+    print(
+        json.dumps(
+            {
+                "sample_count": manifest["sample_count"],
+                "split": manifest["split"],
+                "source_family_id": manifest["source_family_id"],
+                "status": manifest["status"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
