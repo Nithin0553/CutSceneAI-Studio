@@ -1,0 +1,116 @@
+{
+  "contract_name": "cutsceneai-scene-conditioning-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "depends_on": {
+    "contract_name": "cutsceneai-canonical-training-representation",
+    "contract_version": "0.1.0"
+  },
+  "coordinate_space": {
+    "distance_unit": "meter",
+    "handedness": "right",
+    "up_axis": "y",
+    "forward_axis": "-z"
+  },
+  "rotations": {
+    "canonical_training_representation": "rotation_6d_columns",
+    "component_order": [
+      "r00",
+      "r10",
+      "r20",
+      "r01",
+      "r11",
+      "r21"
+    ],
+    "source_bridge_rotation_may_be": "quaternion_xyzw",
+    "conversion_boundary": "scene_conditioning_builder"
+  },
+  "entity": {
+    "semantic_type": "open_symbolic_string",
+    "primary_roles": [
+      "performer",
+      "target",
+      "interaction_object",
+      "obstacle",
+      "support",
+      "context"
+    ],
+    "transform_space": "canonical_world",
+    "bounds_space": "canonical_world_aabb",
+    "bounds_optional": true,
+    "target_points_optional": true,
+    "affordances_optional": true
+  },
+  "relationships": {
+    "geometry_is_derived_from_transforms": true,
+    "recommended": [
+      "attention_target",
+      "interaction_target",
+      "approach_target",
+      "avoid",
+      "supported_by",
+      "inside",
+      "near"
+    ]
+  },
+  "support_surfaces": {
+    "representation": "plane",
+    "point_unit": "meter",
+    "normal_space": "canonical_world"
+  },
+  "geometry": {
+    "required": false,
+    "reserved_kinds": [
+      "occupancy_grid",
+      "point_cloud",
+      "sdf",
+      "mesh_proxy",
+      "nav_graph"
+    ]
+  },
+  "actor_relative_derivations": {
+    "authoritative_source": "canonical_world_transforms",
+    "performer_local_forward": [
+      0,
+      0,
+      -1
+    ],
+    "ground_projection_axis": "y",
+    "features": [
+      "relative_position",
+      "distance",
+      "horizontal_distance",
+      "desired_facing",
+      "signed_bearing",
+      "elevation"
+    ]
+  },
+  "namespaces": {
+    "model_visible": [
+      "semantic_type",
+      "role",
+      "canonical_transform",
+      "bounds",
+      "target_points",
+      "affordances",
+      "relationships",
+      "support_surfaces",
+      "selected_geometry"
+    ],
+    "metadata_only": [
+      "source_engine",
+      "engine_object_id",
+      "hierarchy_path",
+      "prefab_path",
+      "asset_path",
+      "bridge_agent_id",
+      "dataset_path",
+      "license_provenance"
+    ]
+  },
+  "missing_data": "explicit_optional_fields_and_masks",
+  "generated_output_policy": "exclude_managed_cutsceneai_realization_objects_by_default",
+  "character_binding_rule": "scene_state_is_separate_from_realization_asset_identity",
+  "dense_geometry_required_for_first_body_baseline": false,
+  "deterministic_normalization": true
+}
