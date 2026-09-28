@@ -1,0 +1,64 @@
+{
+  "contract_name": "cutsceneai-canonical-training-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "model_name": "CutSceneAI Cinematic Performance Model",
+  "timebase": {
+    "fps": 30,
+    "primary_key": "frame_index",
+    "interval_semantics": "half_open",
+    "variable_length_sequences": true,
+    "padding_storage": "none",
+    "batch_padding_mask_required": true
+  },
+  "coordinate_space": {
+    "distance_unit": "meter",
+    "handedness": "right",
+    "up_axis": "y",
+    "forward_axis": "-z"
+  },
+  "skeleton": {
+    "profile": "cutsceneai-humanoid-v1",
+    "joint_count": 22
+  },
+  "rotations": {
+    "training_representation": "rotation_6d_columns",
+    "component_order": [
+      "r00",
+      "r10",
+      "r20",
+      "r01",
+      "r11",
+      "r21"
+    ],
+    "runtime_representation": "quaternion_xyzw",
+    "euler_training_targets_allowed": false
+  },
+  "storage": {
+    "canonical_values_are_physical_units": true,
+    "normalization_location": "training_transform",
+    "normalization_statistics_must_be_versioned": true,
+    "missing_supervision": "explicit_masks",
+    "random_augmentation_persisted_as_source_truth": false
+  },
+  "spaces": {
+    "actor_root_transform": "canonical_world",
+    "articulated_joint_rotation": "canonical_parent_local",
+    "auxiliary_joint_positions_default": "canonical_root_relative",
+    "conditioning_object_transform": "canonical_world"
+  },
+  "namespaces": [
+    "conditioning",
+    "targets",
+    "metadata"
+  ],
+  "identity": {
+    "symbolic_semantic_ids_on_disk": true,
+    "model_token_ids_on_disk": false
+  },
+  "provenance": {
+    "required": true,
+    "model_conditioning_by_default": false
+  },
+  "deterministic_canonicalization": true
+}

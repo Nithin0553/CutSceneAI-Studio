@@ -578,3 +578,33 @@ When starting a new conversation, tell the assistant:
 > Read `docs/CUTSCENEAI_CINEMATIC_MODEL_HANDOFF.md` from the `Nithin0553/CutSceneAI-Studio` repository on the current working branch, verify the latest branch/commit state, and continue from the exact latest model-development step. Do not revert to MDM-only development or Unity-specific motion fixes.
 
 Also verify the current branch state before making changes because commits may have been added after this document was written.
+
+## Model-development progress after initial handoff
+
+### 2026-09-27 — Canonical Training Representation v0.1 frozen
+
+Immediate-next-work item 1 is complete.
+
+Frozen shared conventions:
+
+- 30 fps canonical model timebase;
+- right-handed, Y-up, -Z-forward, meter coordinate space;
+- `cutsceneai-humanoid-v1` canonical skeleton identity;
+- continuous 6D rotation representation for model training;
+- existing `quaternion_xyzw` retained at the runtime performance-package boundary;
+- raw physical values stored in canonical datasets;
+- normalization kept as a versioned training transform;
+- explicit supervision masks for missing labels and batch padding;
+- strict separation of conditioning, targets, and metadata;
+- stable symbolic semantic IDs on disk;
+- mandatory provenance and deterministic canonicalization.
+
+Authoritative files:
+
+- `docs/model/CANONICAL_TRAINING_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/canonical-training-representation-v0.1.json`
+
+**Exact next development step:** define and freeze **Scene Conditioning Representation v0.1**
+(immediate-next-work item 2). Do not start model training before the remaining representation,
+dataset, and evaluation contracts are frozen.
+
