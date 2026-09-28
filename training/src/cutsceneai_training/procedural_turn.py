@@ -4,7 +4,15 @@ import math
 
 import numpy as np
 
-from .geometry import JOINT_INDEX, JOINT_NAMES, forward_from_yaw, rotation_6d, smoothstep01, yaw_6d, yaw_pitch_6d
+from .geometry import (
+    JOINT_INDEX,
+    JOINT_NAMES,
+    forward_from_yaw,
+    rotation_6d,
+    smoothstep01,
+    yaw_6d,
+    yaw_pitch_6d,
+)
 
 
 def build_turn_reference(
@@ -79,9 +87,7 @@ def build_turn_reference(
 
         moving_knee = "right_knee" if support_foot == "left" else "left_knee"
         moving_ankle = "right_ankle" if support_foot == "left" else "left_ankle"
-        joint_rotations[frame, JOINT_INDEX[moving_knee]] = yaw_pitch_6d(
-            pitch=knee_bend
-        )
+        joint_rotations[frame, JOINT_INDEX[moving_knee]] = yaw_pitch_6d(pitch=knee_bend)
         joint_rotations[frame, JOINT_INDEX[moving_ankle]] = yaw_pitch_6d(
             pitch=ankle_counter
         )
