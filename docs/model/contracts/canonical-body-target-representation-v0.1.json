@@ -1,0 +1,106 @@
+{
+  "contract_name": "cutsceneai-canonical-body-target-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "depends_on": [
+    {
+      "contract_name": "cutsceneai-canonical-training-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-scene-conditioning-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-choreography-temporal-representation",
+      "contract_version": "0.1.0"
+    }
+  ],
+  "timebase": {
+    "fps": 30,
+    "variable_length": true,
+    "stored_padding": false
+  },
+  "skeleton": {
+    "profile": "cutsceneai-humanoid-v1",
+    "joint_count": 22
+  },
+  "frame_target": {
+    "root_position": {
+      "shape": [
+        3
+      ],
+      "unit": "meter",
+      "space": "canonical_world",
+      "required": true
+    },
+    "root_rotation": {
+      "shape": [
+        6
+      ],
+      "representation": "rotation_6d_columns",
+      "space": "canonical_world",
+      "required": true
+    },
+    "joint_rotations": {
+      "shape": [
+        "22",
+        6
+      ],
+      "representation": "rotation_6d_columns",
+      "space": "canonical_parent_local",
+      "required": true
+    },
+    "joint_positions": {
+      "shape": [
+        "22",
+        3
+      ],
+      "unit": "meter",
+      "space": "canonical_root_relative",
+      "required": false,
+      "role": "auxiliary_supervision"
+    }
+  },
+  "derived_features": {
+    "root_linear_velocity": {
+      "unit": "meter_per_second",
+      "serialized_required": false
+    },
+    "root_angular_velocity": {
+      "unit": "radian_per_second",
+      "serialized_required": false
+    },
+    "joint_angular_velocity": {
+      "unit": "radian_per_second",
+      "serialized_required": false
+    },
+    "facing_vector": {
+      "source": "root_rotation",
+      "local_forward": [
+        0,
+        0,
+        -1
+      ]
+    }
+  },
+  "masks": {
+    "frame_valid_mask": "batch_only_required",
+    "body_target_available": true,
+    "joint_positions_available": "explicit"
+  },
+  "excluded_targets": [
+    "foot_contact",
+    "gaze_target",
+    "eye_gaze",
+    "camera"
+  ],
+  "model_parameterization": "not_frozen_decode_to_canonical_before_evaluation",
+  "runtime_boundary": {
+    "current_body_motion_artifact_version": "0.1.0",
+    "current_runtime_missing_explicit_root_rotation": true,
+    "trained_model_integration_requires_versioned_runtime_root_rotation": true,
+    "permanent_pelvis_embedding_workaround_forbidden": true
+  },
+  "engine_native_identifiers_forbidden": true
+}
