@@ -666,3 +666,29 @@ Authoritative files:
 (immediate-next-work item 4). It must define explicit root position/orientation, 22-joint canonical
 rotations, optional joint-position auxiliary supervision, continuity/velocity semantics, masks,
 and the conversion boundary to the runtime Generated Performance Package.
+
+### 2026-09-28 — Canonical Body Target Representation v0.1 frozen
+
+Immediate-next-work item 4 is complete.
+
+Frozen body-target rules:
+
+- frame-level body targets use the 30-fps canonical model timebase;
+- root world position and root world orientation are explicit targets;
+- root orientation is not inferred from root velocity and is not permanently folded into pelvis articulation;
+- all 22 canonical joint rotations are parent-local `rotation_6d_columns`;
+- optional 22-joint root-relative positions are auxiliary supervision;
+- linear/angular velocities are deterministic derived features rather than duplicated mandatory source truth;
+- body sequences are temporally continuous;
+- padding exists only at batch time and uses an explicit frame-valid mask;
+- exact contact and gaze supervision remain separate target contracts;
+- model-specific diffusion/flow/latent outputs must decode to this canonical physical body representation before evaluation;
+- current runtime `BodyMotionArtifact v0.1` lacks explicit root orientation, so trained-model integration requires a versioned runtime motion contract that preserves it.
+
+Authoritative files:
+
+- `docs/model/CANONICAL_BODY_TARGET_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/canonical-body-target-representation-v0.1.json`
+
+**Exact next development step:** define and freeze **Contact / Gaze Target Representation v0.1**
+(immediate-next-work item 5).
