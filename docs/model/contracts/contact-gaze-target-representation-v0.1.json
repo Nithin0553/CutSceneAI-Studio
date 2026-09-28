@@ -1,0 +1,74 @@
+{
+  "contract_name": "cutsceneai-contact-gaze-target-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "depends_on": [
+    {
+      "contract_name": "cutsceneai-canonical-training-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-scene-conditioning-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-choreography-temporal-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-canonical-body-target-representation",
+      "contract_version": "0.1.0"
+    }
+  ],
+  "frame_alignment": {
+    "fps": 30,
+    "must_match_body_target": true
+  },
+  "contact": {
+    "feet": [
+      "left",
+      "right"
+    ],
+    "label_type": "binary",
+    "availability_mask_per_side": true,
+    "confidence_range": [
+      0,
+      1
+    ],
+    "optional_support_surface_id": true,
+    "optional_contact_point_world_m": true,
+    "provenance_methods": [
+      "measured",
+      "synthetic_ground_truth",
+      "derived_kinematic",
+      "derived_physics",
+      "human_reviewed",
+      "unknown"
+    ]
+  },
+  "gaze": {
+    "gaze_active": true,
+    "gaze_active_availability": true,
+    "optional_target_entity_id": true,
+    "optional_target_point_id": true,
+    "optional_head_direction_world": true,
+    "optional_gaze_direction_world": true,
+    "explicit_availability_per_component": true,
+    "direction_space": "canonical_world",
+    "direction_vectors_unit_length": true,
+    "confidence_range": [
+      0,
+      1
+    ],
+    "provenance_methods": [
+      "measured_eye_tracking",
+      "synthetic_ground_truth",
+      "derived_from_head_pose",
+      "procedural_target",
+      "human_reviewed",
+      "unknown"
+    ]
+  },
+  "missing_data": "explicit_masks_not_zero_fill",
+  "engine_native_identifiers_forbidden": true
+}
