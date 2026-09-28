@@ -74,9 +74,9 @@ def yaw_pitch_6d(*, yaw: float = 0.0, pitch: float = 0.0) -> np.ndarray:
 
 
 def forward_from_yaw(angle: float) -> np.ndarray:
-    return (
-        rotation_y(angle) @ np.array([0.0, 0.0, -1.0], dtype=np.float64)
-    ).astype(np.float32)
+    return (rotation_y(angle) @ np.array([0.0, 0.0, -1.0], dtype=np.float64)).astype(
+        np.float32
+    )
 
 
 def smoothstep01(value: float) -> float:
