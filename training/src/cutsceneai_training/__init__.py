@@ -7,6 +7,7 @@ from .smpl_ingestion import ingest_smpl_npz, write_canonical_smpl_record
 from .smpl_source import MotionRights, SMPLSourceMotion, load_smpl_npz
 from .turn_candidates import TurnCandidateConfig, materialize_turn_candidates
 from .turn_mining import TurnMiningConfig, TurnWindow, mine_turn_windows
+from .turn_qa import evaluate_turn_dataset, evaluate_turn_sample
 
 __all__ = [
     "CanonicalSMPLMotion",
@@ -18,6 +19,8 @@ __all__ = [
     "TurnMiningConfig",
     "TurnWindow",
     "canonicalize_smpl_motion",
+    "evaluate_turn_dataset",
+    "evaluate_turn_sample",
     "generate_guard_turn_dataset",
     "ingest_smpl_npz",
     "load_smpl_npz",
