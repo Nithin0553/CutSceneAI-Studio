@@ -10,6 +10,7 @@ from .smpl_ingestion import ingest_smpl_npz
 from .smpl_source import MotionRights
 from .turn_candidates import materialize_turn_candidates
 from .turn_mining import mine_canonical_record
+from .turn_qa import evaluate_turn_dataset
 
 
 AMASS_LICENSE_REFERENCE = "https://amass.is.tue.mpg.de/license.html"
@@ -117,6 +118,8 @@ def run_amass_turn_pilot(
             }
         )
 
+    qa_report = evaluate_turn_dataset(work_root / "turn-candidates")
+
     manifest: dict[str, Any] = {
         "pilot_id": "cutsceneai-amass-turn-pilot-v0.1",
         "status": "research_only",
@@ -126,6 +129,14 @@ def run_amass_turn_pilot(
         "materialized_sample_count": total_materialized_samples,
         "usage_pool": "research",
         "training_eligibility": "review_candidates_only",
+        "qa": {
+            "sample_count": qa_report["sample_count"],
+            "automated_qa_pass_count": qa_report["automated_qa_pass_count"],
+            "human_review_pass_count": qa_report["human_review_pass_count"],
+            "training_ready_count": qa_report["training_ready_count"],
+            "family_split_ok": qa_report["family_split_ok"],
+            "automated_dataset_pass": qa_report["automated_dataset_pass"],
+        },
         "sources": source_records,
     }
     write_json(work_root / "amass-turn-pilot-manifest.json", manifest)
@@ -163,6 +174,8 @@ def main() -> None:
                 "turn_candidate_count": manifest["turn_candidate_count"],
                 "materialized_sample_count": manifest["materialized_sample_count"],
                 "usage_pool": manifest["usage_pool"],
+                "automated_qa_pass_count": manifest["qa"]["automated_qa_pass_count"],
+                "training_ready_count": manifest["qa"]["training_ready_count"],
             },
             indent=2,
             sort_keys=True,
