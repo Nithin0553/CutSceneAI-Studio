@@ -176,6 +176,10 @@ def test_ingestion_is_deterministic_and_auditable(tmp_path: Path) -> None:
     )
 
     assert first == second
+    assert first["canonical_rig_profile"] == {
+        "profile_id": "cutsceneai-humanoid-v1",
+        "contract_version": "0.1.0",
+    }
     assert first["canonicalization"]["root_orientation_explicit"] is True
     assert (
         first["canonicalization"]["pelvis_local_policy"] == "identity_root_articulation"
