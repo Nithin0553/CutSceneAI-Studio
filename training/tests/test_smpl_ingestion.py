@@ -9,7 +9,11 @@ import pytest
 
 from cutsceneai_training.smpl_canonicalize import canonicalize_smpl_motion
 from cutsceneai_training.smpl_ingestion import ingest_smpl_npz
-from cutsceneai_training.smpl_source import MotionRights, SMPLSourceMotion, load_smpl_npz
+from cutsceneai_training.smpl_source import (
+    MotionRights,
+    SMPLSourceMotion,
+    load_smpl_npz,
+)
 
 
 def _matrix_from_6d(value: np.ndarray) -> np.ndarray:
@@ -173,7 +177,9 @@ def test_ingestion_is_deterministic_and_auditable(tmp_path: Path) -> None:
 
     assert first == second
     assert first["canonicalization"]["root_orientation_explicit"] is True
-    assert first["canonicalization"]["pelvis_local_policy"] == "identity_root_articulation"
+    assert (
+        first["canonicalization"]["pelvis_local_policy"] == "identity_root_articulation"
+    )
     assert first["rights"]["usage_pool"] == "production_candidate"
 
     first_json = json.loads((tmp_path / "first" / "record.json").read_text())
