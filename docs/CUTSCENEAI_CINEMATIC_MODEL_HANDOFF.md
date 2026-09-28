@@ -830,3 +830,44 @@ high-quality data that should train the final CutSceneAI model.
 and canonicalization path** for target-conditioned turns. It must map real/high-quality human motion
 into the frozen 30-fps canonical body/contact/gaze contracts while preserving provenance and usage
 rights. Do not train a learned baseline on the procedural contract-reference dataset.
+
+### 2026-09-28 — Training-specific SMPL/SMPL-X ingestion foundation verified
+
+The first training-quality motion ingestion path is now implemented in the isolated `training`
+package.
+
+Implemented:
+
+- common SMPL/SMPL-X NPZ loading from either `global_orient/body_pose/transl` or AMASS-style
+  `poses/trans` fields;
+- explicit source FPS validation/override;
+- canonical +Z-forward to CutSceneAI -Z-forward basis conversion;
+- deterministic endpoint-preserving linear translation resampling and quaternion SLERP rotation
+  resampling to the frozen 30-fps model timebase;
+- explicit global root orientation in `root_rotation_6d_columns`;
+- pelvis-local rotation remains identity while the 21 SMPL body-pose joints map to canonical joints
+  1..21;
+- canonical root translation with explicit origin policy;
+- deterministic per-array artifacts and source-file SHA-256 provenance;
+- auditable rights/use record;
+- a hard `production_candidate` gate requiring owned/licensed/permissive status plus explicitly
+  allowed training and model-distribution use;
+- CLI: `cutsceneai-ingest-smpl`.
+
+Verification:
+
+- dedicated GitHub Actions **Training foundation** lint/format gate passed;
+- all training tests passed;
+- tests specifically prove global turn orientation is preserved separately from pelvis articulation,
+  60→30 FPS resampling preserves endpoints, +Z source basis conversion is correct, common NPZ layouts
+  load, rights gating works, and ingestion artifacts are deterministic.
+
+Important scope:
+
+This canonicalizer makes rights-cleared human motion usable by the frozen CutSceneAI training
+representation. It does not by itself create scene-conditioned turn examples.
+
+**Exact next development step:** implement **Canonical Turn Clip Mining v0.1**. Mine target-turn
+windows from canonicalized human motion, reject clips with inadequate heading change or excessive
+translation, then attach synthetic engine-neutral target geometry along the observed final facing.
+Preserve the source record/family identity so train/val/test splits cannot leak sibling clips.
