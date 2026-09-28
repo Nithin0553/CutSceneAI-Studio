@@ -1,0 +1,100 @@
+{
+  "contract_name": "cutsceneai-canonical-camera-target-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "depends_on": [
+    {
+      "contract_name": "cutsceneai-canonical-training-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-scene-conditioning-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-choreography-temporal-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-canonical-body-target-representation",
+      "contract_version": "0.1.0"
+    }
+  ],
+  "timebase": {
+    "fps": 30,
+    "interval_semantics": "half_open"
+  },
+  "projection": [
+    "perspective"
+  ],
+  "frame_target": {
+    "position_m": {
+      "shape": [
+        3
+      ],
+      "space": "canonical_world"
+    },
+    "rotation": {
+      "shape": [
+        6
+      ],
+      "representation": "rotation_6d_columns",
+      "space": "canonical_world"
+    },
+    "focal_length_mm": {
+      "required": true
+    }
+  },
+  "optics": {
+    "sensor_width_mm": "required_when_known",
+    "sensor_height_mm": "required_when_known"
+  },
+  "shots": {
+    "symbolic_purpose": true,
+    "subject_entity_ids": true,
+    "target_entity_ids": true,
+    "optional_labels": [
+      "framing",
+      "angle",
+      "movement"
+    ]
+  },
+  "composition": {
+    "screen_space": {
+      "origin": "top_left",
+      "x_direction": "right",
+      "y_direction": "down",
+      "range": [
+        0,
+        1
+      ]
+    },
+    "optional_annotations": [
+      "screen_center_xy",
+      "screen_bounds_xywh",
+      "visible_fraction",
+      "occlusion_fraction"
+    ]
+  },
+  "physical_safety": {
+    "optional": [
+      "collision",
+      "clearance_m"
+    ]
+  },
+  "provenance_methods": [
+    "human_authored",
+    "cinematic_dataset",
+    "synthetic_ground_truth",
+    "optimization_generated",
+    "procedural_baseline",
+    "human_reviewed",
+    "unknown"
+  ],
+  "conditioned_on_accepted_canonical_body_motion": true,
+  "runtime_boundary": {
+    "artifact": "CameraCurveArtifact",
+    "runtime_rotation": "quaternion_xyzw"
+  },
+  "engine_native_identifiers_forbidden": true
+}
