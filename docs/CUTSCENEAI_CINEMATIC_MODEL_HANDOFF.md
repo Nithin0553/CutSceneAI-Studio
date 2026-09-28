@@ -901,3 +901,57 @@ Training Candidates v0.1**. Slice the accepted canonical human body motion, atta
 synthetic target marker along the observed final facing, inherit rights/provenance/family identity,
 and keep contact/gaze labels unavailable unless genuinely measured or derived. These samples must
 remain review candidates until motion/data quality gates pass.
+
+### 2026-09-28 — Scene-Conditioned Human Turn Candidate pipeline verified
+
+The first real-human-motion candidate path is now implemented end to end.
+
+Pipeline:
+
+```text
+rights-reviewed SMPL/SMPL-X NPZ
+    ↓
+training-specific canonicalization
+    ↓
+explicit root orientation + 22-joint canonical body @ 30 fps
+    ↓
+canonical turn mining
+    ↓
+human turn clip
+    ↓
+synthetic directional target proxy placed on observed final facing
+    ↓
+scene-conditioned training candidate
+```
+
+Implemented:
+
+- source-family identity is preserved at ingestion and used for deterministic family-safe
+  train/validation/test assignment;
+- mined human turns are sliced without replacing the human body motion;
+- clip root translation is rebased consistently for the local training scene;
+- target distance is deterministically varied;
+- target marker is placed along the observed final body-facing direction;
+- choreography contains the observed turn interval plus final body-facing constraint;
+- source rights/provenance and mined frame window are inherited;
+- target provenance explicitly states `synthetic_directional_proxy`;
+- contact/gaze and camera supervision remain unavailable rather than being fabricated;
+- samples are labeled `review_candidate`, not training-ready;
+- CLI: `cutsceneai-materialize-turns`.
+
+Verification:
+
+- dedicated GitHub Actions **Training foundation** job passed;
+- end-to-end test starts from an SMPL turn and verifies the materialized target is exactly aligned
+  with the final canonical body-facing direction;
+- root rebasing is verified;
+- sibling captures sharing the same source family receive the same split;
+- unavailable contact/gaze/camera labels stay unavailable.
+
+**Current blocker before first learned baseline:** populate this pipeline with a real, rights-reviewed
+human-motion source and perform dataset-quality review. The code must not silently promote synthetic
+contract references or unreviewed/restricted public data into the production-candidate pool.
+
+**Exact next development step:** select the first motion source, document its rights decision, ingest
+a small pilot corpus, mine/materialize turn candidates, run dataset QA, and only then train the first
+target-conditioned-turn baseline.
