@@ -79,7 +79,14 @@ foreach ($TopLevel in $RequiredDirectories) {
             return
         }
 
-        $Relative = [System.IO.Path]::GetRelativePath($ProjectPath, $_.FullName)
+        # Windows PowerShell 5.1 runs on .NET Framework, which does not provide
+        # System.IO.Path.GetRelativePath(). Every enumerated file is below
+        # $ProjectPath, so derive the relative path from the normalized prefix.
+        $ProjectPrefix = $ProjectPath.TrimEnd([char[]]@('\\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $_.FullName.StartsWith($ProjectPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to package a file outside the Unity project root: $($_.FullName)"
+        }
+        $Relative = $_.FullName.Substring($ProjectPrefix.Length)
         $Files.Add([pscustomobject]@{
             FullName = $_.FullName
             RelativePath = $Relative.Replace("\", "/")
