@@ -1,5 +1,6 @@
 """Training and dataset foundations for the CutSceneAI Cinematic Performance Model."""
 
+from .amass_pilot import run_amass_turn_pilot
 from .guard_turn import GuardTurnDatasetConfig, generate_guard_turn_dataset
 from .smpl_canonicalize import CanonicalSMPLMotion, canonicalize_smpl_motion
 from .smpl_ingestion import ingest_smpl_npz, write_canonical_smpl_record
@@ -9,6 +10,7 @@ from .turn_mining import TurnMiningConfig, TurnWindow, mine_turn_windows
 
 __all__ = [
     "CanonicalSMPLMotion",
+    "run_amass_turn_pilot",
     "GuardTurnDatasetConfig",
     "MotionRights",
     "SMPLSourceMotion",
