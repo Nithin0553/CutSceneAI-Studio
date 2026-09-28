@@ -608,3 +608,35 @@ Authoritative files:
 (immediate-next-work item 2). Do not start model training before the remaining representation,
 dataset, and evaluation contracts are frozen.
 
+
+### 2026-09-28 — Scene Conditioning Representation v0.1 frozen
+
+Immediate-next-work item 2 is complete.
+
+Frozen scene-conditioning rules:
+
+- model-visible scene facts are engine-neutral;
+- entity state is stored in canonical world space;
+- conditioning rotations use the frozen `rotation_6d_columns` representation;
+- semantic type and performance role are distinct;
+- bounds, target points, affordances, relationships, and support surfaces are explicit;
+- missing scene facts remain explicitly missing rather than being replaced with zeros;
+- actor-relative distance, bearing, elevation, and desired-facing features are deterministic derivations;
+- character realization asset identity is separate from character scene state;
+- prior managed CutSceneAI generated objects are excluded from source-scene conditioning by default;
+- dense geometry is optional for the first body baseline;
+- engine-specific paths and IDs remain metadata-only.
+
+Authoritative files:
+
+- `docs/model/SCENE_CONDITIONING_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/scene-conditioning-representation-v0.1.json`
+
+Repository-state finding:
+
+- Unity currently publishes most raw scene-snapshot facts required by this contract.
+- Unreal currently lacks equivalent full `StudioSceneSnapshot` publication; this is a later bridge-parity task and does not alter the model contract.
+
+**Exact next development step:** define and freeze **Choreography / Temporal Representation v0.1**
+(immediate-next-work item 3). It must represent overlapping phases, events, targets, root/path goals,
+contacts/gaze windows, transition constraints, and future goals before frame-level body generation.
