@@ -73,6 +73,11 @@ def test_amass_pilot_produces_research_only_turn_candidate(tmp_path: Path) -> No
     assert manifest["turn_candidate_count"] == 1
     assert manifest["materialized_sample_count"] == 1
     assert manifest["training_eligibility"] == "review_candidates_only"
+    assert manifest["qa"]["sample_count"] == 1
+    assert manifest["qa"]["automated_qa_pass_count"] == 1
+    assert manifest["qa"]["human_review_pass_count"] == 0
+    assert manifest["qa"]["training_ready_count"] == 0
+    assert manifest["qa"]["automated_dataset_pass"] is True
     assert manifest["sources"][0]["source_family_id"] == "amass:CMU/subject01"
 
     record_path = work / "records" / "CMU" / "subject01" / "turn_poses" / "record.json"
