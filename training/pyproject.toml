@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cutsceneai-training"
+version = "0.1.0"
+description = "Dataset generation, validation, and model-training foundations for CutSceneAI"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "numpy>=1.26,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<10.0",
+    "ruff==0.12.12",
+]
+
+[project.scripts]
+cutsceneai-generate-guard-turn = "cutsceneai_training.guard_turn:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cutsceneai_training*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
