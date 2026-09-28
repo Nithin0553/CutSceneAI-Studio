@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .canonical_rig import validate_canonical_rig_profile
 from .resampling import resample_rotation_matrices, resample_vectors
 from .rotations import (
     axis_angle_to_matrix,
@@ -37,6 +38,7 @@ def canonicalize_smpl_motion(
     translation_origin_policy: str = "first_frame_zero",
 ) -> CanonicalSMPLMotion:
     source.validate()
+    validate_canonical_rig_profile()
     if target_fps != 30:
         raise ValueError("CutSceneAI canonical training motion v0.1 requires 30 fps.")
     if translation_origin_policy not in {"first_frame_zero", "preserve_source_origin"}:
