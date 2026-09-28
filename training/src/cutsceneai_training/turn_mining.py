@@ -90,7 +90,9 @@ def _unwrap_yaw(root_rotation_6d: np.ndarray) -> np.ndarray:
     return np.unwrap(raw)
 
 
-def _active_groups(active_indices: np.ndarray, max_gap_frames: int) -> list[tuple[int, int]]:
+def _active_groups(
+    active_indices: np.ndarray, max_gap_frames: int
+) -> list[tuple[int, int]]:
     if active_indices.size == 0:
         return []
     groups: list[tuple[int, int]] = []
@@ -128,9 +130,7 @@ def mine_turn_windows(
     yaw = _unwrap_yaw(root_rotation_6d_columns)
     delta = np.diff(yaw)
     angular_speed_deg_s = np.abs(np.degrees(delta)) * config.fps
-    active = np.flatnonzero(
-        angular_speed_deg_s >= config.active_angular_speed_deg_s
-    )
+    active = np.flatnonzero(angular_speed_deg_s >= config.active_angular_speed_deg_s)
 
     windows: list[TurnWindow] = []
     for first_delta, last_delta in _active_groups(active, config.max_gap_frames):
