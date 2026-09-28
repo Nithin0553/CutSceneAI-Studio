@@ -1,0 +1,81 @@
+{
+  "contract_name": "cutsceneai-evaluation-acceptance-metrics",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "metric_groups": [
+    "canonical_semantics",
+    "canonical_body",
+    "contact",
+    "gaze",
+    "camera",
+    "retarget_fidelity",
+    "cross_engine_parity"
+  ],
+  "canonical_semantics": [
+    "hard_constraint_satisfaction_rate",
+    "event_timing_absolute_error_frames",
+    "phase_temporal_iou"
+  ],
+  "canonical_body": [
+    "root_position_error_m",
+    "root_orientation_geodesic_error_deg",
+    "target_facing_error_deg",
+    "root_path_deviation_m",
+    "stop_speed_mps",
+    "stop_timing_error_frames",
+    "hold_drift_m",
+    "joint_rotation_error_deg",
+    "joint_position_error_m",
+    "bone_length_error_m",
+    "root_jerk"
+  ],
+  "contact": [
+    "precision",
+    "recall",
+    "f1",
+    "planted_foot_sliding_distance_m",
+    "max_planted_foot_drift_m",
+    "ground_penetration_m",
+    "ground_clearance_error_m"
+  ],
+  "gaze": [
+    "head_target_error_deg",
+    "gaze_target_error_deg",
+    "target_acquisition_latency_frames",
+    "gaze_maintenance_ratio"
+  ],
+  "camera": [
+    "visible_fraction",
+    "framing_error",
+    "collision_rate",
+    "minimum_clearance_m",
+    "trajectory_smoothness",
+    "focal_length_change_rate"
+  ],
+  "retarget_fidelity": [
+    "canonical_engine_root_position_error_m",
+    "canonical_engine_root_orientation_error_deg",
+    "canonical_engine_joint_error",
+    "canonical_engine_timing_error_frames"
+  ],
+  "cross_engine_parity": [
+    "unity_unreal_root_position_difference_m",
+    "unity_unreal_root_orientation_difference_deg",
+    "unity_unreal_joint_difference",
+    "unity_unreal_timing_difference_frames",
+    "unity_unreal_camera_difference"
+  ],
+  "acceptance_states": [
+    "schema_valid",
+    "canonical_semantic_pass",
+    "canonical_body_pass",
+    "contact_grounding_pass",
+    "gaze_pass",
+    "camera_pass",
+    "unity_fidelity_pass",
+    "unreal_fidelity_pass",
+    "cross_engine_parity_pass"
+  ],
+  "threshold_profiles_versioned_separately": true,
+  "human_visual_review_required_for_cinematic_acceptance": true
+}
