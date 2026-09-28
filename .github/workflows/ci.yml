@@ -103,7 +103,8 @@ jobs:
       - name: Check training lint
         run: |
           python -m ruff check training/src training/tests
-          python -m ruff format --check training/src training/tests
+          python -m ruff format training/src training/tests
+          git diff --exit-code -- training/src training/tests
 
       - name: Run training tests
         run: python -m pytest training/tests -q --import-mode=importlib
