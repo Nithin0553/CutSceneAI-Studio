@@ -82,10 +82,12 @@ def write_guard_turn_sample(
             "choreography": choreography,
             "previous_body_state": {
                 "root_position_m": body["root_position_m"][0].tolist(),
-                "root_rotation_6d_columns": body["root_rotation_6d_columns"][0].tolist(),
-                "joint_rotations_6d_columns": body[
-                    "joint_rotations_6d_columns"
-                ][0].tolist(),
+                "root_rotation_6d_columns": body["root_rotation_6d_columns"][
+                    0
+                ].tolist(),
+                "joint_rotations_6d_columns": body["joint_rotations_6d_columns"][
+                    0
+                ].tolist(),
             },
         },
         "targets": {
@@ -146,8 +148,7 @@ def write_guard_turn_sample(
                 "sample_id": sample_id,
                 "example_sha256": example_sha,
                 "artifacts": {
-                    key: value["sha256"]
-                    for key, value in sorted(artifacts.items())
+                    key: value["sha256"] for key, value in sorted(artifacts.items())
                 },
             }
         )
