@@ -716,3 +716,28 @@ Authoritative files:
 
 **Exact next development step:** define and freeze **Canonical Camera Target Representation v0.1**
 (immediate-next-work item 6).
+
+### 2026-09-28 — Canonical Camera Target Representation v0.1 frozen
+
+Immediate-next-work item 6 is complete.
+
+Frozen camera-target rules:
+
+- camera output is engine-neutral and frame-aligned to the canonical 30-fps model timebase;
+- shot windows use half-open frame semantics;
+- per-frame camera position, 6D orientation, and physical focal length are canonical targets;
+- perspective projection is the v0.1 camera target;
+- sensor dimensions are explicit when known rather than silently fabricated;
+- subject/target identities remain symbolic Scene Conditioning references;
+- framing/angle/movement labels are semantic annotations, not substitutes for physical camera curves;
+- normalized screen-space composition, visibility/occlusion, and collision/clearance supervision are optional but explicitly masked;
+- camera generation is conditioned on accepted canonical body motion in the first architecture;
+- the existing runtime `CameraCurveArtifact` remains the conversion boundary after 6D→quaternion conversion.
+
+Authoritative files:
+
+- `docs/model/CANONICAL_CAMERA_TARGET_REPRESENTATION_V0_1.md`
+- `docs/model/contracts/canonical-camera-target-representation-v0.1.json`
+
+**Exact next development step:** define and freeze **Training Dataset Schema v0.1**
+(immediate-next-work item 7).
