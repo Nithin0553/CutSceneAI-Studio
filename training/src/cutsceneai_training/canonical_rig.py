@@ -72,7 +72,9 @@ def validate_canonical_rig_profile() -> None:
     if len(CANONICAL_PARENT_INDICES) != len(JOINT_NAMES):
         raise ValueError("Canonical parent table must match joint count.")
     if CANONICAL_REFERENCE_OFFSET_DIRECTIONS.shape != (22, 3):
-        raise ValueError("Canonical reference offset directions must have shape [22, 3].")
+        raise ValueError(
+            "Canonical reference offset directions must have shape [22, 3]."
+        )
     if CANONICAL_PARENT_INDICES[0] != -1:
         raise ValueError("Canonical pelvis must be the root joint.")
     for index, parent in enumerate(CANONICAL_PARENT_INDICES[1:], start=1):
