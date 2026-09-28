@@ -98,7 +98,6 @@ $Manifest = [ordered]@{
     created_at_utc = [DateTime]::UtcNow.ToString("o")
     project_name = $ProjectName
     unity_version = $UnityVersion
-    source_project_root = $ProjectPath
     cutsceneai_branch = $GitBranch
     cutsceneai_commit = $GitCommit
     included_roots = $RequiredDirectories
