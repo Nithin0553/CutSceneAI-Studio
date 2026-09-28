@@ -29,6 +29,7 @@ studio-web/dist/
 
 # Local generated/research outputs
 build/
+.cutsceneai-training-data/
 
 # OS
 .DS_Store
