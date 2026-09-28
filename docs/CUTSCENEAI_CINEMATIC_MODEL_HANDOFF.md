@@ -1041,3 +1041,67 @@ CutSceneAI training targets.
 **Exact next development step:** define/verify **CanonicalRigProfile v0.1** and source-rig
 canonicalization semantics. Prove that a neutral/reference source pose maps to canonical identity
 deltas and that equivalent physical source poses from supported representations map consistently.
+
+### 2026-09-28 — CanonicalRigProfile v0.1 and human-review gate verified
+
+The SMPL/CutSceneAI joint-basis blocker is resolved for the first 22-joint AMASS/SMPL research path.
+
+Authoritative rig files:
+
+- `docs/model/CANONICAL_RIG_PROFILE_V0_1.md`
+- `docs/model/contracts/canonical-rig-profile-v0.1.json`
+
+Frozen rig semantics:
+
+- canonical neutral articulated rotations are identity;
+- canonical joint rotations are reference-pose-relative, axis-aligned parent-space deltas;
+- actor/root orientation is separate;
+- the existing 22-joint hierarchy/order is authoritative;
+- the existing reference offsets are frozen as direction-only, not metric bone lengths;
+- SMPL `global_orient` maps to explicit canonical root orientation;
+- canonical pelvis-local rotation remains identity;
+- SMPL `body_pose[0..20]` maps to canonical joints `1..21`;
+- SMPL rest rotations are identity, so no hidden per-joint bind rotation is required for this
+  source profile;
+- +Z-forward source rotations are converted with proper 180-degree-Y basis conjugation;
+- future source rigs with non-identity joint-orient/bind axes require explicit source-rig basis
+  metadata and may not copy rotations directly;
+- HumanML XYZ swing reconstruction remains twist-incomplete and must not be mixed with full SMPL
+  twist supervision as if the labels were equivalent.
+
+Executable profile invariants now live in:
+
+- `training/src/cutsceneai_training/canonical_rig.py`
+- `training/tests/test_canonical_rig.py`
+
+SMPL ingestion records now stamp the canonical rig profile/version explicitly.
+
+Human review gate:
+
+- CLI `cutsceneai-review-turn` records an explicit `approved` or `rejected` decision;
+- reviewer identity/label and review note are required;
+- automated QA alone never sets `training_ready=true`;
+- an approved sample becomes training-ready only when automated QA also passes;
+- rejected motion remains excluded even if tensor/schema checks pass.
+
+The AMASS pilot now runs automated QA automatically and reports automated-pass, human-review-pass,
+and training-ready counts in its manifest.
+
+Verification:
+
+- latest combined GitHub Actions **Training foundation** run passed lint/format and all training
+  tests on commit `f4c879b5fadddd9e2ed03fa3686ad0977bdb490b`.
+- official SMPL-X implementation evidence confirms rest joint rotations are identity in its
+  kinematic transform, matching the source-basis assumption used above.
+
+Runbook:
+
+- `docs/model/AMASS_RESEARCH_PILOT_RUNBOOK.md`
+
+**Current external dependency:** obtain AMASS locally under its current license. No AMASS source
+motion has been downloaded or committed by CutSceneAI.
+
+**Exact next development step after local data is available:** run a 10-file research pilot,
+inspect `amass-turn-pilot-manifest.json` and `turn-candidates/qa-report.json`, visually review a
+small number of automated-pass turns, approve only acceptable clips, and then construct the first
+target-conditioned-turn model training view/checkpoint from those human-approved research samples.
