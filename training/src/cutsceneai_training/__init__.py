@@ -2,6 +2,7 @@
 
 from .amass_pilot import run_amass_turn_pilot
 from .guard_turn import GuardTurnDatasetConfig, generate_guard_turn_dataset
+from .human_review import review_turn_sample
 from .smpl_canonicalize import CanonicalSMPLMotion, canonicalize_smpl_motion
 from .smpl_ingestion import ingest_smpl_npz, write_canonical_smpl_record
 from .smpl_source import MotionRights, SMPLSourceMotion, load_smpl_npz
@@ -23,6 +24,7 @@ __all__ = [
     "evaluate_turn_sample",
     "generate_guard_turn_dataset",
     "ingest_smpl_npz",
+    "review_turn_sample",
     "load_smpl_npz",
     "materialize_turn_candidates",
     "mine_turn_windows",
