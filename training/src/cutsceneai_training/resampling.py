@@ -5,7 +5,9 @@ import numpy as np
 from .rotations import matrix_to_quaternion, quaternion_to_matrix, slerp_quaternion
 
 
-def target_frame_count(source_frame_count: int, source_fps: float, target_fps: int) -> int:
+def target_frame_count(
+    source_frame_count: int, source_fps: float, target_fps: int
+) -> int:
     if source_frame_count < 1:
         raise ValueError("source_frame_count must be positive.")
     if source_fps <= 0.0 or target_fps <= 0:
@@ -30,7 +32,9 @@ def source_position_for_target(
     return lower, upper, float(position - lower)
 
 
-def resample_vectors(values: np.ndarray, *, source_fps: float, target_fps: int) -> np.ndarray:
+def resample_vectors(
+    values: np.ndarray, *, source_fps: float, target_fps: int
+) -> np.ndarray:
     source = np.asarray(values, dtype=np.float64)
     if source.ndim != 2 or source.shape[1] != 3:
         raise ValueError("vector sequence must have shape [T, 3].")
