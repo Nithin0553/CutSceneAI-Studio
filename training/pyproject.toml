@@ -21,6 +21,7 @@ dev = [
 cutsceneai-generate-guard-turn = "cutsceneai_training.guard_turn:main"
 cutsceneai-ingest-smpl = "cutsceneai_training.smpl_ingestion:main"
 cutsceneai-mine-turns = "cutsceneai_training.turn_mining:main"
+cutsceneai-materialize-turns = "cutsceneai_training.turn_candidates:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
