@@ -23,6 +23,7 @@ cutsceneai-ingest-smpl = "cutsceneai_training.smpl_ingestion:main"
 cutsceneai-mine-turns = "cutsceneai_training.turn_mining:main"
 cutsceneai-materialize-turns = "cutsceneai_training.turn_candidates:main"
 cutsceneai-amass-turn-pilot = "cutsceneai_training.amass_pilot:main"
+cutsceneai-qa-turn-dataset = "cutsceneai_training.turn_qa:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
