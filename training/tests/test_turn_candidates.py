@@ -92,14 +92,8 @@ def test_materialized_target_matches_observed_final_facing(tmp_path: Path) -> No
     assert float(np.dot(actual, desired)) == pytest.approx(1.0, abs=1e-6)
     assert example["targets"]["contact_gaze"]["available"] is False
     assert example["targets"]["camera"]["available"] is False
-    assert (
-        example["metadata"]["target_proxy"]["kind"]
-        == "synthetic_directional_proxy"
-    )
-    assert (
-        example["metadata"]["quality"]["training_eligibility"]
-        == "review_candidate"
-    )
+    assert example["metadata"]["target_proxy"]["kind"] == "synthetic_directional_proxy"
+    assert example["metadata"]["quality"]["training_eligibility"] == "review_candidate"
 
 
 def test_materialized_clip_rebases_root_translation(tmp_path: Path) -> None:
