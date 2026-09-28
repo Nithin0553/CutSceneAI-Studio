@@ -793,3 +793,40 @@ Authoritative files:
 The representation and evaluation foundation (items 1–8) is now frozen.
 
 **Exact next development step:** build **Guard Turn Dataset Generator v0.1** and generate the first small deterministic dataset before training any learned baseline.
+
+### 2026-09-28 — Guard Turn Dataset Generator v0.1 foundation verified
+
+Immediate-next-work item 9 has begun with a deterministic contract-validation dataset generator.
+
+Implemented in the new isolated `training` package:
+
+- deterministic canonical geometry helpers;
+- procedural target-conditioned turn reference generation;
+- Scene Conditioning builder for performer + target + support surface;
+- Choreography builder with overlapping gaze/turn/hold phases and hard facing/gaze/support constraints;
+- deterministic per-array `.npy` artifacts and canonical JSON;
+- family-aware train/val/test assignment;
+- deterministic dataset/sample fingerprints;
+- sample provenance, rights-review state, and explicit `research` usage pool;
+- tests for deterministic generation, family split isolation, final target-facing correctness, support-foot preservation, and prevention of accidentally treating this contract dataset as training-ready;
+- dedicated CI job for the `training` package.
+
+Verification:
+
+- GitHub Actions job **Training foundation** passed on branch `agent/cross-engine-parity-v0.1`.
+- lint/format validation passed;
+- training-package tests passed.
+
+Important limitation:
+
+The generated body motion is intentionally labeled:
+
+`contract_validation_only / procedural_contract_reference`
+
+It validates the representation, artifact, split, hashing, and evaluation plumbing. It is **not**
+high-quality data that should train the final CutSceneAI model.
+
+**Exact next development step:** build the first **training-quality, rights-cleared motion ingestion
+and canonicalization path** for target-conditioned turns. It must map real/high-quality human motion
+into the frozen 30-fps canonical body/contact/gaze contracts while preserving provenance and usage
+rights. Do not train a learned baseline on the procedural contract-reference dataset.
