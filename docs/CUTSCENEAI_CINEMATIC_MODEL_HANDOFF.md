@@ -767,3 +767,29 @@ Authoritative files:
 
 **Exact next development step:** define and freeze **Evaluation & Acceptance Metrics v0.1**
 (immediate-next-work item 8).
+
+### 2026-09-28 — Evaluation & Acceptance Metrics v0.1 frozen
+
+Immediate-next-work item 8 is complete.
+
+Frozen evaluation structure now covers:
+
+- hard choreography satisfaction, event timing, and phase temporal overlap;
+- root trajectory/orientation, target facing, stop behavior, joint error, bone consistency, and continuity;
+- contact quality, planted-foot sliding, and grounding;
+- head/gaze target accuracy and acquisition/maintenance;
+- camera visibility, framing, collision/clearance, smoothness, and lens behavior;
+- canonical-to-engine retarget fidelity;
+- Unity-vs-Unreal parity after canonicalized readback;
+- independent acceptance states rather than one importer-success boolean;
+- versioned benchmark threshold profiles separate from metric formulas;
+- required human visual review linked to deterministic metric results.
+
+Authoritative files:
+
+- `docs/model/EVALUATION_ACCEPTANCE_METRICS_V0_1.md`
+- `docs/model/contracts/evaluation-acceptance-metrics-v0.1.json`
+
+The representation and evaluation foundation (items 1–8) is now frozen.
+
+**Exact next development step:** build **Guard Turn Dataset Generator v0.1** and generate the first small deterministic dataset before training any learned baseline.
