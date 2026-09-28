@@ -1,0 +1,49 @@
+{
+  "contract_name": "cutsceneai-canonical-rig-profile",
+  "contract_version": "0.1.0",
+  "profile_id": "cutsceneai-humanoid-v1",
+  "joint_count": 22,
+  "parent_indices": [
+    -1,
+    0,
+    0,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    9,
+    9,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18,
+    19
+  ],
+  "neutral_local_rotation": "identity",
+  "joint_rotation_semantics": "reference_pose_relative_axis_aligned_parent_space_delta",
+  "root_orientation_separate": true,
+  "coordinate_space": {
+    "handedness": "right",
+    "up_axis": "+y",
+    "forward_axis": "-z"
+  },
+  "metric_bone_lengths_frozen": false,
+  "reference_offsets_are_direction_only": true,
+  "smpl": {
+    "root_source": "global_orient",
+    "pelvis_local": "identity",
+    "body_pose_mapping": "source_0_20_to_canonical_1_21",
+    "rest_rotation_basis": "identity",
+    "plus_z_basis_conversion": "B R B^-1 with B=diag(-1,1,-1)"
+  },
+  "non_identity_source_bind_basis_requires_profile": true,
+  "humanml_twist_supervision": "incomplete"
+}
