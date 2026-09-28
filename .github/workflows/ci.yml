@@ -39,20 +39,19 @@ jobs:
             adapters/unreal/pyproject.toml
             adapters/unity/pyproject.toml
             backend/pyproject.toml
-            training/pyproject.toml
 
       - name: Install development dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./performance[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]" -e "./training[dev]"
+          python -m pip install -e "./cir[dev]" -e "./preview[dev]" -e "./dialogue[dev]" -e "./performance[dev]" -e "./parity[dev]" -e "./adapters/unreal[dev]" -e "./adapters/unity[dev]" -e "./backend[dev]"
 
       - name: Check lint and formatting
         run: |
-          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests training/src training/tests providers tools/providers scripts cutsceneai_test_support
+          python -m ruff check cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests providers tools/providers scripts cutsceneai_test_support
           python -m ruff format --diff cir/src cir/scripts cir/tests preview/src preview/scripts preview/tests dialogue/src dialogue/scripts dialogue/tests performance/src performance/scripts performance/tests parity/src parity/scripts parity/tests adapters/unreal/src adapters/unreal/scripts adapters/unreal/tests adapters/unity/src adapters/unity/scripts adapters/unity/tests backend/app backend/tests providers tools/providers scripts cutsceneai_test_support
 
       - name: Check static types
-        run: python -m mypy cir/src preview/src dialogue/src performance/src parity/src adapters/unreal/src adapters/unity/src backend/app training/src scripts
+        run: python -m mypy cir/src preview/src dialogue/src performance/src parity/src adapters/unreal/src adapters/unity/src backend/app scripts
 
       - name: Check generated contracts
         run: |
@@ -79,7 +78,34 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=95
 
-      - name: Run training foundation tests
+
+
+  training-foundation:
+    name: Training foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: training/pyproject.toml
+
+      - name: Install training dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./training[dev]"
+
+      - name: Check training lint
+        run: |
+          python -m ruff check training/src training/tests
+          python -m ruff format --check training/src training/tests
+
+      - name: Run training tests
         run: python -m pytest training/tests -q --import-mode=importlib
 
 
