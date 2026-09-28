@@ -1,0 +1,94 @@
+{
+  "contract_name": "cutsceneai-choreography-temporal-representation",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "depends_on": [
+    {
+      "contract_name": "cutsceneai-canonical-training-representation",
+      "contract_version": "0.1.0"
+    },
+    {
+      "contract_name": "cutsceneai-scene-conditioning-representation",
+      "contract_version": "0.1.0"
+    }
+  ],
+  "timebase": {
+    "fps": 30,
+    "interval_semantics": "half_open",
+    "frame_primary": true
+  },
+  "events": {
+    "instantaneous": true,
+    "event_type": "open_symbolic_string",
+    "optional_entity_references": [
+      "subject_entity_id",
+      "source_entity_id",
+      "target_entity_id"
+    ]
+  },
+  "phases": {
+    "overlapping": true,
+    "phase_type": "open_symbolic_string",
+    "priority_range": [
+      0,
+      100
+    ],
+    "required_channels": true,
+    "channels": [
+      "root",
+      "lower_body",
+      "torso",
+      "head",
+      "gaze",
+      "left_arm",
+      "right_arm",
+      "hands",
+      "face",
+      "voice"
+    ]
+  },
+  "coordination_groups": true,
+  "constraints": {
+    "strengths": [
+      "hard",
+      "soft"
+    ],
+    "categories": [
+      "root_position",
+      "root_path",
+      "root_velocity",
+      "body_facing",
+      "gaze_target",
+      "support_contact",
+      "target_distance",
+      "posture",
+      "hold"
+    ],
+    "sparse_root_path_is_intent_not_frame_target": true,
+    "future_joint_targets_forbidden": true
+  },
+  "support_contact_intents": [
+    "at_least_one_foot",
+    "left_planted",
+    "right_planted",
+    "both_planted",
+    "no_requirement"
+  ],
+  "posture_symbols": [
+    "standing",
+    "crouching",
+    "kneeling",
+    "sitting",
+    "prone",
+    "custom"
+  ],
+  "validation": {
+    "entity_references_must_exist": true,
+    "windows_must_fit_sequence": true,
+    "unique_ids_per_namespace": true,
+    "contradictory_hard_constraints_must_be_resolved": true
+  },
+  "body_generator_role": "conditioning",
+  "temporal_director_role": "target",
+  "engine_native_concepts_forbidden": true
+}
