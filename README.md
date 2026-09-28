@@ -2,6 +2,14 @@
 
 CutSceneAI Studio is a platform-agnostic cinematic generation system. It turns a creative brief into a validated Cinematic Intermediate Representation (CIR), then uses that contract to coordinate characters, full-body motion, facial performance, dialogue, cameras, environments, and engine-specific exports.
 
+## Professor test branch
+
+This branch is prepared for academic evaluation as **`Cutsceneai_test-v.1`**.
+
+Start with **[PROFESSOR_TEST_GUIDE.md](PROFESSOR_TEST_GUIDE.md)** for the shortest reproducible setup and test path. A ready-to-copy scene description is in **[SAMPLE_PROMPT.txt](SAMPLE_PROMPT.txt)**, and the current research/prototype boundaries are recorded in **[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)**.
+
+The Studio is currently designed for a local engine workflow: the web UI runs at `http://127.0.0.1:5173`, the API at `http://127.0.0.1:8000`, and the installed Unity/Unreal bridge heartbeats to that local API. The repository contains CutSceneAI source, adapters, bridge code, tests, and the Studio UI; it does **not** contain a complete Unity or Unreal project. A compatible engine project must therefore be supplied separately for native-engine evaluation.
+
 For the current project state, completed gates, operating constraints, and exact next steps, start
 with [`README_CONTINUATION.md`](README_CONTINUATION.md).
 
