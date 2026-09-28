@@ -75,14 +75,7 @@ def test_amass_pilot_produces_research_only_turn_candidate(tmp_path: Path) -> No
     assert manifest["training_eligibility"] == "review_candidates_only"
     assert manifest["sources"][0]["source_family_id"] == "amass:CMU/subject01"
 
-    record_path = (
-        work
-        / "records"
-        / "CMU"
-        / "subject01"
-        / "turn_poses"
-        / "record.json"
-    )
+    record_path = work / "records" / "CMU" / "subject01" / "turn_poses" / "record.json"
     record = json.loads(record_path.read_text())
 
     assert record["rights"]["rights_status"] == "research_only"
