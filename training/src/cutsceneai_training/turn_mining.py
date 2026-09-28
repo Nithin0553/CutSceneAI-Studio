@@ -217,3 +217,40 @@ def mine_canonical_record(
     }
     write_json(path / "turn_candidates.json", result)
     return result
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Mine target-turn windows from a canonical CutSceneAI motion record."
+    )
+    parser.add_argument("record_dir")
+    parser.add_argument("--min-heading-deg", type=float, default=30.0)
+    parser.add_argument("--max-heading-deg", type=float, default=150.0)
+    parser.add_argument("--max-displacement-m", type=float, default=1.0)
+    args = parser.parse_args()
+
+    result = mine_canonical_record(
+        args.record_dir,
+        config=TurnMiningConfig(
+            min_heading_change_deg=args.min_heading_deg,
+            max_heading_change_deg=args.max_heading_deg,
+            max_horizontal_displacement_m=args.max_displacement_m,
+        ),
+    )
+    print(
+        json.dumps(
+            {
+                "candidate_count": result["candidate_count"],
+                "source_record": result["source_record"],
+                "target_semantics": result["target_semantics"]["kind"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
