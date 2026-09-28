@@ -33,10 +33,13 @@ def _stable_unit_interval(value: str) -> float:
 
 
 def _split_for_family(family_id: str) -> str:
-    bucket = int.from_bytes(
-        hashlib.sha256(family_id.encode("utf-8")).digest()[:2],
-        "big",
-    ) % 10
+    bucket = (
+        int.from_bytes(
+            hashlib.sha256(family_id.encode("utf-8")).digest()[:2],
+            "big",
+        )
+        % 10
+    )
     if bucket == 0:
         return "val"
     if bucket == 1:
@@ -179,9 +182,7 @@ def materialize_turn_candidates(
             dtype=np.float32,
         ).copy()
 
-        sample_id = (
-            f"human-turn-{source_hash[:12]}-{start:06d}-{end:06d}-{index:02d}"
-        )
+        sample_id = f"human-turn-{source_hash[:12]}-{start:06d}-{end:06d}-{index:02d}"
         sample_dir = output / split / sample_id
 
         final_forward = _final_forward(clipped_root_rotation[-1])
@@ -317,8 +318,7 @@ def materialize_turn_candidates(
                     "sample_id": sample_id,
                     "example_sha256": example_sha,
                     "artifacts": {
-                        key: value["sha256"]
-                        for key, value in sorted(artifacts.items())
+                        key: value["sha256"] for key, value in sorted(artifacts.items())
                     },
                 }
             )
