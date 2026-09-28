@@ -25,6 +25,7 @@ def write_canonical_smpl_record(
     motion: CanonicalSMPLMotion,
     source_dataset: str,
     source_file_sha256: str,
+    source_family_id: str | None,
     rights: MotionRights,
     usage_pool: str,
 ) -> dict[str, Any]:
@@ -50,6 +51,7 @@ def write_canonical_smpl_record(
             "dataset": source_dataset,
             "record_id": motion.source_record_id,
             "file_sha256": source_file_sha256,
+            "family_id": source_family_id or f"sha256:{source_file_sha256}",
             "source_fps": motion.source_fps,
             "source_forward_axis": motion.source_forward_axis,
         },
@@ -83,6 +85,7 @@ def ingest_smpl_npz(
     *,
     source_dataset: str,
     rights: MotionRights,
+    source_family_id: str | None = None,
     usage_pool: str = "research",
     fps_override: float | None = None,
     source_forward_axis: str = "+z",
@@ -105,6 +108,7 @@ def ingest_smpl_npz(
         motion=motion,
         source_dataset=source_dataset,
         source_file_sha256=source_sha,
+        source_family_id=source_family_id,
         rights=rights,
         usage_pool=usage_pool,
     )
@@ -117,6 +121,7 @@ def main() -> None:
     parser.add_argument("source_npz")
     parser.add_argument("output_dir")
     parser.add_argument("--source-dataset", required=True)
+    parser.add_argument("--source-family-id")
     parser.add_argument("--fps", type=float)
     parser.add_argument(
         "--source-forward-axis",
@@ -141,6 +146,7 @@ def main() -> None:
         args.source_npz,
         args.output_dir,
         source_dataset=args.source_dataset,
+        source_family_id=args.source_family_id,
         rights=MotionRights(
             rights_status=args.rights_status,
             training_use_status=args.training_use_status,
