@@ -58,7 +58,9 @@ def _facing_error_deg(
     return math.degrees(math.acos(dot))
 
 
-def _continuity_metrics(root_position: np.ndarray, root_rotation: np.ndarray) -> dict[str, float]:
+def _continuity_metrics(
+    root_position: np.ndarray, root_rotation: np.ndarray
+) -> dict[str, float]:
     fps = 30.0
     velocity = np.diff(root_position, axis=0) * fps
     acceleration = np.diff(velocity, axis=0) * fps
@@ -237,9 +239,7 @@ def evaluate_turn_dataset(dataset_root: str | Path) -> dict[str, Any]:
     for result in sample_results:
         splits_by_family.setdefault(result["family_id"], set()).add(result["split"])
     leaking_families = sorted(
-        family_id
-        for family_id, splits in splits_by_family.items()
-        if len(splits) > 1
+        family_id for family_id, splits in splits_by_family.items() if len(splits) > 1
     )
 
     report = {
