@@ -24,6 +24,7 @@ cutsceneai-mine-turns = "cutsceneai_training.turn_mining:main"
 cutsceneai-materialize-turns = "cutsceneai_training.turn_candidates:main"
 cutsceneai-amass-turn-pilot = "cutsceneai_training.amass_pilot:main"
 cutsceneai-qa-turn-dataset = "cutsceneai_training.turn_qa:main"
+cutsceneai-review-turn = "cutsceneai_training.human_review:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
