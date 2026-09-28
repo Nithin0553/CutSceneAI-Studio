@@ -18,7 +18,22 @@ For the simplest test path use Windows with Git, Python 3.12, Node.js/npm, and U
 
 Full generated body motion additionally requires a configured CutSceneAI body-motion provider. Without that external provider, the Studio can still be inspected and the CIR, binding, storyboard, and performance-planning stages can be evaluated, but the complete Generated Performance Package cannot be produced.
 
-## 3. Clone the exact evaluation branch
+## 3. Package the supplied Unity project (project owner)
+
+If the Unity project is being handed to the evaluator separately, create a clean source-only archive from the CutSceneAI repository root:
+
+    .\scripts\Package-CutSceneAI-Unity-Professor.ps1 -ProjectPath "C:\path\to\your\UnityProject"
+
+The script verifies the Unity project root, reads the Unity editor version, packages only Assets, Packages, and ProjectSettings, adds a package manifest/readme, excludes generated folders such as Library, Temp, Logs, obj, Builds, and IDE caches, and writes a SHA-256 checksum.
+
+By default the output is written under:
+
+    build\professor-submission
+
+Upload the generated ZIP and its .sha256.txt file together. The evaluator should extract the ZIP before opening the project in Unity Hub.
+
+## 4. Clone the exact evaluation branch
+
 
 Run in PowerShell:
 
@@ -30,7 +45,7 @@ Expected branch:
 
     Cutsceneai_test-v.1
 
-## 4. Configure the Director without sharing secrets
+## 5. Configure the Director without sharing secrets
 
 Create a local environment file:
 
@@ -44,7 +59,7 @@ Do not commit .env.local. It is ignored by Git.
 
 If a compatible external body provider is available, configure it separately. The repository contains scripts/Configure-CutSceneAI-BodyProvider.ps1 for a supported HTTPS or localhost provider endpoint. Provider credentials are local-only and must never be committed.
 
-## 5. Start the backend and frontend
+## 6. Start the backend and frontend
 
 From the repository root:
 
@@ -59,7 +74,7 @@ A healthy backend returns {"status":"ok"} from http://127.0.0.1:8000/health.
 
 Keep the launcher terminal open while testing.
 
-## 6. Connect an engine project
+## 7. Connect an engine project
 
 In Projects, connect the local root folder of the supplied Unity or Unreal project. For Unity, the folder must be the project root containing Assets, Packages, and ProjectSettings. For Unreal, select the project root containing the .uproject file.
 
@@ -75,7 +90,7 @@ The generated bridge configuration points to the local API at http://127.0.0.1:8
 
 Open the Unity project and allow scripts to compile. Keep Unity and the CutSceneAI launcher running on the same computer. After a successful heartbeat, Studio should show the bridge as connected.
 
-## 7. Run the Studio workflow
+## 8. Run the Studio workflow
 
 Use the text from SAMPLE_PROMPT.txt:
 
@@ -94,17 +109,17 @@ Then evaluate the workflow in this order:
 
 The Studio intentionally disables later buttons when their prerequisites are not satisfied.
 
-## 8. What to inspect
+## 9. What to inspect
 
 Useful evaluation artifacts include the generated CIR JSON, deterministic planning storyboard, role-binding manifest, performance plan and run ID, Generated Performance Package ZIP and SHA-256 when generation succeeds, engine realization plan, native Unity Timeline or Unreal Level Sequence, bridge command/readback status, and parity/evidence artifacts.
 
-## 9. Run automated tests
+## 10. Run automated tests
 
 The main README contains the complete quality gate. A focused functional run can be started from the configured Python environment with:
 
     .\.venv3.12\Scripts\python.exe -m pytest cir\tests preview\tests dialogue\tests performance\tests parity\tests adapters\unreal\tests adapters\unity\tests backend\tests -q --import-mode=importlib
 
-## 10. Important evaluation boundary
+## 11. Important evaluation boundary
 
 This is a research prototype, not a hosted SaaS release. The engine bridge currently uses localhost because the backend must access the same local engine project that Unity or Unreal is editing. A remotely hosted frontend alone is therefore not equivalent to an end-to-end native-engine test.
 
