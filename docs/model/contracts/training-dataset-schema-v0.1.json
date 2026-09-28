@@ -1,0 +1,49 @@
+{
+  "contract_name": "cutsceneai-training-dataset-schema",
+  "contract_version": "0.1.0",
+  "status": "frozen",
+  "canonical_fps": 30,
+  "namespaces": [
+    "identity",
+    "conditioning",
+    "targets",
+    "metadata",
+    "artifacts"
+  ],
+  "identity": {
+    "required": [
+      "sample_id",
+      "family_id",
+      "split",
+      "sequence_frame_count"
+    ],
+    "split_values": [
+      "train",
+      "val",
+      "test"
+    ],
+    "family_aware_split_required": true
+  },
+  "artifacts": {
+    "content_addressed": true,
+    "hash": "sha256"
+  },
+  "targets": [
+    "choreography",
+    "body",
+    "contact_gaze",
+    "camera"
+  ],
+  "explicit_supervision_masks": true,
+  "provenance_required": true,
+  "rights_record_required": true,
+  "usage_pools": [
+    "research",
+    "production_candidate"
+  ],
+  "deterministic_canonicalization": true,
+  "random_augmentation_persisted_as_source_truth": false,
+  "training_run_manifest_required": true,
+  "dataset_fingerprint_required": true,
+  "validation_hard_gate": true
+}
