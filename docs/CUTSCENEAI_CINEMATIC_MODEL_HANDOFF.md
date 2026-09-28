@@ -741,3 +741,29 @@ Authoritative files:
 
 **Exact next development step:** define and freeze **Training Dataset Schema v0.1**
 (immediate-next-work item 7).
+
+### 2026-09-28 — Training Dataset Schema v0.1 frozen
+
+Immediate-next-work item 7 is complete.
+
+Frozen dataset rules:
+
+- every sample separates identity, conditioning, targets, metadata, and artifacts;
+- sample IDs and family IDs are distinct;
+- train/validation/test splitting is family-aware to prevent near-duplicate leakage;
+- dense artifacts are content-addressed and hash-verified;
+- supervision availability is explicit;
+- deterministic canonicalization metadata is required;
+- provenance is required at sample level;
+- rights/use review state is required at sample level;
+- research and production-candidate data pools are distinct;
+- training runs must record dataset/split fingerprints, contract versions, normalization, augmentation, model configuration, seed, checkpoint hashes, and code commit;
+- dataset validation is a hard gate before training.
+
+Authoritative files:
+
+- `docs/model/TRAINING_DATASET_SCHEMA_V0_1.md`
+- `docs/model/contracts/training-dataset-schema-v0.1.json`
+
+**Exact next development step:** define and freeze **Evaluation & Acceptance Metrics v0.1**
+(immediate-next-work item 8).
