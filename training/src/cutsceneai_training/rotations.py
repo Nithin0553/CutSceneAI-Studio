@@ -148,3 +148,28 @@ def canonical_basis(source_forward_axis: str) -> np.ndarray:
 
 def change_rotation_basis(matrix: np.ndarray, basis: np.ndarray) -> np.ndarray:
     return basis @ matrix @ basis.T
+
+
+def rotation_6d_to_matrix(value: np.ndarray) -> np.ndarray:
+    vector = np.asarray(value, dtype=np.float64)
+    if vector.shape != (6,):
+        raise ValueError("rotation 6D value must have shape (6,).")
+    first = vector[:3]
+    second = vector[3:]
+    first_norm = np.linalg.norm(first)
+    if first_norm < 1e-12:
+        raise ValueError("rotation 6D first column has zero length.")
+    first = first / first_norm
+    second = second - first * float(np.dot(first, second))
+    second_norm = np.linalg.norm(second)
+    if second_norm < 1e-12:
+        raise ValueError("rotation 6D columns are collinear.")
+    second = second / second_norm
+    third = np.cross(first, second)
+    return np.column_stack((first, second, third))
+
+
+def yaw_from_rotation_6d(value: np.ndarray) -> float:
+    matrix = rotation_6d_to_matrix(value)
+    forward = matrix @ np.array([0.0, 0.0, -1.0], dtype=np.float64)
+    return math.atan2(-float(forward[0]), -float(forward[2]))
